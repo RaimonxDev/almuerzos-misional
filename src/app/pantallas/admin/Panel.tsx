@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Navigate, useNavigate, useParams } from "react-router";
+import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { LockIcon, LockOpenIcon, LogOutIcon, PlusIcon, RotateCcwIcon } from "lucide-react";
+import { LockIcon, LockOpenIcon, LogOutIcon, PlusIcon, PrinterIcon, RotateCcwIcon } from "lucide-react";
 import { toast } from "sonner";
 import { codigoDe } from "@/app/api";
 import { authClient } from "@/app/auth";
@@ -22,7 +22,7 @@ import { hoyEnZona } from "@/shared/fechas";
 import { RutaAdmin } from "@/app/components/RutaAdmin";
 import { SelectorIdioma } from "@/app/components/SelectorIdioma";
 import { Aviso, Cargando, ErrorCarga } from "@/app/components/Estado";
-import { Button } from "@/app/components/ui/button";
+import { Button, buttonVariants } from "@/app/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
 import { BarraLateral } from "./BarraLateral";
 import { contarTurnos, periodoParaCrear } from "./mes";
@@ -206,7 +206,12 @@ function PanelBarrio({ slug }: { slug: string }) {
           )}
         </main>
 
-        <BarraLateral slug={slug} barrio={barrio.data.barrio} companerismos={barrio.data.companerismos} />
+        <BarraLateral
+          slug={slug}
+          barrio={barrio.data.barrio}
+          companerismos={barrio.data.companerismos}
+          periodo={periodo ? textoPeriodo(periodo) : null}
+        />
       </div>
     </>
   );
@@ -269,6 +274,13 @@ function MesDelPanel({
             <InsigniaEstado estado={mes.estado} className="text-[13px]" />
           </div>
           <div className="flex flex-wrap gap-2">
+            <Link
+              to={`/admin/${slug}/${texto}/imprimir`}
+              className={cn(buttonVariants({ variant: "outline" }), "rounded-[10px] px-4 font-bold")}
+            >
+              <PrinterIcon aria-hidden="true" />
+              {t.calendario.imprimirPdf}
+            </Link>
             {mes.estado === "borrador" && (
               <Button
                 onClick={() => pasarA("abierto")}

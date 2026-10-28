@@ -142,3 +142,33 @@ export const useEditarCompanerismo = (slug: string) =>
     // Reactivar genera turnos: cambian también los meses.
     ["barrio", "meses", "mes"],
   );
+
+/** Cambios parciales a la personalización del mes; un texto vacío borra el campo. */
+export const useGuardarPersonalizacion = (slug: string, periodo: string) =>
+  useMutacionBarrio(
+    slug,
+    (json: { escritura?: string; escrituraRef?: string; mensaje?: string; plantilla?: "azul" | "dorado" | "cielo" }) =>
+      datos(barrios[":slug"].meses[":periodo"].personalizacion.$patch({ param: { slug, periodo }, json })),
+    ["mes"],
+  );
+
+/** Sube la imagen del mes: el cuerpo es el archivo crudo, con su `Content-Type`. */
+export const useSubirImagen = (slug: string, periodo: string) =>
+  useMutacionBarrio(
+    slug,
+    (archivo: File) =>
+      datos(
+        barrios[":slug"].meses[":periodo"].imagen.$put(
+          { param: { slug, periodo } },
+          { init: { body: archivo, headers: { "Content-Type": archivo.type } } },
+        ),
+      ),
+    ["mes"],
+  );
+
+export const useQuitarImagen = (slug: string, periodo: string) =>
+  useMutacionBarrio(
+    slug,
+    () => sinCuerpo(barrios[":slug"].meses[":periodo"].imagen.$delete({ param: { slug, periodo } })),
+    ["mes"],
+  );

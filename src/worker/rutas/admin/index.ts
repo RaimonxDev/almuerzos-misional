@@ -4,6 +4,7 @@ import { conBarrioAdmin, conSesion } from "../../permisos";
 import { rutasBarrio } from "./barrio";
 import { rutasCuenta } from "./cuenta";
 import { rutasMeses } from "./meses";
+import { rutasPersonalizacion } from "./personalizacion";
 import { rutasTurnos } from "./turnos";
 
 /**
@@ -14,6 +15,7 @@ import { rutasTurnos } from "./turnos";
 const deBarrio = new Hono<AppEnvBarrioAdmin>()
   .use(conBarrioAdmin)
   .route("/", rutasMeses)
+  .route("/", rutasPersonalizacion)
   .route("/", rutasTurnos)
   .route("/", rutasBarrio);
 

@@ -18,6 +18,8 @@ export const CODIGOS_ERROR = [
   "CREDENCIALES_INVALIDAS", // lo traduce el frontend desde el error de Better Auth
   "CUENTA_BLOQUEADA", // login de un usuario bloqueado con el plugin admin
   "DEMASIADOS_INTENTOS", // 429 del límite de intentos de Better Auth
+  "IMAGEN_INVALIDA", // 400: tipo de imagen no permitido
+  "IMAGEN_MUY_GRANDE", // 413
   "ERROR_INTERNO",
 ] as const;
 

@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/app/components/ui/dialog";
 import { Label } from "@/app/components/ui/label";
+import { DisenoCalendario } from "./DisenoCalendario";
 import { Textarea } from "@/app/components/ui/textarea";
 
 type Companerismo = { id: string; nombre: string; activo: boolean };
@@ -24,14 +25,24 @@ export function BarraLateral({
   slug,
   barrio,
   companerismos,
+  periodo,
 }: {
   slug: string;
-  barrio: { tokenMisioneros: string; notaParaCocinar: string | null };
+  barrio: {
+    nombre: string;
+    tokenMisioneros: string;
+    notaParaCocinar: string | null;
+    contactoNombre: string | null;
+    contactoTelefono: string | null;
+  };
   companerismos: Companerismo[];
+  /** Mes visible (`2026-11`); sin él no hay sección de diseño. */
+  periodo: string | null;
 }) {
   return (
     <aside className="flex min-w-0 flex-[1_1_320px] flex-col gap-4">
       <Enlaces slug={slug} token={barrio.tokenMisioneros} />
+      {periodo && <DisenoCalendario slug={slug} periodo={periodo} barrio={barrio} />}
       <Misioneros slug={slug} companerismos={companerismos} notaParaCocinar={barrio.notaParaCocinar} />
     </aside>
   );
