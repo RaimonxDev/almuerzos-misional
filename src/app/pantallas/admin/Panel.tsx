@@ -1,0 +1,336 @@
+import { useState } from "react";
+import { Navigate, useNavigate, useParams } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { LockIcon, LockOpenIcon, LogOutIcon, PlusIcon, RotateCcwIcon } from "lucide-react";
+import { toast } from "sonner";
+import { codigoDe } from "@/app/api";
+import { authClient } from "@/app/auth";
+import { useYo } from "@/app/consultas";
+import {
+  type EstadoMes,
+  useBarrioAdmin,
+  useCambiarEstado,
+  useCrearMes,
+  useMesAdmin,
+  useMesesAdmin,
+} from "@/app/consultas-admin";
+import { useIdioma } from "@/app/i18n";
+import { useIdiomaDelBarrio, usePeriodoDeLaUrl, useTitulo } from "@/app/hooks";
+import { mesInicial, textoPeriodo, type Periodo } from "@/app/periodos";
+import { cn } from "@/app/lib/utils";
+import { hoyEnZona } from "@/shared/fechas";
+import { RutaAdmin } from "@/app/components/RutaAdmin";
+import { SelectorIdioma } from "@/app/components/SelectorIdioma";
+import { Aviso, Cargando, ErrorCarga } from "@/app/components/Estado";
+import { Button } from "@/app/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
+import { BarraLateral } from "./BarraLateral";
+import { contarTurnos, periodoParaCrear } from "./mes";
+import { TablaMes } from "./TablaMes";
+
+/**
+ * `/admin` y `/admin/:barrio?mes=2026-11` — panel de la presidenta (maqueta 3).
+ * `/admin` lleva al primer barrio que administra.
+ */
+export function PanelRuta() {
+  return (
+    <RutaAdmin>
+      <Panel />
+    </RutaAdmin>
+  );
+}
+
+function Panel() {
+  const { barrio: slug } = useParams();
+  const { t } = useIdioma();
+  const yo = useYo().data!;
+
+  if (!slug) {
+    const primero = yo.barrios[0];
+    if (primero) return <Navigate to={`/admin/${primero.slug}`} replace />;
+    return (
+      <>
+        <EncabezadoAdmin />
+        <Aviso>{t.panel.sinBarrios}</Aviso>
+      </>
+    );
+  }
+  // Con `key`, cambiar de barrio parte de cero (mes creado, nota a medio escribir).
+  return <PanelBarrio key={slug} slug={slug} />;
+}
+
+/** Banda azul: nombre de la app, barrio (selector si administra más de uno), idioma y salir. */
+function EncabezadoAdmin({ slug }: { slug?: string }) {
+  const { t } = useIdioma();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { barrios } = useYo().data!;
+  const actual = barrios.find((b) => b.slug === slug);
+  const nombres = Object.fromEntries(barrios.map((b) => [b.slug, b.nombre]));
+
+  async function salir() {
+    // Si no se pudo cerrar, la sesión sigue abierta en este teléfono: se avisa y no se sale.
+    const { error } = await authClient.signOut().catch(() => ({ error: true }));
+    if (error) {
+      toast.error(t.errores.ERROR_INTERNO);
+      return;
+    }
+    // Datos de cuenta y teléfonos: no quedan en memoria.
+    queryClient.removeQueries({ queryKey: ["admin"] });
+    navigate("/admin/login", { replace: true });
+  }
+
+  return (
+    <header className="bg-azul-profundo text-white">
+      <div className="mx-auto flex max-w-[1240px] flex-wrap items-center justify-between gap-3 px-4 py-3.5 md:px-6">
+        <div className="flex items-baseline gap-3">
+          <span className="font-serif text-[22px] font-semibold">{t.comun.nombreApp}</span>
+          <span className="text-xs font-extrabold tracking-[0.12em] text-dorado-claro uppercase">
+            {t.panel.antetitulo}
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          {slug && barrios.length > 1 ? (
+            <Select items={nombres} value={slug} onValueChange={(v) => v && navigate(`/admin/${v}`)}>
+              <SelectTrigger
+                aria-label={t.panel.barrio}
+                className="w-auto border-white/25 bg-white/10 font-bold text-white hover:bg-white/15 [&_svg]:text-white/80!"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {barrios.map((b) => (
+                  <SelectItem key={b.slug} value={b.slug} className="min-h-11">
+                    {b.nombre}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            actual && <span className="font-bold">{actual.nombre}</span>
+          )}
+          {actual?.cargo && <span className="text-sm text-[#C9D6E4]">{actual.cargo}</span>}
+          <SelectorIdioma oscuro />
+          <Button variant="ghost" onClick={salir} className="text-white hover:bg-white/10 hover:text-white">
+            <LogOutIcon aria-hidden="true" />
+            {t.panel.salir}
+          </Button>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function PanelBarrio({ slug }: { slug: string }) {
+  const { t, formatearMes } = useIdioma();
+  const barrio = useBarrioAdmin(slug);
+  const meses = useMesesAdmin(slug);
+  const crear = useCrearMes(slug);
+  const datosBarrio = barrio.data?.barrio;
+  const hoy = datosBarrio ? hoyEnZona(datosBarrio.zonaHoraria) : "";
+  const lista = meses.data?.meses ?? [];
+  const [periodoUrl, ir] = usePeriodoDeLaUrl(lista, hoy);
+  // Un ?mes= que el barrio no tiene (link viejo, otro barrio) se ignora: se muestra el mes inicial.
+  const periodo =
+    periodoUrl && lista.some((m) => m.periodo === textoPeriodo(periodoUrl)) ? periodoUrl : mesInicial(lista, hoy);
+  /** Aviso "creado en borrador" del último mes creado, mientras se esté mirando ese mes. */
+  const [creado, setCreado] = useState<{ periodo: string; turnos: number } | null>(null);
+  useIdiomaDelBarrio(datosBarrio?.idioma);
+  useTitulo(datosBarrio?.nombre);
+
+  const error = barrio.error ?? meses.error;
+  if (!barrio.data || !meses.data) {
+    return (
+      <>
+        <EncabezadoAdmin slug={slug} />
+        {error ? <ErrorCarga error={error} reintentar={() => (barrio.refetch(), meses.refetch())} /> : <Cargando />}
+      </>
+    );
+  }
+
+  const nuevo = periodoParaCrear(lista, hoy);
+  const crearMes = () =>
+    crear.mutate(textoPeriodo(nuevo), {
+      onSuccess: ({ mes }) => {
+        if (mes) setCreado({ periodo: mes.periodo, turnos: mes.turnos });
+        ir(nuevo);
+      },
+      onError: (e) => toast.error(t.errores[codigoDe(e)]),
+    });
+
+  return (
+    <>
+      <EncabezadoAdmin slug={slug} />
+      <div className="mx-auto flex max-w-[1240px] flex-wrap items-start gap-6 px-4 py-6 md:px-6">
+        <main className="flex min-w-0 flex-[999_1_640px] flex-col gap-[18px]">
+          <nav aria-label={t.panel.meses} className="flex flex-wrap items-center gap-2">
+            {lista.map((m) => {
+              const elegido = periodo !== null && textoPeriodo(periodo) === m.periodo;
+              return (
+                <button
+                  key={m.periodo}
+                  type="button"
+                  aria-pressed={elegido}
+                  onClick={() => ir(m)}
+                  className={cn(
+                    "flex h-11 items-center gap-2 rounded-full border bg-card pr-2 pl-3.5 text-sm font-extrabold text-azul-profundo",
+                    elegido && "border-2 border-azul-medio bg-cielo-claro",
+                  )}
+                >
+                  {formatearMes(m.anio, m.mes)}
+                  <InsigniaEstado estado={m.estado} />
+                </button>
+              );
+            })}
+            <Button
+              variant="outline"
+              onClick={crearMes}
+              disabled={crear.isPending}
+              className="rounded-full border-dashed border-azul-medio font-bold text-azul-medio"
+            >
+              <PlusIcon aria-hidden="true" />
+              {t.panel.crearMes(formatearMes(nuevo.anio, nuevo.mes))}
+            </Button>
+          </nav>
+
+          {creado && periodo && creado.periodo === textoPeriodo(periodo) && (
+            <div role="status" className="rounded-xl border border-exito/20 bg-exito-suave px-3.5 py-3 text-sm leading-snug text-exito">
+              {t.panel.mesCreado(formatearMes(periodo.anio, periodo.mes), creado.turnos)}
+            </div>
+          )}
+
+          {periodo ? (
+            <MesDelPanel slug={slug} periodo={periodo} zonaHoraria={barrio.data.barrio.zonaHoraria} hoy={hoy} />
+          ) : (
+            <Aviso>{t.panel.sinMeses}</Aviso>
+          )}
+        </main>
+
+        <BarraLateral slug={slug} barrio={barrio.data.barrio} companerismos={barrio.data.companerismos} />
+      </div>
+    </>
+  );
+}
+
+const ESTILO_ESTADO: Record<EstadoMes, string> = {
+  borrador: "bg-[#EEF2F6] text-[#3D4C5C]",
+  abierto: "bg-exito-suave text-exito",
+  cerrado: "bg-aviso-suave text-aviso-texto",
+};
+
+function InsigniaEstado({ estado, className }: { estado: EstadoMes; className?: string }) {
+  const { t } = useIdioma();
+  return (
+    <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-extrabold", ESTILO_ESTADO[estado], className)}>
+      {t.panel.estados[estado]}
+    </span>
+  );
+}
+
+function MesDelPanel({
+  slug,
+  periodo,
+  zonaHoraria,
+  hoy,
+}: {
+  slug: string;
+  periodo: Periodo;
+  zonaHoraria: string;
+  hoy: string;
+}) {
+  const { t, formatearMes } = useIdioma();
+  const texto = textoPeriodo(periodo);
+  const consulta = useMesAdmin(slug, texto);
+  const cambiar = useCambiarEstado(slug, texto);
+
+  const titulo = (
+    <h1 className="text-[30px] leading-tight font-semibold text-azul-profundo">{formatearMes(periodo.anio, periodo.mes)}</h1>
+  );
+  if (!consulta.data) {
+    return (
+      <>
+        {titulo}
+        {consulta.isError ? <ErrorCarga error={consulta.error} reintentar={consulta.refetch} /> : <Cargando />}
+      </>
+    );
+  }
+
+  const { mes, companerismos, turnos } = consulta.data;
+  const cuenta = contarTurnos(turnos);
+  const pasarA = (estado: EstadoMes) =>
+    cambiar.mutate(estado, { onError: (e) => toast.error(t.errores[codigoDe(e)]) });
+
+  return (
+    <>
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {titulo}
+            <InsigniaEstado estado={mes.estado} className="text-[13px]" />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {mes.estado === "borrador" && (
+              <Button
+                onClick={() => pasarA("abierto")}
+                disabled={cambiar.isPending}
+                className="rounded-[10px] bg-exito px-4 font-bold text-white hover:bg-exito/90"
+              >
+                <LockOpenIcon aria-hidden="true" />
+                {t.panel.abrir}
+              </Button>
+            )}
+            {mes.estado === "abierto" && (
+              <Button variant="outline" onClick={() => pasarA("cerrado")} disabled={cambiar.isPending} className="rounded-[10px] px-4 font-bold">
+                <LockIcon aria-hidden="true" />
+                {t.panel.cerrar}
+              </Button>
+            )}
+            {mes.estado === "cerrado" && (
+              <Button variant="outline" onClick={() => pasarA("abierto")} disabled={cambiar.isPending} className="rounded-[10px] px-4 font-bold">
+                <RotateCcwIcon aria-hidden="true" />
+                {t.panel.reabrir}
+              </Button>
+            )}
+          </div>
+        </div>
+        <p className="text-sm leading-snug text-muted-foreground">{t.panel.ayudaEstado[mes.estado]}</p>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <Contador etiqueta={t.panel.tomados} valor={cuenta.tomados} detalle={t.panel.deTotal(cuenta.total)} />
+        <Contador etiqueta={t.panel.libres} valor={cuenta.libres} className="text-azul-medio" />
+        <Contador etiqueta={t.panel.diasBloqueados} valor={cuenta.diasBloqueados} />
+      </div>
+
+      <TablaMes
+        slug={slug}
+        periodo={periodo}
+        companerismos={companerismos}
+        turnos={turnos}
+        zonaHoraria={zonaHoraria}
+        hoy={hoy}
+      />
+    </>
+  );
+}
+
+function Contador({
+  etiqueta,
+  valor,
+  detalle,
+  className,
+}: {
+  etiqueta: string;
+  valor: number;
+  detalle?: string;
+  className?: string;
+}) {
+  return (
+    <div role="group" aria-label={etiqueta} className="rounded-[14px] border bg-card px-3 py-3 md:px-4 md:py-3.5">
+      <div className="text-xs font-bold text-muted-foreground md:text-[13px]">{etiqueta}</div>
+      <div className={cn("text-2xl font-extrabold text-azul-profundo md:text-[28px]", className)}>
+        {valor} {detalle && <span className="text-[15px] font-semibold text-muted-foreground">{detalle}</span>}
+      </div>
+    </div>
+  );
+}

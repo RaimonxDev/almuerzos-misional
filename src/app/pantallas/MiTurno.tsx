@@ -88,40 +88,42 @@ function MiTurno({ slug, inscripcionId }: { slug: string; inscripcionId: string 
       />
 
       {editando ? (
-        <FormularioInscripcion
-          inicial={{
-            nombre: inscripcion.nombre,
-            telefono: inscripcion.telefono ?? "",
-            consentimientoTelefono: inscripcion.consentimientoTelefono,
-            modalidad: inscripcion.modalidad,
-            nota: inscripcion.nota ?? "",
-          }}
-          notaParaCocinar={barrio.data?.barrio.notaParaCocinar ?? null}
-          textoEnviar={t.miTurno.guardarCambios}
-          enviando={editar.isPending}
-          errorEnvio={editar.error}
-          onEnviar={(datos) =>
-            editar.mutate(datos, {
-              onSuccess: () => {
-                setEditando(false);
-                toast.success(t.miTurno.guardado);
-              },
-            })
-          }
-          extra={
-            <Button
-              type="button"
-              variant="ghost"
-              className="text-azul-medio"
-              onClick={() => {
-                editar.reset();
-                setEditando(false);
-              }}
-            >
-              {t.miTurno.descartar}
-            </Button>
-          }
-        />
+        <main className="mx-auto max-w-xl">
+          <FormularioInscripcion
+            inicial={{
+              nombre: inscripcion.nombre,
+              telefono: inscripcion.telefono ?? "",
+              consentimientoTelefono: inscripcion.consentimientoTelefono,
+              modalidad: inscripcion.modalidad,
+              nota: inscripcion.nota ?? "",
+            }}
+            notaParaCocinar={barrio.data?.barrio.notaParaCocinar ?? null}
+            textoEnviar={t.miTurno.guardarCambios}
+            enviando={editar.isPending}
+            errorEnvio={editar.error}
+            onEnviar={(datos) =>
+              editar.mutate(datos, {
+                onSuccess: () => {
+                  setEditando(false);
+                  toast.success(t.miTurno.guardado);
+                },
+              })
+            }
+            extra={
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-azul-medio"
+                onClick={() => {
+                  editar.reset();
+                  setEditando(false);
+                }}
+              >
+                {t.miTurno.descartar}
+              </Button>
+            }
+          />
+        </main>
       ) : (
         <main className="mx-auto flex max-w-xl flex-col gap-4 px-4 pt-[18px] pb-8">
           <dl className="flex flex-col rounded-[14px] border bg-card px-4">

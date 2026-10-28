@@ -1,8 +1,8 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { RouterProvider } from "react-router";
-import { router } from "./router";
+import { createBrowserRouter, RouterProvider } from "react-router";
+import { rutas } from "./router";
 import { ErrorApi } from "./api";
 import { ProveedorIdioma } from "./i18n";
 import { Toaster } from "./components/ui/sonner";
@@ -17,6 +17,8 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+const router = createBrowserRouter(rutas);
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

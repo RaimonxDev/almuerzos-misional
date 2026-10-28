@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { EdicionInscripcion, NuevaInscripcionPublica } from "@/shared/inscripciones";
-import { api, datos, ErrorApi } from "./api";
+import { api, datos, ErrorApi, sinCuerpo } from "./api";
 import { olvidarInscripcion, recordarInscripcion } from "./mis-inscripciones";
 
 const barrios = api.api.barrios;
@@ -115,11 +115,7 @@ export function useEditarInscripcion(id: string, token: string, slug: string) {
 export function useCancelarInscripcion(id: string, token: string, slug: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async () => {
-      const res = await inscripciones[":id"].$delete({ param: { id } }, conToken(token));
-      // 204 no trae cuerpo: solo los errores pasan por datos().
-      if (!res.ok) await datos(Promise.resolve(res));
-    },
+    mutationFn: () => sinCuerpo(inscripciones[":id"].$delete({ param: { id } }, conToken(token))),
     // No se quita la consulta de "Mi turno" aquí: la pantalla sigue montada hasta navegar y la
     // volvería a pedir (404). Con gcTime 0 se descarta sola al salir.
     onSuccess: () => {
