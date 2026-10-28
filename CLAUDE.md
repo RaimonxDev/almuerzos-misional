@@ -22,7 +22,7 @@ Pocos usuarios. Prioridad: simple de mantener y gratis de hospedar.
 | `/:barrio/anotarse/:turnoId` | Público | Formulario de inscripción |
 | `/:barrio/mi-turno/:inscripcionId` | Quien se anotó, desde el mismo teléfono | Ver, editar o cancelar lo suyo (token desde `localStorage`) |
 | `/:barrio/m/:token` | Misioneros y presidenta | Calendario con **teléfonos** (solo si hubo consentimiento) y botón a WhatsApp |
-| `/admin` | Admins con login | Panel del barrio que administran |
+| `/admin` → `/admin/:barrio?mes=2026-11` | Admins con login | Panel del barrio (`/admin` lleva al primero que administran) |
 | `/admin/:barrio/:periodo/imprimir` (`periodo` = `2026-11`) | Admins | Vista imprimible del calendario |
 
 - Cada barrio tiene su propio `token_misioneros`; la presidenta puede regenerarlo (el anterior deja de funcionar).
@@ -78,6 +78,8 @@ Pocos usuarios. Prioridad: simple de mantener y gratis de hospedar.
 - Misioneros (`pantallas/VistaMisioneros.tsx`): el token de la URL de la página va a la API solo en `Authorization: Bearer`, nunca en la URL de la API ni en `document.title`. WhatsApp con `enlaceWhatsApp` (`src/shared/telefonos.ts`: deja los dígitos y agrega el código del país deducido de la zona del barrio si el número es local) y `rel="noreferrer"` para que el token no viaje como referer.
 - Compartidos entre pantallas de calendario: `SelectorMes` (flechas del encabezado), `TarjetaDia`/`FilaTurno` y el hook `usePeriodoDeLaUrl`.
 - "Agregar a mi calendario": `crearIcs` (`src/shared/ics.ts`, evento de día completo) y `abrirIcs` (hoja de compartir del móvil o descarga).
+- Todo lo de admin (login, panel, imprimible) se carga aparte con `lazy` en `rutas` (`src/app/router.tsx`; `main.tsx` arma el router): la vista pública no descarga el panel ni Better Auth. Pantallas nuevas de admin van en `pantallas/admin/` y sus consultas en `src/app/consultas-admin.ts` (claves `["admin", tipo, slug, …]`; las mutaciones refrescan todo lo del barrio).
+- Panel (`pantallas/admin/`): `Panel.tsx` (encabezado con selector de barrio, meses con estado y "Crear <mes>", contadores), `TablaMes.tsx` (columnas = compañerismos que trae el mes; en móvil la tabla se apila como tarjetas; acciones en diálogos), `BarraLateral.tsx` (enlaces, compañerismos, nota para cocinar), `mes.ts` (`contarTurnos`: los bloqueados no cuentan como tomados ni libres). Al editar una inscripción solo se mandan los campos que cambiaron (el panel no conoce el teléfono sin consentimiento y mandarlo vacío lo borraría); `FormularioInscripcion` con `consentimientoSoloQuitar`.
 - Admin: `authClient` (`src/app/auth.ts`, `better-auth/react`) para entrar y salir; `useYo()` (`GET /api/admin/yo`) dice si hay sesión. Las rutas de `/admin` van envueltas en `RutaAdmin`, que redirige a `/admin/login` con un 401. Better Auth informa credenciales malas como `code: "INVALID_EMAIL_OR_PASSWORD"`, que el login traduce con `t.errores.CREDENCIALES_INVALIDAS`.
 - Las maquetas de referencia están en el artifact "Almuerzo Misional — Maquetas" (vista pública, formulario, panel de la presidenta con estados del mes y "crear mes siguiente", calendario imprimible, misioneros, login móvil y escritorio).
 
@@ -157,7 +159,7 @@ Sin login. Nunca devuelve teléfono, dirección ni nota de otra persona: cada `s
 `bun run test` corre dos proyectos de Vitest (`vitest.config.ts`) sobre Node; `--project worker` o `--project app` corre uno solo. Ojo: `bun test` (sin `run`) es el runner de Bun, no Vitest.
 
 - **worker** (`test/worker/`): la API real dentro de workerd con una D1 en memoria y las migraciones aplicadas. `datos.ts` siembra datos fijos y `pedir()` llama al Worker como el navegador.
-- **app** (`test/app/`): React en jsdom con Testing Library. `utilidades.tsx` trae `Proveedores` (React Query sin reintentos + idioma), `renderizarRuta`, `simularApi` (reemplaza `fetch` por URL) y `guardarInscripciones`. El setup fija el navegador en `es-CL` y limpia `localStorage`.
+- **app** (`test/app/`): React en jsdom con Testing Library. `utilidades.tsx` trae `Proveedores` (React Query sin reintentos + idioma), `renderizarRuta`, `renderizarApp` (las `rutas` reales, con sus cargas diferidas), `simularApi` (reemplaza `fetch` por URL; gana la clave más larga contenida en la URL, así que conviene usar rutas completas) y `guardarInscripciones`. El setup fija el navegador en `es-CL` y limpia `localStorage`.
 - El Select de idioma funciona en jsdom (se abre con clic y se elige la opción por rol: `test/app/Encabezado.test.tsx`). Para tests que solo necesitan otro idioma, basta `useIdioma().cambiarIdioma` desde un componente auxiliar.
 - Base UI pone un input oculto junto al checkbox y al radio dentro del mismo `<label>`: buscarlos con `getByRole("radio", { name })`, no con `getByLabelText` (encuentra dos).
 - Buscar por rol y texto visible (`getByRole`, `getByLabelText`), como lo usaría una persona. Los textos con mayúscula inicial por CSS (`first-letter:uppercase`) están en minúscula en el DOM.
@@ -173,6 +175,6 @@ Se siguen en GitHub: un milestone por hito e issues con criterios de aceptación
 3. **Mi turno** ✅ — ver, editar y cancelar con el token guardado (sin maqueta: sigue el estilo de las pantallas 1 y 2).
 4. **Misioneros** ✅ — API y pantalla de `/:barrio/m/:token` (maqueta 5): calendario con teléfonos solo si hubo consentimiento y botón a WhatsApp.
 5. **Admin: auth y API** ✅ — Better Auth (regenerar `auth-schema.ts`), login (maqueta 6), `admins_barrio`, super admin crea barrios. API: crear el mes siguiente generando turnos, cambiar estado `borrador`/`abierto`/`cerrado` (en la maqueta 3), bloquear/desbloquear, asignar a mano, editar/borrar inscripciones, regenerar enlace de misioneros, nota para cocinar, activar/desactivar compañerismos.
-6. **Panel de la presidenta** — frontend según la maqueta 3, con columnas desde los compañerismos del barrio y teléfonos solo con consentimiento.
+6. **Panel de la presidenta** ✅ — frontend según la maqueta 3, con columnas desde los compañerismos del barrio y teléfonos solo con consentimiento.
 7. **Calendario imprimible y compartir** — personalización (imagen en R2, escritura, mensaje, plantilla), vista A4 según la maqueta 4 calculando el día en que parte el mes y 5 o 6 filas, PNG con `html-to-image` + Web Share API.
 8. **Producción** — crear D1 y R2 reales, `database_id`, migraciones `--remote`, deploy y dominio; protección básica contra abuso del formulario público (ej. Turnstile o rate limiting).

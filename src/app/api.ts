@@ -41,5 +41,11 @@ export async function datos<R extends Respuesta>(peticion: Promise<R>): Promise<
   throw new ErrorApi(codigo, res.status, cuerpo?.campos);
 }
 
+/** Para respuestas 204 sin cuerpo: solo los errores pasan por `datos()`. */
+export async function sinCuerpo(peticion: Promise<Respuesta>): Promise<void> {
+  const res = await peticion;
+  if (!res.ok) await datos(Promise.resolve(res));
+}
+
 export const codigoDe = (error: unknown): CodigoError =>
   error instanceof ErrorApi ? error.codigo : "ERROR_INTERNO";

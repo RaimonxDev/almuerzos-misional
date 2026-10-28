@@ -93,13 +93,15 @@ export function Anotarse() {
   return (
     <>
       {encabezado}
-      <FormularioInscripcion
-        notaParaCocinar={datos.barrio.notaParaCocinar}
-        textoEnviar={t.formulario.confirmar}
-        enviando={anotarse.isPending}
-        errorEnvio={anotarse.error}
-        onEnviar={(json) => anotarse.mutate(json)}
-      />
+      <main className="mx-auto max-w-xl">
+        <FormularioInscripcion
+          notaParaCocinar={datos.barrio.notaParaCocinar}
+          textoEnviar={t.formulario.confirmar}
+          enviando={anotarse.isPending}
+          errorEnvio={anotarse.error}
+          onEnviar={(json) => anotarse.mutate(json)}
+        />
+      </main>
     </>
   );
 }

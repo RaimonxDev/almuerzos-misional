@@ -1,6 +1,7 @@
 import { useEffect, useId, useState, type FormEvent, type ReactNode } from "react";
 import { codigoDe, ErrorApi } from "@/app/api";
 import { useIdioma } from "@/app/i18n";
+import { cn } from "@/app/lib/utils";
 import { AlertaError, AvisoAmbar } from "@/app/components/Estado";
 import { Button } from "@/app/components/ui/button";
 import { Checkbox } from "@/app/components/ui/checkbox";
@@ -21,7 +22,8 @@ export type ValoresInscripcion = {
 };
 
 /**
- * Campos de una inscripción (maqueta 2). Lo usan "Anotarse" (vacío) y "Mi turno" (editar).
+ * Campos de una inscripción (maqueta 2). Lo usan "Anotarse" (vacío), "Mi turno" (editar) y el
+ * panel (asignar y editar, dentro de un diálogo). Cada pantalla pone su contenedor.
  * Valida con el mismo esquema que la API y marca también los campos que la API rechace.
  */
 export function FormularioInscripcion({
@@ -32,6 +34,8 @@ export function FormularioInscripcion({
   errorEnvio,
   onEnviar,
   extra,
+  consentimientoSoloQuitar = false,
+  className,
 }: {
   inicial?: Partial<ValoresInscripcion>;
   notaParaCocinar: string | null;
@@ -41,6 +45,9 @@ export function FormularioInscripcion({
   onEnviar: (datos: ValoresInscripcion) => void;
   /** Acciones bajo el botón principal (ej. "Volver sin guardar"). */
   extra?: ReactNode;
+  /** Panel: el consentimiento se puede quitar pero no dar (eso le toca a la persona). */
+  consentimientoSoloQuitar?: boolean;
+  className?: string;
 }) {
   const { t } = useIdioma();
   const id = useId();
@@ -49,6 +56,7 @@ export function FormularioInscripcion({
   const [modalidad, setModalidad] = useState<Modalidad | null>(inicial?.modalidad ?? null);
   const [nota, setNota] = useState(inicial?.nota ?? "");
   const [consentimiento, setConsentimiento] = useState(inicial?.consentimientoTelefono ?? false);
+  const consentimientoBloqueado = consentimientoSoloQuitar && !inicial?.consentimientoTelefono;
   /** Campos con error. Se guardan las claves, no el texto, para que un cambio de idioma lo traduzca. */
   const [conError, setConError] = useState<Campo[]>([]);
 
@@ -92,8 +100,7 @@ export function FormularioInscripcion({
       : null;
 
   return (
-    <main className="mx-auto max-w-xl">
-      <form noValidate onSubmit={enviar} className="flex flex-col gap-4 px-4 pt-[18px] pb-8">
+    <form noValidate onSubmit={enviar} className={cn("flex flex-col gap-4 px-4 pt-[18px] pb-8", className)}>
         <Grupo>
           <Label htmlFor={`${id}-nombre`}>{t.formulario.nombre}</Label>
           <Input
@@ -177,12 +184,14 @@ export function FormularioInscripcion({
               id={`${id}-consentimientoTelefono`}
               checked={consentimiento}
               onCheckedChange={(v) => setConsentimiento(v === true)}
+              disabled={consentimientoBloqueado}
               aria-invalid={!!errores.consentimientoTelefono}
               className="mt-0.5 size-[22px]"
             />
             {t.formulario.consentimiento}
           </Label>
           {errores.consentimientoTelefono && <Ayuda error={errores.consentimientoTelefono} />}
+          {consentimientoBloqueado && <Ayuda>{t.panel.consentimientoSoloPersona}</Ayuda>}
         </div>
 
         {errorGeneral && <AlertaError>{errorGeneral}</AlertaError>}
@@ -191,8 +200,7 @@ export function FormularioInscripcion({
           {enviando ? t.formulario.guardando : textoEnviar}
         </Button>
         {extra}
-      </form>
-    </main>
+    </form>
   );
 }
 
