@@ -23,7 +23,7 @@ Pocos usuarios. Prioridad: simple de mantener y gratis de hospedar.
 | `/:barrio/mi-turno/:inscripcionId` | Quien se anotó, desde el mismo teléfono | Ver, editar o cancelar lo suyo (token desde `localStorage`) |
 | `/:barrio/m/:token` | Misioneros y presidenta | Calendario con **teléfonos** (solo si hubo consentimiento) y botón a WhatsApp |
 | `/admin` → `/admin/:barrio?mes=2026-11` | Admins con login | Panel del barrio (`/admin` lleva al primero que administran) |
-| `/admin/nuevo-barrio` | Super admin | Crear un barrio (nombre, enlace, idioma, zona y qué compañerismos tiene) |
+| `/admin/nuevo-barrio` | Super admin | Crear un barrio (nombre, enlace, idioma, zona, qué compañerismos tiene y su presidenta) |
 | `/admin/:barrio/:periodo/imprimir` (`periodo` = `2026-11`) | Admins | Vista imprimible del calendario |
 
 - Cada barrio tiene su propio `token_misioneros`; la presidenta puede regenerarlo (el anterior deja de funcionar).
@@ -136,7 +136,7 @@ Sin login. Nunca devuelve teléfono, dirección ni nota de otra persona: cada `s
 - Secretos: `BETTER_AUTH_SECRET` (y `BETTER_AUTH_URL` opcional) en `.dev.vars` (ver `.dev.vars.example`); en producción `bunx wrangler secret put BETTER_AUTH_SECRET`. En los tests son bindings de `vitest.config.ts`.
 - Super admin = `user.role === "admin"`; admins de barrio = rol `user` + filas en `admins_barrio`.
 - Todo cuelga de `/api/admin` (`rutas/admin/index.ts`), con `conSesion` (401 `NO_AUTORIZADO`, deja `c.var.usuario`). Lo de `/api/admin/barrios/:slug/*` pasa además por `conBarrioAdmin` (403 `SIN_PERMISO`, también si el barrio no existe; super admin con slug inexistente → 404; deja `c.var.barrio`). Tipos de contexto: `AppEnvAdmin` y `AppEnvBarrioAdmin` (`src/worker/contexto.ts`); middlewares en `src/worker/permisos.ts`. Para agregar rutas de un barrio se encadenan en `rutas/admin/{meses,turnos,barrio}.ts`.
-- `GET /api/admin/yo` (usuario y sus barrios; super admin: todos), `POST /api/admin/barrios` (solo super admin: slug único, compañerismos; 409 `SLUG_EXISTENTE`), `POST /api/admin/barrios/:slug/admins` (solo super admin: asigna por email un usuario existente; idempotente, 404 si no existe).
+- `GET /api/admin/yo` (usuario y sus barrios; super admin: todos), `POST /api/admin/barrios` (solo super admin: slug único —`admin`, `api` y `nuevo-barrio` reservados—, compañerismos; 409 `SLUG_EXISTENTE`; `presidenta?: { email, nombre, cargo? }` opcional en el mismo batch: si el correo no tiene cuenta se crea con rol `user` y una contraseña temporal que se devuelve una sola vez en `presidenta.passwordTemporal`), `POST /api/admin/barrios/:slug/admins` (solo super admin: asigna por email un usuario existente; idempotente, 404 si no existe).
 - Rutas de un barrio (todas bajo `/api/admin/barrios/:slug`):
 
 | Método y ruta | Qué hace |

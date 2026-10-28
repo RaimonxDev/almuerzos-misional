@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { renderizarApp, simularApi } from "./utilidades";
@@ -56,6 +56,51 @@ describe("Nuevo barrio", () => {
       ]),
     );
     expect(await screen.findByText("Todavía no hay meses. Crea el primero para empezar.")).toBeInTheDocument();
+  });
+
+  it("con presidenta nueva muestra su contraseña temporal antes de ir al panel", async () => {
+    const user = userEvent.setup();
+    const api = simularApi({
+      "/api/admin/yo": { json: SUPER },
+      "/api/admin/barrios": {
+        status: 201,
+        json: {
+          ...CREADO,
+          presidenta: { email: "rojas@ejemplo.cl", nombre: "Hna. Rojas", cargo: null, cuentaNueva: true, passwordTemporal: "temporal-abc-123" },
+        },
+      },
+      "/api/admin/barrios/barrio-norte/meses": { json: { meses: [] } },
+      "/api/admin/barrios/barrio-norte": { json: { barrio: { ...CREADO.barrio, notaParaCocinar: null, contactoNombre: null, contactoTelefono: null }, companerismos: CREADO.companerismos } },
+    });
+    await abrir();
+
+    await user.type(screen.getByLabelText("Nombre del barrio"), "Barrio Norte");
+    await user.type(screen.getByLabelText("Correo de la presidenta"), "rojas@ejemplo.cl");
+    await user.type(screen.getByLabelText("Nombre de la presidenta"), "Hna. Rojas");
+    await user.click(screen.getByRole("button", { name: "Crear barrio" }));
+
+    await waitFor(() =>
+      expect(llamadas(api, "POST", "/api/admin/barrios")[0].presidenta).toEqual({ email: "rojas@ejemplo.cl", nombre: "Hna. Rojas", cargo: null }),
+    );
+    const dialogo = await screen.findByRole("dialog", { name: "Cuenta de la presidenta creada" });
+    expect(within(dialogo).getByText("temporal-abc-123")).toBeInTheDocument();
+    expect(within(dialogo).getByText("rojas@ejemplo.cl")).toBeInTheDocument();
+
+    await user.click(within(dialogo).getByRole("button", { name: "Ir al panel del barrio" }));
+    expect(await screen.findByText("Todavía no hay meses. Crea el primero para empezar.")).toBeInTheDocument();
+  });
+
+  it("presidenta a medias (correo sin nombre) → pide el nombre", async () => {
+    const user = userEvent.setup();
+    const api = simularApi({ "/api/admin/yo": { json: SUPER } });
+    await abrir();
+
+    await user.type(screen.getByLabelText("Nombre del barrio"), "Barrio Norte");
+    await user.type(screen.getByLabelText("Correo de la presidenta"), "rojas@ejemplo.cl");
+    await user.click(screen.getByRole("button", { name: "Crear barrio" }));
+
+    expect(await screen.findByText("Escribe el correo y el nombre de la presidenta, o deja ambos vacíos.")).toBeInTheDocument();
+    expect(llamadas(api, "POST", "/api/admin/barrios")).toEqual([]);
   });
 
   it("pide al menos un compañerismo", async () => {
