@@ -1,8 +1,8 @@
 /**
  * Datos de prueba para desarrollo local.
  *
- *   npm run db:seed:local              → mes actual y el siguiente (en hora del barrio)
- *   npm run db:seed:local -- 2026-11   → solo ese mes
+ *   bun run db:seed:local              → mes actual y el siguiente (en hora del barrio)
+ *   bun run db:seed:local -- 2026-11   → solo ese mes
  *
  * Genera un SQL en .wrangler/seed.sql y lo ejecuta contra D1 local.
  * Es idempotente: borra los barrios de prueba (en cascada) y los vuelve a crear.
@@ -187,6 +187,6 @@ console.log(`  token de edición de ejemplo (Hna. Pérez): ${TOKEN_EDICION_DEMO}
 
 mkdirSync(".wrangler", { recursive: true });
 writeFileSync(".wrangler/seed.sql", sql.join("\n") + "\n");
-execFileSync("npx", ["wrangler", "d1", "execute", "almuerzo-misional", "--local", "--file", ".wrangler/seed.sql"], {
+execFileSync("bunx", ["wrangler", "d1", "execute", "almuerzo-misional", "--local", "--file", ".wrangler/seed.sql"], {
   stdio: "inherit",
 });

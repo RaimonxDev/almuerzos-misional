@@ -10,7 +10,7 @@ Pocos usuarios. Prioridad: simple de mantener y gratis de hospedar.
 - **Base de datos**: Cloudflare D1 (SQLite) con **Drizzle ORM**. Migraciones con `drizzle-kit generate` + `wrangler d1 migrations apply`.
 - **Imágenes del mes**: Cloudflare R2.
 - **Frontend**: React + Vite + TypeScript (SPA), React Router, Tailwind 4 + **shadcn/ui** sobre **Base UI** (`@base-ui/react`, sin Radix). Sin Next ni Astro: no hay SSR ni SEO que aprovechar.
-- **Un solo repo y un solo paquete** (no monorepo): `@cloudflare/vite-plugin` levanta Worker y React juntos con `npm run dev`. El frontend llama a la API con el cliente RPC de Hono (`src/app/api.ts`, tipado desde `AppType`).
+- **Un solo repo y un solo paquete** (no monorepo): `@cloudflare/vite-plugin` levanta Worker y React juntos con `bun run dev`. El frontend llama a la API con el cliente RPC de Hono (`src/app/api.ts`, tipado desde `AppType`).
 - **Auth**: Better Auth **solo para administradores** (presidenta / super admin), con el plugin `admin` para el rol de super admin. Las hermanas y los misioneros NO tienen cuenta.
 - Código de dominio en español. La UI es multi-idioma (ver **Idiomas**).
 
@@ -60,7 +60,7 @@ Pocos usuarios. Prioridad: simple de mantener y gratis de hospedar.
 - Tipografías: Lora (títulos, escrituras) y Nunito Sans (UI).
 - Paleta: azul profundo `#14304F`, azul medio `#1F5C99`, cielo `#DCEAF6`/`#EAF2F9`, dorado `#C49A3A`/`#E2C27A`, fondo `#F6F8FB`, texto `#1A2633`.
 - Botones de al menos 44px de alto; móvil primero; lista vertical de días en móvil (no grilla).
-- Componentes base de shadcn en `src/app/components/ui/`, variante Base UI (`components.json` con `style: "base-vega"`; se agregan con `npx shadcn@latest add <componente>`). Revisar que importen `cn` de `@/app/lib/utils`. La paleta está mapeada a sus tokens en `src/app/index.css` (`primary` = azul profundo, `secondary` = cielo…) y hay utilidades propias: `bg-dorado`, `bg-dorado-claro`, `text-azul-medio`, `bg-cielo`, `bg-cielo-claro`. Botón, input, select y tabs ya están ajustados a 44px; al agregar componentes nuevos revisar alturas (shadcn trae `h-9`) y quitar `md:text-sm` de los inputs (16px evita el zoom en iOS). Los estados de Base UI son atributos sueltos (`data-checked`, `data-open`, `data-active`), no `data-[state=…]`.
+- Componentes base de shadcn en `src/app/components/ui/`, variante Base UI (`components.json` con `style: "base-vega"`; se agregan con `bunx shadcn@latest add <componente>`). Revisar que importen `cn` de `@/app/lib/utils`. La paleta está mapeada a sus tokens en `src/app/index.css` (`primary` = azul profundo, `secondary` = cielo…) y hay utilidades propias: `bg-dorado`, `bg-dorado-claro`, `text-azul-medio`, `bg-cielo`, `bg-cielo-claro`. Botón, input, select y tabs ya están ajustados a 44px; al agregar componentes nuevos revisar alturas (shadcn trae `h-9`) y quitar `md:text-sm` de los inputs (16px evita el zoom en iOS). Los estados de Base UI son atributos sueltos (`data-checked`, `data-open`, `data-active`), no `data-[state=…]`.
 - Un link con estilo de botón es un `<Link>` (o `<a>`) con `className={buttonVariants(...)}`, no `<Button render={…}>`: Base UI le pondría `role="button"` al link. `render` queda para cambiar el elemento de componentes que no son links.
 - Solo tema claro (sin `next-themes`).
 - Variantes de botón propias: `accion` (píldora azul medio, acción principal pública) y `accion-outline`. Colores de estado: `text-exito`/`bg-exito-suave` y `aviso`, `aviso-texto`, `aviso-suave`, `aviso-borde`.
@@ -90,19 +90,19 @@ src/app/      React: pantallas/, components/ui (shadcn), i18n/, router.tsx
 migrations/   SQL generado por drizzle-kit
 ```
 
-Comandos: `npm run dev`, `npm run typecheck`, `npm run build`, `npm run db:generate`, `npm run db:migrate:local`, `npm run cf-typegen` (tras cambiar `wrangler.jsonc`).
+Comandos: `bun run dev`, `bun run typecheck`, `bun run build`, `bun run db:generate`, `bun run db:migrate:local`, `bun run cf-typegen` (tras cambiar `wrangler.jsonc`).
 
-Datos de prueba: `npm run db:seed:local` (mes actual y el siguiente) o `npm run db:seed:local -- 2026-11` (solo ese mes). Es idempotente y crea:
+Datos de prueba: `bun run db:seed:local` (mes actual y el siguiente) o `bun run db:seed:local -- 2026-11` (solo ese mes). Es idempotente y crea:
 - `centro` (es, `America/Santiago`) y `jardim` (pt, `America/Sao_Paulo`), cada uno con élderes y hermanas, los meses en estado `abierto` y el tercer domingo bloqueado.
 - Enlaces de misioneros: `/centro/m/dev-misioneros-centro` y `/jardim/m/dev-misioneros-jardim`.
 - En `centro`, en el último mes sembrado, tres inscripciones: Hna. Pérez (con consentimiento; token de edición `dev-edicion-demo`), Hna. González (teléfono sin consentimiento) y Familia Muñoz (`origen = 'admin'`).
 - Fechas: `src/shared/fechas.ts` (`hoyEnZona`, `fechasDelMes`, `diaDeSemana`), compartido con el Worker.
 
-Pendiente para producción: crear la base con `npx wrangler d1 create almuerzo-misional` y el bucket R2, y poner el `database_id` real en `wrangler.jsonc`.
+Pendiente para producción: crear la base con `bunx wrangler d1 create almuerzo-misional` y el bucket R2, y poner el `database_id` real en `wrangler.jsonc`.
 
 ## Esquema
 
-`src/db/schema.ts` (dominio) y `src/db/auth-schema.ts` (Better Auth). Este último se escribió a mano como referencia: regenerarlo con `npx @better-auth/cli generate` tras instalar Better Auth.
+`src/db/schema.ts` (dominio) y `src/db/auth-schema.ts` (Better Auth). Este último se escribió a mano como referencia: regenerarlo con `bunx @better-auth/cli generate` tras instalar Better Auth.
 
 ## API pública
 
@@ -126,14 +126,14 @@ Sin login. Nunca devuelve teléfono, dirección ni nota de otra persona: cada `s
 
 **Tests primero**: cada issue trae una sección "Tests primero"; se escriben antes de implementar y el issue se cierra con todos en verde.
 
-`npm test` corre dos proyectos de Vitest (`vitest.config.ts`); `--project worker` o `--project app` corre uno solo.
+`bun run test` corre dos proyectos de Vitest (`vitest.config.ts`) sobre Node; `--project worker` o `--project app` corre uno solo. Ojo: `bun test` (sin `run`) es el runner de Bun, no Vitest.
 
 - **worker** (`test/worker/`): la API real dentro de workerd con una D1 en memoria y las migraciones aplicadas. `datos.ts` siembra datos fijos y `pedir()` llama al Worker como el navegador.
 - **app** (`test/app/`): React en jsdom con Testing Library. `utilidades.tsx` trae `Proveedores` (React Query sin reintentos + idioma), `renderizarRuta`, `simularApi` (reemplaza `fetch` por URL) y `guardarInscripciones`. El setup fija el navegador en `es-CL` y limpia `localStorage`.
 - El Select de idioma funciona en jsdom (se abre con clic y se elige la opción por rol: `test/app/Encabezado.test.tsx`). Para tests que solo necesitan otro idioma, basta `useIdioma().cambiarIdioma` desde un componente auxiliar.
 - Base UI pone un input oculto junto al checkbox y al radio dentro del mismo `<label>`: buscarlos con `getByRole("radio", { name })`, no con `getByLabelText` (encuentra dos).
 - Buscar por rol y texto visible (`getByRole`, `getByLabelText`), como lo usaría una persona. Los textos con mayúscula inicial por CSS (`first-letter:uppercase`) están en minúscula en el DOM.
-- `npm run typecheck` también revisa los tests (`tsconfig.test.json` y `tsconfig.test-app.json`).
+- `bun run typecheck` también revisa los tests (`tsconfig.test.json` y `tsconfig.test-app.json`).
 
 ## Hitos
 
