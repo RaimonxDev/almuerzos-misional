@@ -110,6 +110,14 @@ export const es = {
     sinTurnos: "No hay almuerzos para mostrar.",
     enlaceInvalido: "Este enlace ya no sirve. Pide el enlace nuevo a la presidenta de la Sociedad de Socorro.",
   },
+  login: {
+    antetitulo: "Administración",
+    titulo: "Entrar",
+    correo: "Correo electrónico",
+    contrasena: "Contraseña",
+    entrar: "Entrar",
+    entrando: "Entrando…",
+  },
   errores: {
     TURNO_TOMADO: "Alguien se te adelantó y tomó este turno. Elige otro día, por favor.",
     TURNO_BLOQUEADO: "Este turno no está disponible.",

@@ -105,6 +105,14 @@ export const pt: Mensajes = {
     sinTurnos: "Não há almoços para mostrar.",
     enlaceInvalido: "Este link não funciona mais. Peça o link novo à presidente da Sociedade de Socorro.",
   },
+  login: {
+    antetitulo: "Administração",
+    titulo: "Entrar",
+    correo: "E-mail",
+    contrasena: "Senha",
+    entrar: "Entrar",
+    entrando: "Entrando…",
+  },
   errores: {
     TURNO_TOMADO: "Alguém chegou antes e pegou este horário. Escolha outro dia, por favor.",
     TURNO_BLOQUEADO: "Este horário não está disponível.",

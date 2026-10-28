@@ -102,6 +102,14 @@ export const en: Mensajes = {
     sinTurnos: "No lunches to show.",
     enlaceInvalido: "This link no longer works. Ask the Relief Society president for the new link.",
   },
+  login: {
+    antetitulo: "Administration",
+    titulo: "Sign in",
+    correo: "Email",
+    contrasena: "Password",
+    entrar: "Sign in",
+    entrando: "Signing in…",
+  },
   errores: {
     TURNO_TOMADO: "Someone just took this slot. Please choose another day.",
     TURNO_BLOQUEADO: "This slot isn't available.",

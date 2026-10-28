@@ -6,6 +6,17 @@ import { olvidarInscripcion, recordarInscripcion } from "./mis-inscripciones";
 const barrios = api.api.barrios;
 const inscripciones = api.api.inscripciones;
 
+/**
+ * Sesión de administración. Sin sesión la API responde 401 `NO_AUTORIZADO` y la consulta falla:
+ * las rutas protegidas redirigen al login. No se guarda en caché al salir (datos de cuenta).
+ */
+export const useYo = () =>
+  useQuery({
+    queryKey: ["admin", "yo"],
+    queryFn: () => datos(api.api.admin.yo.$get()),
+    gcTime: 0,
+  });
+
 /** El token viaja en el header, nunca en la URL. */
 const conToken = (token: string) => ({ headers: { Authorization: `Bearer ${token}` } });
 
