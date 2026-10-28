@@ -143,6 +143,15 @@ export const useEditarCompanerismo = (slug: string) =>
     ["barrio", "meses", "mes"],
   );
 
+export type TipoCompanerismo = "elderes" | "hermanas";
+
+export const useCrearCompanerismo = (slug: string) =>
+  useMutacionBarrio(slug, (json: { tipo: TipoCompanerismo; nombre: string }) =>
+    datos(barrios[":slug"].companerismos.$post({ param: { slug }, json })),
+    // Crear genera sus turnos en los meses vigentes.
+    ["barrio", "meses", "mes"],
+  );
+
 /** Cambios parciales a la personalización del mes; un texto vacío borra el campo. */
 export const useGuardarPersonalizacion = (slug: string, periodo: string) =>
   useMutacionBarrio(
