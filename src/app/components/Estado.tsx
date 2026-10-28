@@ -1,4 +1,4 @@
-import { LoaderCircleIcon } from "lucide-react";
+import { InfoIcon, LoaderCircleIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { codigoDe } from "@/app/api";
 import { useIdioma } from "@/app/i18n";
@@ -40,5 +40,24 @@ export function ErrorCarga({ error, reintentar }: { error: unknown; reintentar?:
     >
       {t.errores[codigo]}
     </Aviso>
+  );
+}
+
+/** Recuadro ámbar con ícono, para notas que hay que tener en cuenta. */
+export function AvisoAmbar({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex gap-2.5 rounded-xl border border-aviso-borde bg-aviso-suave px-3.5 py-3">
+      <InfoIcon className="mt-px size-5 shrink-0 text-aviso" aria-hidden="true" />
+      <p className="text-[13px] leading-snug text-aviso-texto">{children}</p>
+    </div>
+  );
+}
+
+/** Error de una acción (guardar, cancelar), anunciado a lectores de pantalla. */
+export function AlertaError({ children }: { children: ReactNode }) {
+  return (
+    <p role="alert" className="rounded-xl bg-destructive/10 px-3.5 py-3 text-sm font-semibold text-destructive">
+      {children}
+    </p>
   );
 }

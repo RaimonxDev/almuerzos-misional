@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { CheckIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
-import { useBarrio, useMes } from "@/app/consultas";
+import { useMes } from "@/app/consultas";
 import { useIdioma } from "@/app/i18n";
-import { useTitulo } from "@/app/hooks";
+import { useBarrioConIdioma, useTitulo } from "@/app/hooks";
 import { useMisInscripciones } from "@/app/mis-inscripciones";
 import { leerPeriodo, mesInicial, textoPeriodo, type Periodo } from "@/app/periodos";
+import { rutaAnotarse, rutaMiTurno } from "@/app/rutas";
 import { cn } from "@/app/lib/utils";
 import { Encabezado } from "@/app/components/Encabezado";
 import { Aviso, Cargando, ErrorCarga } from "@/app/components/Estado";
@@ -15,11 +16,9 @@ import { Button } from "@/app/components/ui/button";
 export function VistaPublica() {
   const { barrio: slug = "" } = useParams();
   const [params, setParams] = useSearchParams();
-  const { t, formatearMes, usarIdiomaDelBarrio } = useIdioma();
-  const consulta = useBarrio(slug);
+  const { t, formatearMes } = useIdioma();
+  const consulta = useBarrioConIdioma(slug);
   const barrio = consulta.data?.barrio;
-
-  useEffect(() => usarIdiomaDelBarrio(barrio?.idioma), [barrio?.idioma, usarIdiomaDelBarrio]);
   useTitulo(barrio?.nombre);
 
   if (!consulta.data) {
@@ -86,13 +85,16 @@ function TurnosDelMes({ slug, periodo }: { slug: string; periodo: string }) {
     if (!consulta.data) return [];
     const { turnos, companerismos, hoy, mes } = consulta.data;
     const nombres = new Map(companerismos.map((c) => [c.id, c.nombre]));
-    const misTurnos = new Map(mias.map((m) => [m.turnoId, m.id]));
+    const misIds = new Set(mias.map((m) => m.id));
     const porFecha = new Map<string, typeof filas>();
     const filas = turnos.map((turno) => ({
       ...turno,
       companerismo: nombres.get(turno.companerismoId) ?? "",
-      /** Id de la inscripción si este turno lo tomé yo desde este teléfono. */
-      mia: turno.estado === "tomado" ? misTurnos.get(turno.id) : undefined,
+      /**
+       * Lo tomé yo desde este teléfono: se compara la inscripción actual del turno con las guardadas.
+       * (Por turnoId no basta: si la presidenta borró la mía y otra se anotó, el turno sería de ella.)
+       */
+      mia: turno.inscripcionId && misIds.has(turno.inscripcionId) ? turno.inscripcionId : undefined,
       // Solo se ofrece "Anotarme" en meses abiertos y para hoy en adelante.
       anotable: turno.estado === "libre" && mes.estado === "abierto" && turno.fecha >= hoy,
     }));
@@ -155,7 +157,7 @@ function TurnosDelMes({ slug, periodo }: { slug: string; periodo: string }) {
             {proximas.map((m) => (
               <Link
                 key={m.id}
-                to={`/${slug}/mi-turno/${m.id}`}
+                to={rutaMiTurno(slug, m.id)}
                 className="flex min-h-11 items-center justify-between gap-2 border-t border-aviso-borde/60 text-[15px] font-semibold text-azul-profundo first-of-type:border-t-0"
               >
                 <span className="first-letter:uppercase">
@@ -214,12 +216,12 @@ function TurnosDelMes({ slug, periodo }: { slug: string; periodo: string }) {
                 </div>
                 {turno.mia && (
                   <Button asChild variant="accion-outline" className="shrink-0 px-4">
-                    <Link to={`/${slug}/mi-turno/${turno.mia}`}>{t.publico.verMiTurno}</Link>
+                    <Link to={rutaMiTurno(slug, turno.mia)}>{t.publico.verMiTurno}</Link>
                   </Button>
                 )}
                 {turno.anotable && (
                   <Button asChild variant="accion" className="shrink-0 px-[18px]">
-                    <Link to={`/${slug}/anotarse/${turno.id}`}>{t.publico.anotarme}</Link>
+                    <Link to={rutaAnotarse(slug, turno.id)}>{t.publico.anotarme}</Link>
                   </Button>
                 )}
               </div>

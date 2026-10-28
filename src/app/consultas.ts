@@ -52,8 +52,8 @@ export function useAnotarse(slug: string, turnoId: string) {
 }
 
 /**
- * "Mi turno". Un 404 significa que la inscripción ya no existe (ej. la presidenta la quitó):
- * se olvida el token guardado para no seguir mostrándola.
+ * "Mi turno". Un 404 (la inscripción ya no existe, ej. la presidenta la quitó) o un 403
+ * (el token guardado no sirve) dejan la entrada de localStorage sin uso: se olvida.
  */
 export const useMiInscripcion = (id: string, token: string | undefined) =>
   useQuery({
@@ -62,11 +62,16 @@ export const useMiInscripcion = (id: string, token: string | undefined) =>
       try {
         return await datos(inscripciones[":id"].$get({ param: { id } }, conToken(token!)));
       } catch (error) {
-        if (error instanceof ErrorApi && error.codigo === "NO_ENCONTRADO") olvidarInscripcion(id);
+        if (error instanceof ErrorApi && (error.codigo === "NO_ENCONTRADO" || error.codigo === "TOKEN_INVALIDO")) {
+          olvidarInscripcion(id);
+        }
         throw error;
       }
     },
     enabled: !!token,
+    // Trae datos privados (teléfono, nota): no se guardan en caché al salir de la pantalla.
+    // También evita mostrar una inscripción ya cancelada si se vuelve a su link.
+    gcTime: 0,
   });
 
 export function useEditarInscripcion(id: string, token: string, slug: string) {
@@ -90,9 +95,10 @@ export function useCancelarInscripcion(id: string, token: string, slug: string) 
       // 204 no trae cuerpo: solo los errores pasan por datos().
       if (!res.ok) await datos(Promise.resolve(res));
     },
+    // No se quita la consulta de "Mi turno" aquí: la pantalla sigue montada hasta navegar y la
+    // volvería a pedir (404). Con gcTime 0 se descarta sola al salir.
     onSuccess: () => {
       olvidarInscripcion(id);
-      queryClient.removeQueries({ queryKey: ["mi-inscripcion", id] });
       queryClient.invalidateQueries({ queryKey: ["mes", slug] });
       queryClient.invalidateQueries({ queryKey: ["turno", slug] });
     },

@@ -41,19 +41,21 @@ describe("GET /api/barrios/:slug/meses/:periodo", () => {
 
     expect(body.companerismos.map((c: any) => c.nombre)).toEqual(["Élderes", "Hermanas"]);
     const porId = Object.fromEntries(body.turnos.map((t: any) => [t.id, t]));
-    expect(porId[IDS.libre]).toMatchObject({ estado: "libre", nombre: null });
+    expect(porId[IDS.libre]).toMatchObject({ estado: "libre", nombre: null, inscripcionId: null });
     expect(porId[IDS.tomado]).toEqual({
       id: IDS.tomado,
       fecha: "2099-01-11",
       companerismoId: "c-e",
       estado: "tomado",
       nombre: "Hna. Pérez",
+      inscripcionId: "i-tomado",
       motivoBloqueo: null,
     });
     // El bloqueo manda: no se muestra quién estaba anotada.
     expect(porId[IDS.bloqueadoConInscripcion]).toMatchObject({
       estado: "bloqueado",
       nombre: null,
+      inscripcionId: null,
       motivoBloqueo: "Conferencia de estaca",
     });
     // Compañerismos inactivos no aparecen.
@@ -85,7 +87,7 @@ describe("GET /api/barrios/:slug/turnos/:turnoId", () => {
     expect(res.status).toBe(200);
     const texto = await res.text();
     expect(JSON.parse(texto)).toMatchObject({
-      turno: { id: IDS.tomado, estado: "tomado", nombre: "Hna. Pérez" },
+      turno: { id: IDS.tomado, estado: "tomado", nombre: "Hna. Pérez", inscripcionId: "i-tomado" },
       companerismo: { nombre: "Élderes", tipo: "elderes" },
       mes: { anio: 2099, mes: 1, estado: "abierto" },
     });

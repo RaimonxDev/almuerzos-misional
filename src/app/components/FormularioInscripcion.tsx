@@ -1,7 +1,7 @@
 import { useEffect, useId, useState, type FormEvent, type ReactNode } from "react";
-import { InfoIcon } from "lucide-react";
 import { codigoDe, ErrorApi } from "@/app/api";
 import { useIdioma } from "@/app/i18n";
+import { AlertaError, AvisoAmbar } from "@/app/components/Estado";
 import { Button } from "@/app/components/ui/button";
 import { Checkbox } from "@/app/components/ui/checkbox";
 import { Input } from "@/app/components/ui/input";
@@ -49,19 +49,21 @@ export function FormularioInscripcion({
   const [modalidad, setModalidad] = useState<Modalidad | null>(inicial?.modalidad ?? null);
   const [nota, setNota] = useState(inicial?.nota ?? "");
   const [consentimiento, setConsentimiento] = useState(inicial?.consentimientoTelefono ?? false);
-  const [errores, setErrores] = useState<Partial<Record<Campo, string>>>({});
+  /** Campos con error. Se guardan las claves, no el texto, para que un cambio de idioma lo traduzca. */
+  const [conError, setConError] = useState<Campo[]>([]);
 
   const mensajes: Record<Campo, string> = {
     nombre: t.formulario.errorNombre,
     telefono: t.formulario.errorTelefono,
     consentimientoTelefono: t.formulario.errorConsentimientoSinTelefono,
   };
+  const errores: Partial<Record<Campo, string>> = Object.fromEntries(conError.map((c) => [c, mensajes[c]]));
 
   // Si la API rechaza campos que el cliente dio por buenos, se marcan igual.
   useEffect(() => {
     if (errorEnvio instanceof ErrorApi && errorEnvio.codigo === "DATOS_INVALIDOS") {
       const campos = errorEnvio.campos.filter((c): c is Campo => c in mensajes);
-      setErrores(Object.fromEntries(campos.map((c) => [c, mensajes[c]])));
+      setConError(campos);
     }
   }, [errorEnvio]);
 
@@ -69,17 +71,16 @@ export function FormularioInscripcion({
     e.preventDefault();
     const datos = { nombre, telefono, consentimientoTelefono: consentimiento, modalidad, nota };
     const resultado = esquemaNuevaInscripcion.safeParse(datos);
-    const nuevos: Partial<Record<Campo, string>> = {};
+    const nuevos = new Set<Campo>();
     for (const issue of resultado.error?.issues ?? []) {
       const campo = issue.path[0] as Campo;
-      if (campo in mensajes) nuevos[campo] = mensajes[campo];
+      if (campo in mensajes) nuevos.add(campo);
     }
-    if (consentimiento && !telefono.trim() && !nuevos.telefono) {
-      nuevos.consentimientoTelefono = mensajes.consentimientoTelefono;
-    }
-    setErrores(nuevos);
-    if (Object.keys(nuevos).length > 0) {
-      document.getElementById(`${id}-${Object.keys(nuevos)[0]}`)?.focus();
+    if (consentimiento && !telefono.trim() && !nuevos.has("telefono")) nuevos.add("consentimientoTelefono");
+    const lista = [...nuevos];
+    setConError(lista);
+    if (lista.length > 0) {
+      document.getElementById(`${id}-${lista[0]}`)?.focus();
       return;
     }
     onEnviar(datos);
@@ -165,12 +166,9 @@ export function FormularioInscripcion({
         </Grupo>
 
         {notaParaCocinar && (
-          <div className="flex gap-2.5 rounded-xl border border-aviso-borde bg-aviso-suave px-3.5 py-3">
-            <InfoIcon className="mt-px size-5 shrink-0 text-aviso" aria-hidden="true" />
-            <p className="text-[13px] leading-snug text-aviso-texto">
-              <strong>{t.formulario.paraTomarEnCuenta}</strong> {notaParaCocinar}
-            </p>
-          </div>
+          <AvisoAmbar>
+            <strong>{t.formulario.paraTomarEnCuenta}</strong> {notaParaCocinar}
+          </AvisoAmbar>
         )}
 
         <div className="flex flex-col gap-1.5">
@@ -187,11 +185,7 @@ export function FormularioInscripcion({
           {errores.consentimientoTelefono && <Ayuda error={errores.consentimientoTelefono} />}
         </div>
 
-        {errorGeneral && (
-          <p role="alert" className="rounded-xl bg-destructive/10 px-3.5 py-3 text-sm font-semibold text-destructive">
-            {errorGeneral}
-          </p>
-        )}
+        {errorGeneral && <AlertaError>{errorGeneral}</AlertaError>}
 
         <Button type="submit" variant="accion" disabled={enviando} className="h-[52px] text-[17px] font-extrabold">
           {enviando ? t.formulario.guardando : textoEnviar}

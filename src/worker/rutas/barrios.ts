@@ -78,6 +78,7 @@ export const rutasBarrios = new Hono<AppEnv>()
         bloqueado: turnos.bloqueado,
         motivoBloqueo: turnos.motivoBloqueo,
         nombre: inscripciones.nombre,
+        inscripcionId: inscripciones.id,
       })
       .from(turnos)
       .innerJoin(
@@ -99,6 +100,11 @@ export const rutasBarrios = new Hono<AppEnv>()
           companerismoId: t.companerismoId,
           estado,
           nombre: estado === "tomado" ? t.nombre : null,
+          /**
+           * Para que el teléfono que se anotó reconozca su turno comparando con el id guardado.
+           * No da acceso a nada: editar exige además el token de edición.
+           */
+          inscripcionId: estado === "tomado" ? t.inscripcionId : null,
           motivoBloqueo: estado === "bloqueado" ? t.motivoBloqueo : null,
         };
       }),
@@ -120,6 +126,7 @@ export const rutasBarrios = new Hono<AppEnv>()
         fecha: fila.turno.fecha,
         estado,
         nombre: estado === "tomado" ? fila.nombreInscrito : null,
+        inscripcionId: estado === "tomado" ? fila.inscripcionId : null,
         motivoBloqueo: estado === "bloqueado" ? fila.turno.motivoBloqueo : null,
       },
       companerismo: { nombre: fila.companerismo.nombre, tipo: fila.companerismo.tipo },

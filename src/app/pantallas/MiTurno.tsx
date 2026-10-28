@@ -1,14 +1,14 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router";
-import { InfoIcon } from "lucide-react";
 import { toast } from "sonner";
 import { codigoDe } from "@/app/api";
-import { useBarrio, useCancelarInscripcion, useEditarInscripcion, useMiInscripcion } from "@/app/consultas";
+import { useCancelarInscripcion, useEditarInscripcion, useMiInscripcion } from "@/app/consultas";
 import { useIdioma } from "@/app/i18n";
-import { useTitulo } from "@/app/hooks";
+import { useBarrioConIdioma, useTitulo } from "@/app/hooks";
 import { useMisInscripciones } from "@/app/mis-inscripciones";
+import { rutaCalendario } from "@/app/rutas";
 import { Encabezado, LinkVolver } from "@/app/components/Encabezado";
-import { Aviso, Cargando, ErrorCarga } from "@/app/components/Estado";
+import { AlertaError, Aviso, AvisoAmbar, Cargando, ErrorCarga } from "@/app/components/Estado";
 import { FormularioInscripcion } from "@/app/components/FormularioInscripcion";
 import { Button } from "@/app/components/ui/button";
 import {
@@ -23,12 +23,19 @@ import {
 /**
  * `/:barrio/mi-turno/:inscripcionId` — ver, editar o cancelar la propia inscripción.
  * El token sale del localStorage de este teléfono; nunca va en la URL.
+ *
+ * Con `key` por id, cambiar de inscripción sin desmontar la ruta parte de cero
+ * (token, edición y diálogo no se arrastran de una a otra).
  */
-export function MiTurno() {
+export function MiTurnoRuta() {
   const { barrio: slug = "", inscripcionId = "" } = useParams();
+  return <MiTurno key={`${slug}/${inscripcionId}`} slug={slug} inscripcionId={inscripcionId} />;
+}
+
+function MiTurno({ slug, inscripcionId }: { slug: string; inscripcionId: string }) {
   const navigate = useNavigate();
-  const { t, formatearFecha, usarIdiomaDelBarrio } = useIdioma();
-  const barrio = useBarrio(slug);
+  const { t, formatearFecha } = useIdioma();
+  const barrio = useBarrioConIdioma(slug);
   const guardada = useMisInscripciones(slug).find((m) => m.id === inscripcionId);
   // Se fija al entrar: al cancelar, la inscripción desaparece del storage pero la pantalla sigue montada.
   const [token] = useState(guardada?.tokenEdicion);
@@ -38,12 +45,11 @@ export function MiTurno() {
   const [editando, setEditando] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
 
-  useEffect(() => usarIdiomaDelBarrio(barrio.data?.barrio.idioma), [barrio.data?.barrio.idioma, usarIdiomaDelBarrio]);
   const inscripcion = consulta.data?.inscripcion;
   useTitulo(inscripcion ? formatearFecha(inscripcion.fecha) : undefined);
 
   const fecha = inscripcion?.fecha ?? guardada?.fecha;
-  const volver = `/${slug}${fecha ? `?mes=${fecha.slice(0, 7)}` : ""}`;
+  const volver = rutaCalendario(slug, fecha);
   const botonVolver = (
     <Button asChild variant="accion" size="lg">
       <Link to={volver}>{t.formulario.volver}</Link>
@@ -161,10 +167,7 @@ export function MiTurno() {
               </Button>
             </div>
           ) : (
-            <div className="flex gap-2.5 rounded-xl border border-aviso-borde bg-aviso-suave px-3.5 py-3">
-              <InfoIcon className="mt-px size-5 shrink-0 text-aviso" aria-hidden="true" />
-              <p className="text-[13px] leading-snug text-aviso-texto">{t.miTurno.noEditable}</p>
-            </div>
+            <AvisoAmbar>{t.miTurno.noEditable}</AvisoAmbar>
           )}
         </main>
       )}
@@ -175,11 +178,7 @@ export function MiTurno() {
             <DialogTitle className="text-xl text-azul-profundo">{t.miTurno.confirmarTitulo}</DialogTitle>
             <DialogDescription className="text-[15px]">{t.miTurno.confirmarTexto(fechaLarga)}</DialogDescription>
           </DialogHeader>
-          {cancelar.isError && (
-            <p role="alert" className="rounded-xl bg-destructive/10 px-3.5 py-3 text-sm font-semibold text-destructive">
-              {t.errores[codigoDe(cancelar.error)]}
-            </p>
-          )}
+          {cancelar.isError && <AlertaError>{t.errores[codigoDe(cancelar.error)]}</AlertaError>}
           <DialogFooter className="gap-2.5">
             <Button
               variant="accion-outline"

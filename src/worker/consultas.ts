@@ -21,6 +21,7 @@ export async function buscarTurno(db: Db, slug: string, turnoId: string) {
         notaParaCocinar: barrios.notaParaCocinar,
       },
       nombreInscrito: inscripciones.nombre,
+      inscripcionId: inscripciones.id,
     })
     .from(turnos)
     .innerJoin(meses, eq(meses.id, turnos.mesId))

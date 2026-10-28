@@ -1,10 +1,10 @@
-import { useEffect } from "react";
 import { Link, useParams } from "react-router";
 import { CheckIcon } from "lucide-react";
 import { ErrorApi } from "@/app/api";
-import { useAnotarse, useBarrio, useTurno } from "@/app/consultas";
+import { useAnotarse, useTurno } from "@/app/consultas";
 import { useIdioma } from "@/app/i18n";
-import { useTitulo } from "@/app/hooks";
+import { useBarrioConIdioma, useTitulo } from "@/app/hooks";
+import { rutaCalendario, rutaMiTurno } from "@/app/rutas";
 import { abrirIcs } from "@/app/ics";
 import { crearIcs } from "@/shared/ics";
 import { useMisInscripciones } from "@/app/mis-inscripciones";
@@ -16,17 +16,16 @@ import { Button } from "@/app/components/ui/button";
 /** `/:barrio/anotarse/:turnoId` — formulario para tomar un turno. */
 export function Anotarse() {
   const { barrio: slug = "", turnoId = "" } = useParams();
-  const { t, formatearFecha, usarIdiomaDelBarrio } = useIdioma();
-  const barrio = useBarrio(slug);
+  const { t, formatearFecha } = useIdioma();
+  useBarrioConIdioma(slug);
   const consulta = useTurno(slug, turnoId);
   const mias = useMisInscripciones(slug);
   const anotarse = useAnotarse(slug, turnoId);
 
-  useEffect(() => usarIdiomaDelBarrio(barrio.data?.barrio.idioma), [barrio.data?.barrio.idioma, usarIdiomaDelBarrio]);
   const datos = consulta.data;
   useTitulo(datos ? formatearFecha(datos.turno.fecha) : undefined);
 
-  const volver = `/${slug}${datos ? `?mes=${datos.turno.fecha.slice(0, 7)}` : ""}`;
+  const volver = rutaCalendario(slug, datos?.turno.fecha);
   const linkVolver = <LinkVolver to={volver} />;
 
   if (!datos) {
@@ -44,9 +43,10 @@ export function Anotarse() {
     <Encabezado arriba={linkVolver} antetitulo={`${datos.barrio.nombre} · ${companerismo.nombre}`} titulo={fechaLarga} />
   );
 
-  // Recién anotada, o vuelve a abrir el link desde el mismo teléfono.
-  const mia = mias.find((m) => m.turnoId === turno.id);
-  if (anotarse.isSuccess || (turno.estado === "tomado" && mia)) {
+  // Recién anotada, o vuelve a abrir el link desde el mismo teléfono (y la inscripción sigue siendo la suya).
+  const idPropio = anotarse.data?.inscripcion.id ?? turno.inscripcionId;
+  const mia = mias.find((m) => m.id === idPropio);
+  if (anotarse.isSuccess || mia) {
     return (
       <>
         {encabezado}
@@ -54,7 +54,8 @@ export function Anotarse() {
           fecha={turno.fecha}
           companerismo={companerismo.nombre}
           volver={volver}
-          miTurno={`/${slug}/mi-turno/${anotarse.data?.inscripcion.id ?? mia?.id}`}
+          // Solo si el token quedó guardado (en modo privado puede fallar y el link no serviría).
+          miTurno={mia && rutaMiTurno(slug, mia.id)}
         />
       </>
     );
@@ -128,7 +129,7 @@ function Exito({
   fecha: string;
   companerismo: string;
   volver: string;
-  miTurno: string;
+  miTurno: string | undefined;
 }) {
   const { t, formatearFecha } = useIdioma();
   const agregar = () =>
@@ -146,7 +147,7 @@ function Exito({
       <p className="text-base leading-normal text-[#3D4C5C]" role="status">
         {t.exito.texto(formatearFecha(fecha), companerismo)}
       </p>
-      <p className="text-sm leading-normal text-muted-foreground">{t.exito.recordar}</p>
+      {miTurno && <p className="text-sm leading-normal text-muted-foreground">{t.exito.recordar}</p>}
       <div className="mt-3 flex w-full flex-col gap-2.5">
         <Button variant="accion-outline" className="h-[50px]" onClick={agregar}>
           {t.exito.agregarCalendario}
@@ -154,9 +155,11 @@ function Exito({
         <Button asChild variant="accion" className="h-[50px]">
           <Link to={volver}>{t.formulario.volver}</Link>
         </Button>
-        <Button asChild variant="ghost" className="text-azul-medio">
-          <Link to={miTurno}>{t.publico.verMiTurno}</Link>
-        </Button>
+        {miTurno && (
+          <Button asChild variant="ghost" className="text-azul-medio">
+            <Link to={miTurno}>{t.publico.verMiTurno}</Link>
+          </Button>
+        )}
       </div>
     </main>
   );
