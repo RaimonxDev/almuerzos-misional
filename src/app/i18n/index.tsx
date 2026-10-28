@@ -6,6 +6,9 @@ import { en } from "./en";
 
 const DICCIONARIOS: Record<Idioma, Mensajes> = { es, pt, en };
 
+/** Textos de otro idioma que el de la pantalla (ej. nombres por defecto en el idioma de un barrio). */
+export const mensajesDe = (idioma: Idioma): Mensajes => DICCIONARIOS[idioma];
+
 /** Para el locale de `Intl` (fechas, números). */
 export const LOCALES: Record<Idioma, string> = { es: "es-CL", pt: "pt-BR", en: "en-US" };
 

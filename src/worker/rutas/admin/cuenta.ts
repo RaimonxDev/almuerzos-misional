@@ -15,7 +15,8 @@ const esquemaNuevoBarrio = z.object({
     .min(2)
     .max(60)
     .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/)
-    .refine((s) => s !== "admin" && s !== "api"),
+    // Reservados: chocan con rutas de la app.
+    .refine((s) => !["admin", "api", "nuevo-barrio"].includes(s)),
   nombre: z.string().trim().min(2).max(80),
   idioma: z.enum(IDIOMAS).optional(),
   zonaHoraria: z.string().refine(zonaValida).optional(),
