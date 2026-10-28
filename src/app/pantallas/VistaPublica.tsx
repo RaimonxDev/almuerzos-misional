@@ -9,7 +9,6 @@ import { leerPeriodo, mesInicial, textoPeriodo, type Periodo } from "@/app/perio
 import { cn } from "@/app/lib/utils";
 import { Encabezado } from "@/app/components/Encabezado";
 import { Aviso, Cargando, ErrorCarga } from "@/app/components/Estado";
-import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 
 /** `/:barrio` — turnos del mes con solo nombres, para que las hermanas elijan un día. */
@@ -87,12 +86,13 @@ function TurnosDelMes({ slug, periodo }: { slug: string; periodo: string }) {
     if (!consulta.data) return [];
     const { turnos, companerismos, hoy, mes } = consulta.data;
     const nombres = new Map(companerismos.map((c) => [c.id, c.nombre]));
-    const misTurnos = new Set(mias.map((m) => m.turnoId));
+    const misTurnos = new Map(mias.map((m) => [m.turnoId, m.id]));
     const porFecha = new Map<string, typeof filas>();
     const filas = turnos.map((turno) => ({
       ...turno,
       companerismo: nombres.get(turno.companerismoId) ?? "",
-      mio: turno.estado === "tomado" && misTurnos.has(turno.id),
+      /** Id de la inscripción si este turno lo tomé yo desde este teléfono. */
+      mia: turno.estado === "tomado" ? misTurnos.get(turno.id) : undefined,
       // Solo se ofrece "Anotarme" en meses abiertos y para hoy en adelante.
       anotable: turno.estado === "libre" && mes.estado === "abierto" && turno.fecha >= hoy,
     }));
@@ -111,6 +111,7 @@ function TurnosDelMes({ slug, periodo }: { slug: string; periodo: string }) {
     .map((d) => (soloLibres ? { ...d, turnos: d.turnos.filter((x) => x.anotable) } : d))
     .filter((d) => d.turnos.length > 0);
   const cerrado = consulta.data.mes.estado !== "abierto";
+  const proximas = mias.filter((m) => m.fecha >= consulta.data.hoy).sort((a, b) => a.fecha.localeCompare(b.fecha));
 
   return (
     <main className="mx-auto max-w-xl">
@@ -143,6 +144,30 @@ function TurnosDelMes({ slug, periodo }: { slug: string; periodo: string }) {
       </div>
 
       <div className="flex flex-col gap-2.5 px-4 pt-3.5 pb-8">
+        {proximas.length > 0 && (
+          <nav
+            aria-labelledby="tus-proximos"
+            className="flex flex-col rounded-[14px] border border-aviso-borde bg-aviso-suave px-3.5 pt-3 pb-1"
+          >
+            <h2 id="tus-proximos" className="font-sans text-xs font-extrabold tracking-[0.06em] text-aviso-texto uppercase">
+              {t.publico.tusProximos}
+            </h2>
+            {proximas.map((m) => (
+              <Link
+                key={m.id}
+                to={`/${slug}/mi-turno/${m.id}`}
+                className="flex min-h-11 items-center justify-between gap-2 border-t border-aviso-borde/60 text-[15px] font-semibold text-azul-profundo first-of-type:border-t-0"
+              >
+                <span className="first-letter:uppercase">
+                  {formatearFecha(m.fecha)}
+                  {m.companerismo && <span className="font-normal text-muted-foreground"> · {m.companerismo}</span>}
+                </span>
+                <ChevronRightIcon className="size-5 shrink-0 text-aviso" aria-hidden="true" />
+              </Link>
+            ))}
+          </nav>
+        )}
+
         {anteriores > 0 && !soloLibres && (
           <Button variant="ghost" className="self-center text-azul-medio" onClick={() => setVerAnteriores((v) => !v)}>
             {verAnteriores ? t.publico.ocultarAnteriores : t.publico.verAnteriores(anteriores)}
@@ -176,7 +201,6 @@ function TurnosDelMes({ slug, periodo }: { slug: string; periodo: string }) {
                     <span className="flex items-center gap-1.5 text-[15px] font-semibold">
                       <CheckIcon className="size-4 shrink-0 text-exito" strokeWidth={2.4} aria-hidden="true" />
                       <span className="truncate">{turno.nombre}</span>
-                      {turno.mio && <Badge className="bg-dorado-claro text-azul-profundo">{t.publico.tuTurno}</Badge>}
                     </span>
                   )}
                   {turno.estado === "libre" && (
@@ -188,6 +212,11 @@ function TurnosDelMes({ slug, periodo }: { slug: string; periodo: string }) {
                     </span>
                   )}
                 </div>
+                {turno.mia && (
+                  <Button asChild variant="accion-outline" className="shrink-0 px-4">
+                    <Link to={`/${slug}/mi-turno/${turno.mia}`}>{t.publico.verMiTurno}</Link>
+                  </Button>
+                )}
                 {turno.anotable && (
                   <Button asChild variant="accion" className="shrink-0 px-[18px]">
                     <Link to={`/${slug}/anotarse/${turno.id}`}>{t.publico.anotarme}</Link>

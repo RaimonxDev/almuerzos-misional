@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { Link } from "react-router";
+import { ChevronLeftIcon } from "lucide-react";
 import { useIdioma } from "@/app/i18n";
 import { SelectorIdioma } from "./SelectorIdioma";
 
@@ -34,5 +36,19 @@ export function Encabezado({
         {children}
       </div>
     </header>
+  );
+}
+
+/** "‹ Volver al calendario" para la fila superior del encabezado. */
+export function LinkVolver({ to }: { to: string }) {
+  const { t } = useIdioma();
+  return (
+    <Link
+      to={to}
+      className="-ml-1 flex h-11 items-center gap-1 rounded-lg pr-2.5 text-[15px] font-bold text-white hover:bg-white/10"
+    >
+      <ChevronLeftIcon className="size-5" aria-hidden="true" />
+      {t.formulario.volver}
+    </Link>
   );
 }

@@ -20,6 +20,7 @@ Pocos usuarios. Prioridad: simple de mantener y gratis de hospedar.
 |---|---|---|
 | `/:barrio` (ej. `/centro`) | Público (hermanas) | Turnos del mes abierto, **solo nombres** |
 | `/:barrio/anotarse/:turnoId` | Público | Formulario de inscripción |
+| `/:barrio/mi-turno/:inscripcionId` | Quien se anotó, desde el mismo teléfono | Ver, editar o cancelar lo suyo (token desde `localStorage`) |
 | `/:barrio/m/:token` | Misioneros y presidenta | Calendario con **teléfonos** (solo si hubo consentimiento) y botón a WhatsApp |
 | `/admin` | Admins con login | Panel del barrio que administran |
 | `/admin/:barrio/:periodo/imprimir` (`periodo` = `2026-11`) | Admins | Vista imprimible del calendario |
@@ -68,7 +69,9 @@ Pocos usuarios. Prioridad: simple de mantener y gratis de hospedar.
 
 - TanStack Query (`src/app/consultas.ts`) sobre el cliente RPC. `datos(peticion)` (`src/app/api.ts`) devuelve el JSON tipado del caso exitoso o lanza `ErrorApi` con `codigo`, `status` y `campos`. No se reintentan los 4xx.
 - Cada pantalla de barrio llama `usarIdiomaDelBarrio(barrio.idioma)` al cargar el barrio.
-- Inscripciones propias en `localStorage` (`src/app/mis-inscripciones.ts`, hook `useMisInscripciones`): `{ id, turnoId, barrio, fecha, tokenEdicion }`. Con eso se marca "Tu turno" y se reconoce la pantalla de éxito al volver al link.
+- Inscripciones propias en `localStorage` (`src/app/mis-inscripciones.ts`, hook `useMisInscripciones`): `{ id, turnoId, barrio, fecha, companerismo?, tokenEdicion }`. Con eso la vista pública muestra "Tus próximos turnos" y "Ver mi turno" en la fila, y se reconoce la pantalla de éxito al volver al link.
+- "Mi turno": el token va en `Authorization: Bearer`, nunca en la URL. Un 404 de la API borra la entrada de `localStorage` (la inscripción ya no existe); un 403 o no tener token muestra "no se hizo desde este teléfono". Si `editable` es falso (mes cerrado o día pasado) solo se muestran los datos.
+- `FormularioInscripcion` (`src/app/components/`) es el mismo formulario para anotarse y para editar.
 - El mes visible va en la URL (`/centro?mes=2026-11`); sin parámetro se elige con `mesInicial` (`src/app/periodos.ts`). Las flechas solo recorren meses abiertos.
 - En la vista pública, los días pasados se ocultan detrás de "Ver los N días anteriores" y "Anotarme" solo aparece en turnos libres de hoy en adelante de un mes abierto.
 - "Agregar a mi calendario": `crearIcs` (`src/shared/ics.ts`, evento de día completo) y `abrirIcs` (hoja de compartir del móvil o descarga).
@@ -118,7 +121,7 @@ Sin login. Nunca devuelve teléfono, dirección ni nota de otra persona: cada `s
 
 1. **Base** ✅ — scaffold, seed y API pública con tests.
 2. **Flujo público** ✅ — vista pública y formulario según las maquetas 1 y 2, con selector de idioma, "Tu turno", éxito con `.ics` y 409 amable.
-3. **Mi turno** — ver, editar y cancelar con el token guardado. *Falta maqueta.* La API ya existe.
+3. **Mi turno** ✅ — ver, editar y cancelar con el token guardado (sin maqueta: sigue el estilo de las pantallas 1 y 2).
 4. **Misioneros** — API y pantalla de `/:barrio/m/:token`: calendario con teléfonos solo si hubo consentimiento y botón a WhatsApp. *Falta maqueta.*
 5. **Admin: auth y API** — Better Auth (regenerar `auth-schema.ts`), login (*falta maqueta*), `admins_barrio`, super admin crea barrios. API: crear el mes siguiente generando turnos, cambiar estado `borrador`/`abierto`/`cerrado` (*falta en la maqueta del panel*), bloquear/desbloquear, asignar a mano, editar/borrar inscripciones, regenerar enlace de misioneros, nota para cocinar, activar/desactivar compañerismos.
 6. **Panel de la presidenta** — frontend según la maqueta 3, con columnas desde los compañerismos del barrio y teléfonos solo con consentimiento.

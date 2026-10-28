@@ -9,6 +9,8 @@ export type MiInscripcion = {
   turnoId: string;
   barrio: string;
   fecha: string;
+  /** Para distinguir dos turnos del mismo día. Opcional: las guardadas antes no lo tienen. */
+  companerismo?: string;
   tokenEdicion: string;
 };
 
