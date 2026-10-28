@@ -75,6 +75,12 @@ migrations/   SQL generado por drizzle-kit
 
 Comandos: `npm run dev`, `npm run typecheck`, `npm run build`, `npm run db:generate`, `npm run db:migrate:local`, `npm run cf-typegen` (tras cambiar `wrangler.jsonc`).
 
+Datos de prueba: `npm run db:seed:local` (mes actual) o `npm run db:seed:local -- 2026-11`. Es idempotente y crea:
+- `centro` (es, `America/Santiago`) y `jardim` (pt, `America/Sao_Paulo`), cada uno con élderes y hermanas, el mes en estado `abierto` y el tercer domingo bloqueado.
+- Enlaces de misioneros: `/centro/m/dev-misioneros-centro` y `/jardim/m/dev-misioneros-jardim`.
+- En `centro`, tres inscripciones: Hna. Pérez (con consentimiento; token de edición `dev-edicion-demo`), Hna. González (teléfono sin consentimiento) y Familia Muñoz (`origen = 'admin'`).
+- Fechas: `src/shared/fechas.ts` (`hoyEnZona`, `fechasDelMes`, `diaDeSemana`), compartido con el Worker.
+
 Pendiente para producción: crear la base con `npx wrangler d1 create almuerzo-misional` y el bucket R2, y poner el `database_id` real en `wrangler.jsonc`.
 
 ## Esquema
@@ -84,7 +90,7 @@ Pendiente para producción: crear la base con `npx wrangler d1 create almuerzo-m
 ## Orden de trabajo sugerido
 
 1. ~~Scaffold: Worker con Hono + Vite/React + D1 + Drizzle; validar que `drizzle-kit generate` funcione con el esquema.~~ Hecho (incluye shadcn e i18n).
-2. Seed: un barrio de prueba (`centro`) con sus dos compañerismos y el mes actual con turnos generados.
+2. ~~Seed: un barrio de prueba (`centro`) con sus dos compañerismos y el mes actual con turnos generados.~~ Hecho (`scripts/seed.ts`).
 3. API pública: listar turnos del mes, crear inscripción (con manejo del 409), editar/cancelar con token.
 4. API de misioneros (`/m/:token`).
 5. Better Auth + API de admin.
