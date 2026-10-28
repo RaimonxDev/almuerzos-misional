@@ -36,6 +36,7 @@ export const en: Mensajes = {
   errores: {
     TURNO_TOMADO: "Someone just took this slot. Please choose another day.",
     TURNO_BLOQUEADO: "This slot isn't available.",
+    TURNO_PASADO: "This day has already passed.",
     MES_NO_ABIERTO: "This month isn't open for sign-ups.",
     NO_ENCONTRADO: "We couldn't find what you're looking for.",
     TOKEN_INVALIDO: "This link is no longer valid.",

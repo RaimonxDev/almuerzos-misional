@@ -36,6 +36,7 @@ export const pt: Mensajes = {
   errores: {
     TURNO_TOMADO: "Alguém chegou antes e pegou este horário. Escolha outro dia, por favor.",
     TURNO_BLOQUEADO: "Este horário não está disponível.",
+    TURNO_PASADO: "Este dia já passou.",
     MES_NO_ABIERTO: "Este mês não está aberto para inscrições.",
     NO_ENCONTRADO: "Não encontramos o que você procura.",
     TOKEN_INVALIDO: "Este link não é mais válido.",

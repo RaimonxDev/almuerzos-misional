@@ -40,6 +40,7 @@ export const es = {
   errores: {
     TURNO_TOMADO: "Alguien se te adelantó y tomó este turno. Elige otro día, por favor.",
     TURNO_BLOQUEADO: "Este turno no está disponible.",
+    TURNO_PASADO: "Este día ya pasó.",
     MES_NO_ABIERTO: "Este mes no está abierto para anotarse.",
     NO_ENCONTRADO: "No encontramos lo que buscas.",
     TOKEN_INVALIDO: "Este enlace ya no es válido.",

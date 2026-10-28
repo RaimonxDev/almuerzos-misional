@@ -13,5 +13,5 @@
     "verbatimModuleSyntax": true,
     "allowImportingTsExtensions": true
   },
-  "include": ["vite.config.ts", "drizzle.config.ts", "scripts"]
+  "include": ["vite.config.ts", "vitest.config.ts", "drizzle.config.ts", "scripts"]
 }

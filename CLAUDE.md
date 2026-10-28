@@ -87,12 +87,33 @@ Pendiente para producción: crear la base con `npx wrangler d1 create almuerzo-m
 
 `src/db/schema.ts` (dominio) y `src/db/auth-schema.ts` (Better Auth). Este último se escribió a mano como referencia: regenerarlo con `npx @better-auth/cli generate` tras instalar Better Auth.
 
-## Orden de trabajo sugerido
+## API pública
 
-1. ~~Scaffold: Worker con Hono + Vite/React + D1 + Drizzle; validar que `drizzle-kit generate` funcione con el esquema.~~ Hecho (incluye shadcn e i18n).
-2. ~~Seed: un barrio de prueba (`centro`) con sus dos compañerismos y el mes actual con turnos generados.~~ Hecho (`scripts/seed.ts`).
-3. API pública: listar turnos del mes, crear inscripción (con manejo del 409), editar/cancelar con token.
-4. API de misioneros (`/m/:token`).
-5. Better Auth + API de admin.
-6. Frontend de las pantallas, siguiendo las maquetas.
-7. Vista imprimible y exportar como imagen.
+Sin login. Nunca devuelve teléfono, dirección ni nota de otra persona: cada `select` nombra sus columnas (`src/worker/rutas/barrios.ts`).
+
+| Método y ruta | Qué hace |
+|---|---|
+| `GET /api/barrios/:slug` | Barrio (nombre, idioma, zona, nota para cocinar), `mesesAbiertos` y `hoy` |
+| `GET /api/barrios/:slug/meses/:periodo` | Compañerismos activos y turnos (`libre`/`tomado`/`bloqueado`, nombre si está tomado). Meses `abierto` y `cerrado`; `borrador` → 404 |
+| `GET /api/barrios/:slug/turnos/:turnoId` | Un turno, para el encabezado del formulario |
+| `POST /api/barrios/:slug/turnos/:turnoId/inscripcion` | Anotarse → 201 con `tokenEdicion` (se entrega una sola vez). 409 `TURNO_TOMADO`, 422 `TURNO_BLOQUEADO`/`TURNO_PASADO`/`MES_NO_ABIERTO` |
+| `GET/PATCH/DELETE /api/inscripciones/:id` | "Mi turno" con `Authorization: Bearer <tokenEdicion>`. 403 `TOKEN_INVALIDO`; 404 = ya no existe (el cliente puede olvidar el token). Editar/cancelar solo en mes abierto y día no pasado |
+
+- Validación con zod; los esquemas del formulario están en `src/shared/inscripciones.ts` y los usa también el frontend. Datos inválidos → 400 `{ error: "DATOS_INVALIDOS", campos: [...] }`.
+- Un bloqueo manda sobre una inscripción existente: el turno se muestra `bloqueado` y sin nombre.
+- Tests: `npm test` (Vitest dentro de workerd con D1 en memoria, `test/`). Usan fechas en 2000 y 2099 para no depender del día.
+
+## Hitos
+
+1. **Base** ✅ — scaffold, seed y API pública con tests.
+2. **Flujo público** — vista pública y formulario según las maquetas 1 y 2.
+   - Selector de idioma en el encabezado; flechas solo entre meses abiertos; filtro "Solo libres".
+   - Guardar `{ inscripcionId, turnoId, tokenEdicion }` en `localStorage` y marcar "tu turno" en la lista.
+   - Pantalla de éxito con "Agregar a mi calendario" (`.ics` generado en el navegador).
+   - Mensajes de error traducidos por código (409 con opción de volver a elegir).
+3. **Mi turno** — ver, editar y cancelar con el token guardado. *Falta maqueta.* La API ya existe.
+4. **Misioneros** — API y pantalla de `/:barrio/m/:token`: calendario con teléfonos solo si hubo consentimiento y botón a WhatsApp. *Falta maqueta.*
+5. **Admin: auth y API** — Better Auth (regenerar `auth-schema.ts`), login (*falta maqueta*), `admins_barrio`, super admin crea barrios. API: crear el mes siguiente generando turnos, cambiar estado `borrador`/`abierto`/`cerrado` (*falta en la maqueta del panel*), bloquear/desbloquear, asignar a mano, editar/borrar inscripciones, regenerar enlace de misioneros, nota para cocinar, activar/desactivar compañerismos.
+6. **Panel de la presidenta** — frontend según la maqueta 3, con columnas desde los compañerismos del barrio y teléfonos solo con consentimiento.
+7. **Calendario imprimible y compartir** — personalización (imagen en R2, escritura, mensaje, plantilla), vista A4 según la maqueta 4 calculando el día en que parte el mes y 5 o 6 filas, PNG con `html-to-image` + Web Share API.
+8. **Producción** — crear D1 y R2 reales, `database_id`, migraciones `--remote`, deploy y dominio; protección básica contra abuso del formulario público (ej. Turnstile o rate limiting).

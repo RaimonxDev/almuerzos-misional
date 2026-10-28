@@ -21,6 +21,7 @@ import {
   primaryKey,
 } from "drizzle-orm/sqlite-core";
 import { IDIOMAS } from "../shared/idiomas";
+import { MODALIDADES } from "../shared/inscripciones";
 import { user } from "./auth-schema";
 
 // ---------- helpers ----------
@@ -198,7 +199,7 @@ export const inscripciones = sqliteTable(
     consentimientoTelefono: integer("consentimiento_telefono", { mode: "boolean" })
       .notNull()
       .default(false),
-    modalidad: text("modalidad", { enum: ["en_casa", "llevar"] }),
+    modalidad: text("modalidad", { enum: MODALIDADES }),
     /** Dirección u hora */
     nota: text("nota"),
 

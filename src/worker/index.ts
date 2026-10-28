@@ -1,9 +1,17 @@
 import { Hono } from "hono";
 import type { RespuestaError } from "@/shared/errores";
+import { conDb, type AppEnv } from "./contexto";
+import { rutasBarrios } from "./rutas/barrios";
+import { rutasInscripciones } from "./rutas/inscripciones";
 
-const app = new Hono<{ Bindings: Env }>().basePath("/api");
+const app = new Hono<AppEnv>().basePath("/api");
 
-const rutas = app.get("/salud", (c) => c.json({ ok: true }));
+app.use(conDb);
+
+const rutas = app
+  .get("/salud", (c) => c.json({ ok: true }))
+  .route("/barrios", rutasBarrios)
+  .route("/inscripciones", rutasInscripciones);
 
 app.notFound((c) => c.json<RespuestaError>({ error: "NO_ENCONTRADO" }, 404));
 
