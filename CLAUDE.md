@@ -61,6 +61,17 @@ Pocos usuarios. Prioridad: simple de mantener y gratis de hospedar.
 - Botones de al menos 44px de alto; móvil primero; lista vertical de días en móvil (no grilla).
 - Componentes base de shadcn en `src/app/components/ui/` (se agregan con `npx shadcn@latest add <componente>`). La paleta está mapeada a sus tokens en `src/app/index.css` (`primary` = azul profundo, `secondary` = cielo…) y hay utilidades propias: `bg-dorado`, `bg-dorado-claro`, `text-azul-medio`, `bg-cielo`, `bg-cielo-claro`. Botón, input, select y tabs ya están ajustados a 44px; al agregar componentes nuevos revisar alturas (shadcn trae `h-9`) y quitar `md:text-sm` de los inputs (16px evita el zoom en iOS).
 - Solo tema claro (sin `next-themes`).
+- Variantes de botón propias: `accion` (píldora azul medio, acción principal pública) y `accion-outline`. Colores de estado: `text-exito`/`bg-exito-suave` y `aviso`, `aviso-texto`, `aviso-suave`, `aviso-borde`.
+- Componentes compartidos: `Encabezado` (banda azul con selector de idioma), `Cargando`, `Aviso`, `ErrorCarga` (traduce el código de error y ofrece reintentar si fue de red).
+
+## Frontend: datos
+
+- TanStack Query (`src/app/consultas.ts`) sobre el cliente RPC. `datos(peticion)` (`src/app/api.ts`) devuelve el JSON tipado del caso exitoso o lanza `ErrorApi` con `codigo`, `status` y `campos`. No se reintentan los 4xx.
+- Cada pantalla de barrio llama `usarIdiomaDelBarrio(barrio.idioma)` al cargar el barrio.
+- Inscripciones propias en `localStorage` (`src/app/mis-inscripciones.ts`, hook `useMisInscripciones`): `{ id, turnoId, barrio, fecha, tokenEdicion }`. Con eso se marca "Tu turno" y se reconoce la pantalla de éxito al volver al link.
+- El mes visible va en la URL (`/centro?mes=2026-11`); sin parámetro se elige con `mesInicial` (`src/app/periodos.ts`). Las flechas solo recorren meses abiertos.
+- En la vista pública, los días pasados se ocultan detrás de "Ver los N días anteriores" y "Anotarme" solo aparece en turnos libres de hoy en adelante de un mes abierto.
+- "Agregar a mi calendario": `crearIcs` (`src/shared/ics.ts`, evento de día completo) y `abrirIcs` (hoja de compartir del móvil o descarga).
 - Las maquetas de referencia están en el artifact "Almuerzo Misional — Maquetas" (vista pública, formulario, panel de la presidenta, calendario imprimible).
 
 ## Estructura
@@ -75,10 +86,10 @@ migrations/   SQL generado por drizzle-kit
 
 Comandos: `npm run dev`, `npm run typecheck`, `npm run build`, `npm run db:generate`, `npm run db:migrate:local`, `npm run cf-typegen` (tras cambiar `wrangler.jsonc`).
 
-Datos de prueba: `npm run db:seed:local` (mes actual) o `npm run db:seed:local -- 2026-11`. Es idempotente y crea:
-- `centro` (es, `America/Santiago`) y `jardim` (pt, `America/Sao_Paulo`), cada uno con élderes y hermanas, el mes en estado `abierto` y el tercer domingo bloqueado.
+Datos de prueba: `npm run db:seed:local` (mes actual y el siguiente) o `npm run db:seed:local -- 2026-11` (solo ese mes). Es idempotente y crea:
+- `centro` (es, `America/Santiago`) y `jardim` (pt, `America/Sao_Paulo`), cada uno con élderes y hermanas, los meses en estado `abierto` y el tercer domingo bloqueado.
 - Enlaces de misioneros: `/centro/m/dev-misioneros-centro` y `/jardim/m/dev-misioneros-jardim`.
-- En `centro`, tres inscripciones: Hna. Pérez (con consentimiento; token de edición `dev-edicion-demo`), Hna. González (teléfono sin consentimiento) y Familia Muñoz (`origen = 'admin'`).
+- En `centro`, en el último mes sembrado, tres inscripciones: Hna. Pérez (con consentimiento; token de edición `dev-edicion-demo`), Hna. González (teléfono sin consentimiento) y Familia Muñoz (`origen = 'admin'`).
 - Fechas: `src/shared/fechas.ts` (`hoyEnZona`, `fechasDelMes`, `diaDeSemana`), compartido con el Worker.
 
 Pendiente para producción: crear la base con `npx wrangler d1 create almuerzo-misional` y el bucket R2, y poner el `database_id` real en `wrangler.jsonc`.
@@ -106,11 +117,7 @@ Sin login. Nunca devuelve teléfono, dirección ni nota de otra persona: cada `s
 ## Hitos
 
 1. **Base** ✅ — scaffold, seed y API pública con tests.
-2. **Flujo público** — vista pública y formulario según las maquetas 1 y 2.
-   - Selector de idioma en el encabezado; flechas solo entre meses abiertos; filtro "Solo libres".
-   - Guardar `{ inscripcionId, turnoId, tokenEdicion }` en `localStorage` y marcar "tu turno" en la lista.
-   - Pantalla de éxito con "Agregar a mi calendario" (`.ics` generado en el navegador).
-   - Mensajes de error traducidos por código (409 con opción de volver a elegir).
+2. **Flujo público** ✅ — vista pública y formulario según las maquetas 1 y 2, con selector de idioma, "Tu turno", éxito con `.ics` y 409 amable.
 3. **Mi turno** — ver, editar y cancelar con el token guardado. *Falta maqueta.* La API ya existe.
 4. **Misioneros** — API y pantalla de `/:barrio/m/:token`: calendario con teléfonos solo si hubo consentimiento y botón a WhatsApp. *Falta maqueta.*
 5. **Admin: auth y API** — Better Auth (regenerar `auth-schema.ts`), login (*falta maqueta*), `admins_barrio`, super admin crea barrios. API: crear el mes siguiente generando turnos, cambiar estado `borrador`/`abierto`/`cerrado` (*falta en la maqueta del panel*), bloquear/desbloquear, asignar a mano, editar/borrar inscripciones, regenerar enlace de misioneros, nota para cocinar, activar/desactivar compañerismos.

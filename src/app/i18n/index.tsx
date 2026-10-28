@@ -37,22 +37,21 @@ type ContextoIdioma = {
   cambiarIdioma: (idioma: Idioma) => void;
   /** Formatea una fecha `YYYY-MM-DD` sin pasar por la zona horaria del dispositivo. */
   formatearFecha: (fecha: string, opciones?: Intl.DateTimeFormatOptions) => string;
+  /** "Noviembre 2026" */
+  formatearMes: (anio: number, mes: number) => string;
+  /** Lo llama la pantalla cuando conoce el barrio; no pisa una elección de la persona. */
+  usarIdiomaDelBarrio: (idioma: Idioma | undefined) => void;
 };
 
 const Contexto = createContext<ContextoIdioma | null>(null);
 
 /**
  * Prioridad: lo que eligió la persona (localStorage) → idioma del barrio → navegador → español.
- * `idiomaBarrio` llega cuando se carga el barrio; mientras tanto se usa el del navegador.
+ * El idioma del barrio llega cuando se carga el barrio; mientras tanto se usa el del navegador.
  */
-export function ProveedorIdioma({
-  idiomaBarrio,
-  children,
-}: {
-  idiomaBarrio?: Idioma;
-  children: ReactNode;
-}) {
+export function ProveedorIdioma({ children }: { children: ReactNode }) {
   const [elegido, setElegido] = useState<Idioma | null>(leerIdiomaGuardado);
+  const [idiomaBarrio, setIdiomaBarrio] = useState<Idioma | undefined>();
   const idioma = elegido ?? idiomaBarrio ?? idiomaDelNavegador() ?? "es";
 
   const valor = useMemo<ContextoIdioma>(() => {
@@ -74,6 +73,13 @@ export function ProveedorIdioma({
           new Date(Date.UTC(anio, mes - 1, dia)),
         );
       },
+      formatearMes: (anio, mes) => {
+        const nombre = new Intl.DateTimeFormat(locale, { month: "long", timeZone: "UTC" }).format(
+          new Date(Date.UTC(anio, mes - 1, 1)),
+        );
+        return `${nombre.charAt(0).toLocaleUpperCase(locale)}${nombre.slice(1)} ${anio}`;
+      },
+      usarIdiomaDelBarrio: setIdiomaBarrio,
     };
   }, [idioma]);
 

@@ -40,6 +40,14 @@
   --cielo-claro: #eaf2f9;
   --dorado: #c49a3a;
   --dorado-claro: #e2c27a;
+
+  /* Estados (de las maquetas): confirmado en verde, avisos en ámbar. */
+  --exito: #2f7a4f;
+  --exito-suave: #e3f1e8;
+  --aviso: #8a6516;
+  --aviso-texto: #4a3a12;
+  --aviso-suave: #fbf6ea;
+  --aviso-borde: #ebddba;
 }
 
 @theme inline {
@@ -76,6 +84,12 @@
   --color-cielo-claro: var(--cielo-claro);
   --color-dorado: var(--dorado);
   --color-dorado-claro: var(--dorado-claro);
+  --color-exito: var(--exito);
+  --color-exito-suave: var(--exito-suave);
+  --color-aviso: var(--aviso);
+  --color-aviso-texto: var(--aviso-texto);
+  --color-aviso-suave: var(--aviso-suave);
+  --color-aviso-borde: var(--aviso-borde);
 }
 
 @layer base {

@@ -18,14 +18,19 @@ const buttonVariants = cva(
         ghost:
           "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
         link: "text-primary underline-offset-4 hover:underline",
+        /** Acción principal de las pantallas públicas: píldora azul medio (maquetas). */
+        accion: "rounded-full bg-azul-medio font-bold text-white hover:bg-azul-medio/90",
+        /** Secundaria con borde, también en píldora. */
+        "accion-outline":
+          "rounded-full border border-azul-medio bg-white font-bold text-azul-medio hover:bg-cielo-claro",
       },
       size: {
         default: "h-11 px-5 py-2 text-base has-[>svg]:px-4",
-        xs: "h-6 gap-1 rounded-md px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5",
-        lg: "h-12 rounded-md px-6 text-base has-[>svg]:px-5",
+        xs: "h-6 gap-1 px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
+        sm: "h-8 gap-1.5 px-3 has-[>svg]:px-2.5",
+        lg: "h-12 px-6 text-base has-[>svg]:px-5",
         icon: "size-11",
-        "icon-xs": "size-6 rounded-md [&_svg:not([class*='size-'])]:size-3",
+        "icon-xs": "size-6 [&_svg:not([class*='size-'])]:size-3",
         "icon-sm": "size-8",
         "icon-lg": "size-12",
       },
