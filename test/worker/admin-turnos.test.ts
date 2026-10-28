@@ -188,6 +188,20 @@ describe("editar y borrar inscripciones", () => {
     expect(fila.nota).toBeNull();
   });
 
+  it("sin consentimiento no devuelve el teléfono (ni al editar ni al anotar a mano)", async () => {
+    const editada = await pedir(`${base}/inscripciones/i-bloqueado`, { method: "PATCH", cookie, json: { nombre: "Hna. Otra" } });
+    expect(editada.status).toBe(200);
+    expect(await editada.json()).toMatchObject({ inscripcion: { telefono: null, consentimientoTelefono: false } });
+
+    const creada = await pedir(`${base}/turnos/${IDS.libre}/inscripcion`, {
+      method: "POST",
+      cookie,
+      json: { ...nueva, consentimientoTelefono: false },
+    });
+    expect(creada.status).toBe(201);
+    expect(await creada.json()).toMatchObject({ inscripcion: { telefono: null, consentimientoTelefono: false } });
+  });
+
   it("también en día pasado (el admin no tiene esa restricción)", async () => {
     await db.insert(inscripciones).values({ id: "i-pasada", turnoId: IDS.pasado, nombre: "Vieja", origen: "publico" });
     const res = await pedir(`${base}/inscripciones/i-pasada`, { method: "PATCH", cookie, json: { nombre: "Nueva" } });

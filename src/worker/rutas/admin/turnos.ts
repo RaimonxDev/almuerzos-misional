@@ -11,7 +11,7 @@ import { esViolacionUnica, fallar, validar } from "../../http";
  * Bloqueos, anotar a mano, editar y borrar inscripciones (issue #9). Se monta en `/api/admin/barrios/:slug`.
  * Todo se busca restringido al barrio de `c.var.barrio`: un id de otro barrio da 404.
  * A diferencia de la API pública, el admin opera también días pasados y meses borrador o cerrados,
- * y ve los datos privados de las inscripciones.
+ * y ve la nota y el teléfono de las inscripciones (este último solo con consentimiento).
  */
 
 const paramsTurno = z.object({ turnoId: z.string().min(1).max(100) });
@@ -68,7 +68,8 @@ async function inscripcionDelBarrio(db: Db, barrioId: string, id: string) {
     .innerJoin(companerismos, eq(companerismos.id, turnos.companerismoId))
     .where(and(eq(inscripciones.id, id), eq(meses.barrioId, barrioId)))
     .limit(1);
-  return fila;
+  // Sin consentimiento el teléfono no sale por ningún endpoint, tampoco por los de admin.
+  return fila && { ...fila, telefono: fila.consentimientoTelefono ? fila.telefono : null };
 }
 
 export const rutasTurnos = new Hono<AppEnvBarrioAdmin>()
