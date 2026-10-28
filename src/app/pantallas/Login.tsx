@@ -36,7 +36,15 @@ export function Login() {
         password: String(form.get("password")),
       });
       if (fallo) {
-        setError(fallo.code === "INVALID_EMAIL_OR_PASSWORD" ? "CREDENCIALES_INVALIDAS" : "ERROR_INTERNO");
+        setError(
+          fallo.status === 429
+            ? "DEMASIADOS_INTENTOS"
+            : fallo.code === "BANNED_USER"
+              ? "CUENTA_BLOQUEADA"
+              : fallo.code === "INVALID_EMAIL_OR_PASSWORD"
+                ? "CREDENCIALES_INVALIDAS"
+                : "ERROR_INTERNO",
+        );
         return;
       }
       // Que `/admin` pida la sesión de nuevo en vez de usar un 401 viejo.

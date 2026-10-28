@@ -1,15 +1,14 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, type SQL, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
+import type { Db } from "@/db";
 import { companerismos, inscripciones, meses, turnos } from "@/db/schema";
-import { fechasDelMes } from "@/shared/fechas";
 import type { AppEnvBarrioAdmin } from "../../contexto";
+import { insertsDeTurnos } from "../../consultas";
 import { esViolacionUnica, fallar, validar } from "../../http";
-import { paramsMes } from "../../params";
+import { esquemaPeriodo, paramsMes } from "../../params";
 
-const REGEX_PERIODO = /^\d{4}-(0[1-9]|1[0-2])$/;
-
-const esquemaNuevoMes = z.object({ periodo: z.string().regex(REGEX_PERIODO) });
+const esquemaNuevoMes = z.object({ periodo: esquemaPeriodo });
 const esquemaCambioEstado = z.object({ estado: z.enum(["borrador", "abierto", "cerrado"]) });
 
 /** Cambios de estado permitidos. Cualquier otro (incluido quedarse igual) es TRANSICION_INVALIDA. */
@@ -19,23 +18,15 @@ const TRANSICIONES: Record<string, readonly string[]> = {
   cerrado: ["abierto"],
 };
 
-/** D1 admite como máximo 100 parámetros por consulta: los turnos se insertan en tandas. */
-const TURNOS_POR_TANDA = 20;
-
 const periodoDe = (anio: number, mes: number) => `${anio}-${String(mes).padStart(2, "0")}`;
 
-const columnasMes = {
-  id: meses.id,
-  anio: meses.anio,
-  mes: meses.mes,
-  estado: meses.estado,
-};
-
-/** Un mes del barrio con sus conteos (para listar y para responder al crear/cambiar estado). */
-async function resumenDeMes(db: AppEnvBarrioAdmin["Variables"]["db"], barrioId: string, anio: number, mes: number) {
-  const fila = await db
+/** Meses del barrio con sus conteos, en orden cronológico; `filtro` acota a uno. */
+async function resumenes(db: Db, barrioId: string, filtro?: SQL) {
+  const filas = await db
     .select({
-      ...columnasMes,
+      anio: meses.anio,
+      mes: meses.mes,
+      estado: meses.estado,
       turnos: sql<number>`count(${turnos.id})`,
       tomados: sql<number>`count(${inscripciones.id})`,
       bloqueados: sql<number>`coalesce(sum(${turnos.bloqueado}), 0)`,
@@ -43,46 +34,29 @@ async function resumenDeMes(db: AppEnvBarrioAdmin["Variables"]["db"], barrioId: 
     .from(meses)
     .leftJoin(turnos, eq(turnos.mesId, meses.id))
     .leftJoin(inscripciones, eq(inscripciones.turnoId, turnos.id))
-    .where(and(eq(meses.barrioId, barrioId), eq(meses.anio, anio), eq(meses.mes, mes)))
+    .where(and(eq(meses.barrioId, barrioId), filtro))
     .groupBy(meses.id)
-    .get();
-  return fila ? formatear(fila) : null;
+    .orderBy(asc(meses.anio), asc(meses.mes));
+  return filas.map((f) => ({
+    periodo: periodoDe(f.anio, f.mes),
+    anio: f.anio,
+    mes: f.mes,
+    estado: f.estado,
+    turnos: Number(f.turnos),
+    tomados: Number(f.tomados),
+    bloqueados: Number(f.bloqueados),
+  }));
 }
 
-const formatear = (f: { anio: number; mes: number; estado: string; turnos: number; tomados: number; bloqueados: number }) => ({
-  periodo: periodoDe(f.anio, f.mes),
-  anio: f.anio,
-  mes: f.mes,
-  estado: f.estado,
-  turnos: Number(f.turnos),
-  tomados: Number(f.tomados),
-  bloqueados: Number(f.bloqueados),
-});
+const resumenDeMes = async (db: Db, barrioId: string, anio: number, mes: number) =>
+  (await resumenes(db, barrioId, and(eq(meses.anio, anio), eq(meses.mes, mes))))[0] ?? null;
 
 const aNumeros = (periodo: string) => periodo.split("-").map(Number) as [number, number];
 
 /** Meses del barrio (issue #8). Se monta en `/api/admin/barrios/:slug`. */
 export const rutasMeses = new Hono<AppEnvBarrioAdmin>()
   /** Todos los meses del barrio, en cualquier estado, con conteos. */
-  .get("/meses", async (c) => {
-    const { db, barrio } = c.var;
-    const filas = await db
-      .select({
-        anio: meses.anio,
-        mes: meses.mes,
-        estado: meses.estado,
-        turnos: sql<number>`count(${turnos.id})`,
-        tomados: sql<number>`count(${inscripciones.id})`,
-        bloqueados: sql<number>`coalesce(sum(${turnos.bloqueado}), 0)`,
-      })
-      .from(meses)
-      .leftJoin(turnos, eq(turnos.mesId, meses.id))
-      .leftJoin(inscripciones, eq(inscripciones.turnoId, turnos.id))
-      .where(eq(meses.barrioId, barrio.id))
-      .groupBy(meses.id)
-      .orderBy(asc(meses.anio), asc(meses.mes));
-    return c.json({ meses: filas.map(formatear) });
-  })
+  .get("/meses", async (c) => c.json({ meses: await resumenes(c.var.db, c.var.barrio.id) }))
 
   /** Crea el mes en borrador con un turno por día y compañerismo activo. */
   .post("/meses", validar("json", esquemaNuevoMes), async (c) => {
@@ -103,17 +77,12 @@ export const rutasMeses = new Hono<AppEnvBarrioAdmin>()
       .orderBy(asc(companerismos.orden));
 
     const mesId = crypto.randomUUID();
-    const filasTurnos = fechasDelMes(anio, mes).flatMap((fecha) =>
-      activos.map((cp) => ({ mesId, companerismoId: cp.id, fecha })),
-    );
-    const tandas: (typeof filasTurnos)[] = [];
-    for (let i = 0; i < filasTurnos.length; i += TURNOS_POR_TANDA) tandas.push(filasTurnos.slice(i, i + TURNOS_POR_TANDA));
 
     try {
       // Un solo batch: o se crea el mes con todos sus turnos o no se crea nada.
       await db.batch([
         db.insert(meses).values({ id: mesId, barrioId: barrio.id, anio, mes }),
-        ...tandas.map((tanda) => db.insert(turnos).values(tanda)),
+        ...insertsDeTurnos(db, { id: mesId, anio, mes }, activos.map((cp) => cp.id)),
       ]);
     } catch (err) {
       // Carrera entre dos admins creando el mismo mes.
@@ -131,7 +100,10 @@ export const rutasMeses = new Hono<AppEnvBarrioAdmin>()
 
     const mes = await db
       .select({
-        ...columnasMes,
+        id: meses.id,
+        anio: meses.anio,
+        mes: meses.mes,
+        estado: meses.estado,
         imagenKey: meses.imagenKey,
         escritura: meses.escritura,
         escrituraRef: meses.escrituraRef,

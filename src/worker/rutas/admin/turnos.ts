@@ -6,6 +6,7 @@ import { companerismos, inscripciones, meses, turnos } from "@/db/schema";
 import { esquemaEdicionInscripcion, esquemaNuevaInscripcion } from "@/shared/inscripciones";
 import type { AppEnvBarrioAdmin } from "../../contexto";
 import { esViolacionUnica, fallar, validar } from "../../http";
+import { paramsTurno } from "../../params";
 
 /**
  * Bloqueos, anotar a mano, editar y borrar inscripciones (issue #9). Se monta en `/api/admin/barrios/:slug`.
@@ -14,9 +15,14 @@ import { esViolacionUnica, fallar, validar } from "../../http";
  * y ve la nota y el teléfono de las inscripciones (este último solo con consentimiento).
  */
 
-const paramsTurno = z.object({ turnoId: z.string().min(1).max(100) });
 const paramsDia = z.object({ fecha: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/) });
 const paramsInscripcion = z.object({ id: z.string().min(1).max(100) });
+
+/**
+ * Como la edición con token, pero el consentimiento solo se puede quitar: darlo le toca a la persona
+ * (un admin que lo activara expondría a los misioneros un teléfono que ella no autorizó).
+ */
+const esquemaEdicionAdmin = esquemaEdicionInscripcion.extend({ consentimientoTelefono: z.literal(false).optional() });
 
 const esquemaBloqueo = z.object({
   bloqueado: z.boolean(),
@@ -150,7 +156,7 @@ export const rutasTurnos = new Hono<AppEnvBarrioAdmin>()
   )
 
   /** Editar cualquier inscripción del barrio (también las públicas). */
-  .patch("/inscripciones/:id", validar("param", paramsInscripcion), validar("json", esquemaEdicionInscripcion), async (c) => {
+  .patch("/inscripciones/:id", validar("param", paramsInscripcion), validar("json", esquemaEdicionAdmin), async (c) => {
     const db = c.var.db;
     const { id } = c.req.valid("param");
     const cambios = c.req.valid("json");

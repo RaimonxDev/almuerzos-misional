@@ -134,6 +134,8 @@ export const es = {
     MES_EXISTENTE: "Ese mes ya existe.",
     TRANSICION_INVALIDA: "No se puede cambiar el mes a ese estado.",
     CREDENCIALES_INVALIDAS: "El correo o la contraseña no son correctos.",
+    CUENTA_BLOQUEADA: "Esta cuenta está bloqueada. Habla con quien administra la aplicación.",
+    DEMASIADOS_INTENTOS: "Demasiados intentos. Espera un minuto y vuelve a intentarlo.",
     ERROR_INTERNO: "Algo salió mal o no hay conexión. Inténtalo de nuevo en un momento.",
   } satisfies Record<CodigoError, string>,
 };

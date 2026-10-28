@@ -126,7 +126,9 @@ Sin login. Nunca devuelve teléfono, dirección ni nota de otra persona: cada `s
 
 ## API de admin y auth
 
-- Better Auth se arma por request (`crearAuth(env, db)` en `src/worker/auth.ts`) y vive en `/api/auth/*` (login `POST /api/auth/sign-in/email`, cookie de sesión). `disableSignUp: true`: las cuentas las crea el super admin con `/api/auth/admin/create-user` del plugin. Contraseñas con PBKDF2-SHA256 de Web Crypto (`src/shared/password.ts`, 100 000 iteraciones), no el scrypt por defecto, que excede la CPU del plan gratis.
+- Better Auth se arma una vez por isolate (`obtenerAuth(env)` en `src/worker/auth.ts`) y vive en `/api/auth/*` (login `POST /api/auth/sign-in/email`, cookie de sesión). `disableSignUp: true`: las cuentas las crea el super admin con `/api/auth/admin/create-user` del plugin. Contraseñas con PBKDF2-SHA256 de Web Crypto (`src/shared/password.ts`, 100 000 iteraciones), no el scrypt por defecto, que excede la CPU del plan gratis.
+- Límite de intentos de Better Auth guardado en D1 (tabla `rate_limit`; en memoria no serviría entre isolates): login 5 por minuto por IP (`cf-connecting-ip`). El login traduce el 429 como `DEMASIADOS_INTENTOS` y un usuario bloqueado (`BANNED_USER`) como `CUENTA_BLOQUEADA`. `sembrar()` limpia la tabla en los tests.
+- `conSesion` reenvía al navegador la cookie que Better Auth renueva al leer la sesión; sin eso la sesión se cerraría a los 7 días aunque se use.
 - Secretos: `BETTER_AUTH_SECRET` (y `BETTER_AUTH_URL` opcional) en `.dev.vars` (ver `.dev.vars.example`); en producción `bunx wrangler secret put BETTER_AUTH_SECRET`. En los tests son bindings de `vitest.config.ts`.
 - Super admin = `user.role === "admin"`; admins de barrio = rol `user` + filas en `admins_barrio`.
 - Todo cuelga de `/api/admin` (`rutas/admin/index.ts`), con `conSesion` (401 `NO_AUTORIZADO`, deja `c.var.usuario`). Lo de `/api/admin/barrios/:slug/*` pasa además por `conBarrioAdmin` (403 `SIN_PERMISO`, también si el barrio no existe; super admin con slug inexistente → 404; deja `c.var.barrio`). Tipos de contexto: `AppEnvAdmin` y `AppEnvBarrioAdmin` (`src/worker/contexto.ts`); middlewares en `src/worker/permisos.ts`. Para agregar rutas de un barrio se encadenan en `rutas/admin/{meses,turnos,barrio}.ts`.
@@ -137,12 +139,12 @@ Sin login. Nunca devuelve teléfono, dirección ni nota de otra persona: cada `s
 |---|---|
 | `GET /` · `PATCH /` | Datos del barrio (con `tokenMisioneros`) y compañerismos; editar nombre, nota para cocinar, contacto, idioma y zona (zona IANA inválida → 400 `campos: ["zonaHoraria"]`) |
 | `POST /token-misioneros` | Regenera el enlace de misioneros; el anterior da 404 |
-| `POST /companerismos` · `PATCH /companerismos/:id` | Crear (al final del orden) o cambiar nombre, `activo` y `orden`. Nunca se borran: desactivar conserva el historial |
+| `POST /companerismos` · `PATCH /companerismos/:id` | Crear (al final del orden) o cambiar nombre, `activo` y `orden`. Nunca se borran: desactivar conserva el historial. Crear o reactivar genera los turnos que falten en los meses borrador y abiertos del mes actual en adelante (`insertsDeTurnos` en `src/worker/consultas.ts`, el mismo que usa crear mes) |
 | `GET /meses` · `POST /meses` | Meses con conteos (`turnos`, `tomados`, `bloqueados`); crear `{ periodo }` en `borrador` con un turno por día y compañerismo activo (409 `MES_EXISTENTE`) |
 | `GET /meses/:periodo` · `PATCH /meses/:periodo` | Mes completo para el panel (incluye borradores e inscripciones de turnos bloqueados); `{ estado }` con transiciones borrador→abierto→cerrado→abierto (si no, 422 `TRANSICION_INVALIDA`) |
 | `PATCH /turnos/:turnoId` · `PATCH /dias/:fecha` | `{ bloqueado, motivo? }` para un turno o para todos los de esa fecha (también los de compañerismos inactivos) |
 | `POST /turnos/:turnoId/inscripcion` | Anotar a mano: `origen = 'admin'`, `creadoPorUserId`, sin token de edición. Sirve en días pasados y meses no abiertos. 409 `TURNO_TOMADO`, 422 `TURNO_BLOQUEADO` |
-| `PATCH/DELETE /inscripciones/:id` | Editar o borrar cualquier inscripción del barrio, sin restricción de día ni estado |
+| `PATCH/DELETE /inscripciones/:id` | Editar o borrar cualquier inscripción del barrio, sin restricción de día ni estado. El consentimiento del teléfono solo se puede quitar, no dar: eso le toca a la persona |
 
 - Un turno, inscripción o compañerismo de otro barrio da 404 aunque se conozca su id. El admin ve nota y modalidad, y el teléfono **solo con consentimiento**, igual que los misioneros.
 - D1 admite 100 parámetros por consulta: los INSERT grandes van en tandas dentro de un `db.batch` (ver `rutas/admin/meses.ts`).

@@ -1,9 +1,9 @@
 /**
- * Tablas de Better Auth (núcleo + plugin `admin` para el rol de super admin).
- * Generado con el CLI de Better Auth (1.7.x) y no se edita a mano:
- *   bunx auth@latest generate --config <archivo con betterAuth({ plugins: [admin()] })> --output src/db/auth-schema.ts
+ * Tablas de Better Auth (núcleo + plugin `admin` para el rol de super admin + `rate_limit` para el
+ * límite de intentos guardado en la base). Generado con el CLI de Better Auth (1.7.x) y no se edita a mano:
+ *   bunx auth@latest generate --config <archivo con betterAuth({ rateLimit: { storage: "database" }, plugins: [admin()] })> --output src/db/auth-schema.ts
  * (el paquete `@better-auth/cli` está obsoleto; el CLI actual es `auth`). Ojo: los timestamps son
- * `timestamp_ms` (milisegundos). Regenerar si se cambian los plugins de `src/worker/auth.ts`.
+ * `timestamp_ms` (milisegundos). Regenerar si se cambian los plugins o el rate limit de `src/worker/auth.ts`.
  */
 import { relations, sql } from "drizzle-orm";
 import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
@@ -98,6 +98,13 @@ export const verification = sqliteTable(
   },
   (table) => [index("verification_identifier_idx").on(table.identifier)],
 );
+
+export const rateLimit = sqliteTable("rate_limit", {
+  id: text("id").primaryKey(),
+  key: text("key").notNull().unique(),
+  count: integer("count").notNull(),
+  lastRequest: integer("last_request").notNull(),
+});
 
 export const userRelations = relations(user, ({ many }) => ({
   sessions: many(session),

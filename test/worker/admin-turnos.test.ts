@@ -202,6 +202,16 @@ describe("editar y borrar inscripciones", () => {
     expect(await creada.json()).toMatchObject({ inscripcion: { telefono: null, consentimientoTelefono: false } });
   });
 
+  it("no puede dar un consentimiento que la persona no dio, pero sí quitarlo", async () => {
+    const dar = await pedir(`${base}/inscripciones/i-bloqueado`, { method: "PATCH", cookie, json: { consentimientoTelefono: true } });
+    expect(dar.status).toBe(400);
+    expect(await dar.json()).toEqual({ error: "DATOS_INVALIDOS", campos: ["consentimientoTelefono"] });
+
+    const quitar = await pedir(`${base}/inscripciones/i-tomado`, { method: "PATCH", cookie, json: { consentimientoTelefono: false } });
+    expect(quitar.status).toBe(200);
+    expect(await quitar.json()).toMatchObject({ inscripcion: { telefono: null, consentimientoTelefono: false } });
+  });
+
   it("también en día pasado (el admin no tiene esa restricción)", async () => {
     await db.insert(inscripciones).values({ id: "i-pasada", turnoId: IDS.pasado, nombre: "Vieja", origen: "publico" });
     const res = await pedir(`${base}/inscripciones/i-pasada`, { method: "PATCH", cookie, json: { nombre: "Nueva" } });

@@ -1,10 +1,12 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { Db } from "@/db";
-import { barrios, companerismos, nuevoToken } from "@/db/schema";
+import { type Barrio, barrios, companerismos, meses, nuevoToken } from "@/db/schema";
+import { hoyEnZona } from "@/shared/fechas";
 import { IDIOMAS } from "@/shared/idiomas";
 import type { AppEnvBarrioAdmin } from "../../contexto";
+import { insertsDeTurnos } from "../../consultas";
 import { fallar, validar, zonaValida } from "../../http";
 import { paramsBarrio } from "../../params";
 
@@ -59,6 +61,25 @@ const datosBarrio = (b: typeof barrios.$inferSelect) => ({
   contactoTelefono: b.contactoTelefono,
 });
 
+/**
+ * Turnos para un compañerismo nuevo o reactivado en los meses donde todavía se anota: borradores y
+ * abiertos, del mes actual (en la zona del barrio) en adelante. Los cerrados y pasados no se tocan.
+ */
+async function turnosQueFaltan(db: Db, barrio: Barrio, companerismoId: string) {
+  const [anio, mes] = hoyEnZona(barrio.zonaHoraria).split("-").map(Number);
+  const vigentes = await db
+    .select({ id: meses.id, anio: meses.anio, mes: meses.mes })
+    .from(meses)
+    .where(
+      and(
+        eq(meses.barrioId, barrio.id),
+        inArray(meses.estado, ["borrador", "abierto"]),
+        sql`${meses.anio} * 12 + ${meses.mes} >= ${anio * 12 + mes}`,
+      ),
+    );
+  return vigentes.flatMap((m) => insertsDeTurnos(db, m, [companerismoId]));
+}
+
 const sinIndefinidos = (o: Record<string, unknown>) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
 
 /** Datos del barrio, token de misioneros y compañerismos (issue #10). Se monta en `/api/admin/barrios/:slug`. */
@@ -87,20 +108,24 @@ export const rutasBarrio = new Hono<AppEnvBarrioAdmin>()
   .post("/companerismos", validar("json", esquemaNuevoCompanerismo), async (c) => {
     const { db, barrio } = c.var;
     const datos = c.req.valid("json");
-    const [creado] = await db
-      .insert(companerismos)
-      .values({
+    const id = crypto.randomUUID();
+    // En un solo batch: el compañerismo y sus turnos en los meses vigentes.
+    await db.batch([
+      db.insert(companerismos).values({
+        id,
         barrioId: barrio.id,
         tipo: datos.tipo,
         nombre: datos.nombre,
         // Al final de la lista, calculado en la misma sentencia.
         orden: sql`(select coalesce(max(${companerismos.orden}) + 1, 0) from ${companerismos} where ${companerismos.barrioId} = ${barrio.id})`,
-      })
-      .returning(columnasCompanerismo);
+      }),
+      ...(await turnosQueFaltan(db, barrio, id)),
+    ]);
+    const creado = await db.select(columnasCompanerismo).from(companerismos).where(eq(companerismos.id, id)).get();
     return c.json({ companerismo: creado }, 201);
   })
 
-  /** Nunca se borran: desactivar conserva turnos e inscripciones. */
+  /** Nunca se borran: desactivar conserva turnos e inscripciones; reactivar completa los turnos que faltan. */
   .patch("/companerismos/:id", validar("param", paramsCompanerismo), validar("json", esquemaEditarCompanerismo), async (c) => {
     const { db, barrio } = c.var;
     const { id } = c.req.valid("param");
@@ -110,7 +135,10 @@ export const rutasBarrio = new Hono<AppEnvBarrioAdmin>()
     if (!existe) return fallar(c, "NO_ENCONTRADO", 404);
 
     const cambios = sinIndefinidos(c.req.valid("json"));
-    if (Object.keys(cambios).length > 0) await db.update(companerismos).set(cambios).where(donde);
+    if (Object.keys(cambios).length > 0) {
+      const turnos = cambios.activo === true ? await turnosQueFaltan(db, barrio, id) : [];
+      await db.batch([db.update(companerismos).set(cambios).where(donde), ...turnos]);
+    }
     const actual = await db.select(columnasCompanerismo).from(companerismos).where(donde).get();
     return c.json({ companerismo: actual });
   });

@@ -76,6 +76,34 @@ describe("Login", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("The email or password is incorrect.");
   });
 
+  it("demasiados intentos (429) muestran su propio mensaje", async () => {
+    const user = userEvent.setup();
+    simularApi({
+      "/api/admin/yo": SIN_SESION,
+      "/api/auth/sign-in/email": { status: 429, json: { message: "Too many requests. Please try again later." } },
+    });
+    renderizar("/admin/login");
+
+    await llenar(user, "presidenta@ejemplo.cl", "mala");
+    await user.click(screen.getByRole("button", { name: "Entrar" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Demasiados intentos.");
+  });
+
+  it("una cuenta bloqueada lo dice", async () => {
+    const user = userEvent.setup();
+    simularApi({
+      "/api/admin/yo": SIN_SESION,
+      "/api/auth/sign-in/email": { status: 403, json: { code: "BANNED_USER", message: "You have been banned from this application" } },
+    });
+    renderizar("/admin/login");
+
+    await llenar(user, "presidenta@ejemplo.cl", "clave");
+    await user.click(screen.getByRole("button", { name: "Entrar" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Esta cuenta está bloqueada.");
+  });
+
   it("un error de red muestra el error genérico", async () => {
     const user = userEvent.setup();
     simularApi({ "/api/admin/yo": SIN_SESION, "/api/auth/sign-in/email": { status: 500, json: {} } });

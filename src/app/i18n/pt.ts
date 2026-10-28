@@ -129,6 +129,8 @@ export const pt: Mensajes = {
     MES_EXISTENTE: "Esse mês já existe.",
     TRANSICION_INVALIDA: "Não é possível mudar o mês para esse estado.",
     CREDENCIALES_INVALIDAS: "O e-mail ou a senha não estão corretos.",
+    CUENTA_BLOQUEADA: "Esta conta está bloqueada. Fale com quem administra o aplicativo.",
+    DEMASIADOS_INTENTOS: "Muitas tentativas. Espere um minuto e tente de novo.",
     ERROR_INTERNO: "Algo deu errado ou não há conexão. Tente novamente em instantes.",
   },
 };

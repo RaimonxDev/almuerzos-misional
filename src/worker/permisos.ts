@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
 import { adminsBarrio, barrios } from "@/db/schema";
-import { crearAuth } from "./auth";
+import { obtenerAuth } from "./auth";
 import type { AppEnvAdmin, AppEnvBarrioAdmin, UsuarioAdmin } from "./contexto";
 import { fallar } from "./http";
 
@@ -11,11 +11,19 @@ export const esSuperAdmin = (usuario: Pick<UsuarioAdmin, "role">) =>
 
 /** Sin sesión → 401 `NO_AUTORIZADO`. Con sesión deja el usuario en `c.var.usuario`. */
 export const conSesion = createMiddleware<AppEnvAdmin>(async (c, next) => {
-  const sesion = await crearAuth(c.env, c.var.db).api.getSession({ headers: c.req.raw.headers });
-  if (!sesion) return fallar(c, "NO_AUTORIZADO", 401);
-  const { id, email, name, role } = sesion.user;
-  c.set("usuario", { id, email, name, role: role ?? null });
-  await next();
+  const { headers, response: sesion } = await obtenerAuth(c.env).api.getSession({
+    headers: c.req.raw.headers,
+    returnHeaders: true,
+  });
+  if (sesion) {
+    const { id, email, name, role } = sesion.user;
+    c.set("usuario", { id, email, name, role: role ?? null });
+    await next();
+  } else {
+    c.res = fallar(c, "NO_AUTORIZADO", 401);
+  }
+  // Si Better Auth renovó (o borró) la cookie de sesión, el cambio tiene que llegar al navegador.
+  for (const valor of headers.getSetCookie()) c.res.headers.append("Set-Cookie", valor);
 });
 
 /**

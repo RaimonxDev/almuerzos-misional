@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { RespuestaError } from "@/shared/errores";
-import { crearAuth } from "./auth";
+import { obtenerAuth } from "./auth";
 import { conDb, type AppEnv } from "./contexto";
 import { rutasAdmin } from "./rutas/admin";
 import { rutasBarrios } from "./rutas/barrios";
@@ -12,7 +12,7 @@ const app = new Hono<AppEnv>().basePath("/api");
 app.use(conDb);
 
 // Better Auth: login/logout/sesión y el plugin `admin` (sin registro público). Va fuera del tipo RPC.
-app.on(["GET", "POST"], "/auth/*", (c) => crearAuth(c.env, c.var.db).handler(c.req.raw));
+app.on(["GET", "POST"], "/auth/*", (c) => obtenerAuth(c.env).handler(c.req.raw));
 
 const rutas = app
   .get("/salud", (c) => c.json({ ok: true }))

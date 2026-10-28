@@ -1,6 +1,6 @@
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
-import { user } from "@/db/auth-schema";
+import { session, user } from "@/db/auth-schema";
 import { hashPassword, verificarPassword } from "@/shared/password";
 import { PASSWORD_PRUEBA, crearAdmin, iniciarSesion, pedir, sembrar } from "./datos";
 import { crearDb } from "@/db";
@@ -88,6 +88,38 @@ describe("sin registro público", () => {
     expect(res.status).toBe(200);
     // y la nueva puede entrar con la contraseña que le pusieron
     expect(await iniciarSesion("nueva@ejemplo.cl", "clave-larga-123")).toContain("session_token=");
+  });
+});
+
+describe("sesión", () => {
+  it("una sesión por vencer se renueva y la cookie nueva llega al navegador", async () => {
+    await crearAdmin({ email: "a@ejemplo.cl" });
+    const cookie = await iniciarSesion("a@ejemplo.cl");
+    const db = crearDb(env.DB);
+    // Como si se hubiera abierto hace casi 7 días: le queda una hora.
+    await db.update(session).set({ expiresAt: new Date(Date.now() + 3_600_000) });
+
+    const res = await pedir("/api/admin/yo", { cookie });
+    expect(res.status).toBe(200);
+    expect(res.headers.getSetCookie().join(";")).toContain("session_token=");
+    const [renovada] = await db.select({ expiresAt: session.expiresAt }).from(session);
+    expect(renovada.expiresAt.getTime()).toBeGreaterThan(Date.now() + 6 * 86_400_000);
+  });
+});
+
+describe("límite de intentos de login", () => {
+  const intentar = (ip: string) =>
+    pedir("/api/auth/sign-in/email", {
+      method: "POST",
+      json: { email: "a@ejemplo.cl", password: "otra-clave-123" },
+      headers: { "cf-connecting-ip": ip },
+    });
+
+  it("tras 5 intentos desde la misma IP responde 429; otra IP sigue pudiendo", async () => {
+    await crearAdmin({ email: "a@ejemplo.cl" });
+    for (let i = 0; i < 5; i++) expect((await intentar("203.0.113.7")).status).toBe(401);
+    expect((await intentar("203.0.113.7")).status).toBe(429);
+    expect((await intentar("203.0.113.8")).status).toBe(401);
   });
 });
 

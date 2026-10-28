@@ -15,6 +15,13 @@
       "when": 1793194291543,
       "tag": "0001_familiar_lilith",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793195520539,
+      "tag": "0002_new_clint_barton",
+      "breakpoints": true
     }
   ]
 }

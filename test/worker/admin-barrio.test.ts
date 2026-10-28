@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { companerismos, inscripciones, turnos } from "@/db/schema";
 import type { Db } from "@/db";
 import { crearAdmin, iniciarSesion, pedir, sembrar } from "./datos";
@@ -15,6 +15,9 @@ beforeEach(async () => {
 
 const base = "/api/admin/barrios/prueba";
 const patch = (json: unknown, ruta = base) => pedir(ruta, { method: "PATCH", cookie, json });
+const turnosDe = async (companerismoId: string, mesId: string) =>
+  (await db.select({ id: turnos.id }).from(turnos).where(and(eq(turnos.companerismoId, companerismoId), eq(turnos.mesId, mesId))))
+    .length;
 
 describe("GET /api/admin/barrios/:slug", () => {
   it("devuelve el barrio con su token y todos los compañerismos, activos o no", async () => {
@@ -129,6 +132,23 @@ describe("compañerismos", () => {
     expect(companerismo).toMatchObject({ tipo: "hermanas", nombre: "Hermanas 2", activo: true, orden: 3 });
     const fila = await db.select().from(companerismos).where(eq(companerismos.id, companerismo.id)).get();
     expect(fila?.barrioId).toBe("b1");
+  });
+
+  it("uno nuevo recibe turnos en los meses abiertos y borradores que no pasaron", async () => {
+    const res = await pedir(`${base}/companerismos`, { method: "POST", cookie, json: { tipo: "hermanas", nombre: "Hermanas nuevas" } });
+    const { companerismo } = await res.json<any>();
+    expect(await turnosDe(companerismo.id, "m-futuro")).toBe(31);
+    expect(await turnosDe(companerismo.id, "m-borrador")).toBe(28);
+    expect(await turnosDe(companerismo.id, "m-cerrado")).toBe(0);
+    expect(await turnosDe(companerismo.id, "m-pasado")).toBe(0);
+  });
+
+  it("reactivar completa los turnos que faltan sin duplicar los que ya tenía", async () => {
+    expect(await turnosDe("c-x", "m-futuro")).toBe(1);
+    expect((await patch({ activo: true }, `${base}/companerismos/c-x`)).status).toBe(200);
+    expect(await turnosDe("c-x", "m-futuro")).toBe(31);
+    expect(await turnosDe("c-x", "m-borrador")).toBe(28);
+    expect(await turnosDe("c-x", "m-cerrado")).toBe(0);
   });
 
   it("datos inválidos → 400", async () => {

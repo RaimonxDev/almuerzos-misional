@@ -126,6 +126,8 @@ export const en: Mensajes = {
     MES_EXISTENTE: "That month already exists.",
     TRANSICION_INVALIDA: "The month can't be changed to that status.",
     CREDENCIALES_INVALIDAS: "The email or password is incorrect.",
+    CUENTA_BLOQUEADA: "This account is blocked. Talk to whoever runs the app.",
+    DEMASIADOS_INTENTOS: "Too many attempts. Wait a minute and try again.",
     ERROR_INTERNO: "Something went wrong or you're offline. Please try again in a moment.",
   },
 };

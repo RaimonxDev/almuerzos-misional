@@ -1,7 +1,7 @@
 import { env } from "cloudflare:test";
 import { exports } from "cloudflare:workers";
 import { crearDb } from "@/db";
-import { account, user } from "@/db/auth-schema";
+import { account, rateLimit, user } from "@/db/auth-schema";
 import { adminsBarrio, barrios, companerismos, inscripciones, meses, turnos } from "@/db/schema";
 import { hashPassword } from "@/shared/password";
 import { sha256Hex } from "@/worker/http";
@@ -31,6 +31,7 @@ export async function sembrar() {
   const db = crearDb(env.DB);
   await db.delete(barrios);
   await db.delete(user); // en cascada: cuentas, sesiones y admins_barrio
+  await db.delete(rateLimit); // los intentos de login de un test no cuentan para el siguiente
 
   await db.insert(barrios).values([
     { id: "b1", slug: "prueba", nombre: "Barrio Prueba", tokenMisioneros: "tm-1" },

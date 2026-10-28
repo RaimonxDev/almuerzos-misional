@@ -16,6 +16,8 @@ export const CODIGOS_ERROR = [
   "MES_EXISTENTE", // 409
   "TRANSICION_INVALIDA", // 422: cambio de estado del mes no permitido
   "CREDENCIALES_INVALIDAS", // lo traduce el frontend desde el error de Better Auth
+  "CUENTA_BLOQUEADA", // login de un usuario bloqueado con el plugin admin
+  "DEMASIADOS_INTENTOS", // 429 del límite de intentos de Better Auth
   "ERROR_INTERNO",
 ] as const;
 
