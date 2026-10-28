@@ -1,6 +1,7 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 import type { Db } from "@/db";
 import { barrios, companerismos, inscripciones, meses, turnos } from "@/db/schema";
+import { fechasDelMes } from "@/shared/fechas";
 
 export const buscarBarrio = async (db: Db, slug: string) =>
   db.query.barrios.findFirst({ where: and(eq(barrios.slug, slug), eq(barrios.activo, true)) });
@@ -87,3 +88,21 @@ export type EstadoTurno = "libre" | "tomado" | "bloqueado";
 /** Un bloqueo manda sobre una inscripción existente: el día no se hace. */
 export const estadoTurno = (bloqueado: boolean, inscrito: unknown): EstadoTurno =>
   bloqueado ? "bloqueado" : inscrito ? "tomado" : "libre";
+
+/** D1 admite como máximo 100 parámetros por consulta: los turnos se insertan en tandas. */
+const TURNOS_POR_TANDA = 20;
+
+/**
+ * Inserts (para un `db.batch`) de un turno por día del mes y compañerismo. Los que ya existen quedan
+ * como están (UNIQUE compañerismo + fecha), así sirve también para completar los que faltan.
+ */
+export function insertsDeTurnos(db: Db, mes: { id: string; anio: number; mes: number }, companerismoIds: string[]) {
+  const filas = fechasDelMes(mes.anio, mes.mes).flatMap((fecha) =>
+    companerismoIds.map((companerismoId) => ({ mesId: mes.id, companerismoId, fecha })),
+  );
+  const tandas = [];
+  for (let i = 0; i < filas.length; i += TURNOS_POR_TANDA) {
+    tandas.push(db.insert(turnos).values(filas.slice(i, i + TURNOS_POR_TANDA)).onConflictDoNothing());
+  }
+  return tandas;
+}

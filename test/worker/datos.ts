@@ -1,7 +1,9 @@
 import { env } from "cloudflare:test";
 import { exports } from "cloudflare:workers";
 import { crearDb } from "@/db";
-import { barrios, companerismos, inscripciones, meses, turnos } from "@/db/schema";
+import { account, rateLimit, user } from "@/db/auth-schema";
+import { adminsBarrio, barrios, companerismos, inscripciones, meses, turnos } from "@/db/schema";
+import { hashPassword } from "@/shared/password";
 import { sha256Hex } from "@/worker/http";
 
 /**
@@ -28,6 +30,8 @@ export const TOKEN_TOMADO = "token-de-la-hna-tomado";
 export async function sembrar() {
   const db = crearDb(env.DB);
   await db.delete(barrios);
+  await db.delete(user); // en cascada: cuentas, sesiones y admins_barrio
+  await db.delete(rateLimit); // los intentos de login de un test no cuentan para el siguiente
 
   await db.insert(barrios).values([
     { id: "b1", slug: "prueba", nombre: "Barrio Prueba", tokenMisioneros: "tm-1" },
@@ -90,10 +94,15 @@ export async function sembrar() {
 }
 
 /** Llama al Worker como lo haría el navegador. */
-export function pedir(ruta: string, init?: RequestInit & { json?: unknown; token?: string }) {
+export function pedir(ruta: string, init?: RequestInit & { json?: unknown; token?: string; cookie?: string }) {
   const headers = new Headers(init?.headers);
   if (init?.json !== undefined) headers.set("Content-Type", "application/json");
   if (init?.token) headers.set("Authorization", `Bearer ${init.token}`);
+  if (init?.cookie) {
+    headers.set("Cookie", init.cookie);
+    // Como el navegador: Better Auth rechaza los POST con cookie que no traen Origin.
+    if (!headers.has("Origin")) headers.set("Origin", "http://localhost");
+  }
   return exports.default.fetch(
     new Request(`http://localhost${ruta}`, {
       ...init,
@@ -101,4 +110,46 @@ export function pedir(ruta: string, init?: RequestInit & { json?: unknown; token
       body: init?.json !== undefined ? JSON.stringify(init.json) : init?.body,
     }),
   );
+}
+
+/** Contraseña de todos los admins de prueba creados con `crearAdmin`. */
+export const PASSWORD_PRUEBA = "clave-de-prueba-123";
+
+/**
+ * Crea un usuario con cuenta de email y contraseña (el mismo hash que usa Better Auth en el Worker)
+ * y lo asigna a barrios por id (`b1` = prueba, `b2` = otro). `superAdmin` le da el rol `admin` del plugin.
+ */
+export async function crearAdmin({
+  email,
+  superAdmin = false,
+  barrios: barrioIds = [],
+}: {
+  email: string;
+  superAdmin?: boolean;
+  barrios?: string[];
+}) {
+  const db = crearDb(env.DB);
+  const id = crypto.randomUUID();
+  await db.insert(user).values({ id, name: email.split("@")[0], email, role: superAdmin ? "admin" : "user" });
+  await db.insert(account).values({
+    id: crypto.randomUUID(),
+    accountId: id,
+    providerId: "credential",
+    userId: id,
+    password: await hashPassword(PASSWORD_PRUEBA),
+  });
+  if (barrioIds.length > 0) {
+    await db.insert(adminsBarrio).values(barrioIds.map((barrioId) => ({ userId: id, barrioId })));
+  }
+  return { id, email, password: PASSWORD_PRUEBA };
+}
+
+/** Inicia sesión por la API real y devuelve el valor para `pedir(ruta, { cookie })`. */
+export async function iniciarSesion(email: string, password = PASSWORD_PRUEBA) {
+  const res = await pedir("/api/auth/sign-in/email", { method: "POST", json: { email, password } });
+  if (!res.ok) throw new Error(`No se pudo iniciar sesión (${res.status}): ${await res.text()}`);
+  return res.headers
+    .getSetCookie()
+    .map((c) => c.split(";")[0])
+    .join("; ");
 }

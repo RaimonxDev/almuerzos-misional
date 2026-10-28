@@ -1,9 +1,9 @@
 import { defineConfig } from "drizzle-kit";
 
 // Migraciones para Cloudflare D1:
-//   npx drizzle-kit generate
-//   npx wrangler d1 migrations apply almuerzo-misional --local    (desarrollo)
-//   npx wrangler d1 migrations apply almuerzo-misional --remote   (producción)
+//   bunx drizzle-kit generate
+//   bunx wrangler d1 migrations apply almuerzo-misional --local    (desarrollo)
+//   bunx wrangler d1 migrations apply almuerzo-misional --remote   (producción)
 export default defineConfig({
   dialect: "sqlite",
   driver: "d1-http",

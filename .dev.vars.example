@@ -1,0 +1,5 @@
+# Copia este archivo a .dev.vars (ignorado por git) y cambia el secreto.
+# Generar uno: openssl rand -base64 32
+# En producción: bunx wrangler secret put BETTER_AUTH_SECRET
+BETTER_AUTH_SECRET=cambia-esto-por-un-secreto-largo-y-aleatorio
+# BETTER_AUTH_URL=http://localhost:5173
