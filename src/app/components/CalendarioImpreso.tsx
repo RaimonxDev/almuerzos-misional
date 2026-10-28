@@ -79,8 +79,8 @@ export function CalendarioImpreso({ barrio, mes, companerismos, turnos, imagenUr
   );
 
   const colorChip = (tipo: "elderes" | "hermanas") => (tipo === "elderes" ? tema.chipElderes : tema.chipHermanas);
-  const turnoDe = (fecha: string, companerismoId: string) =>
-    turnos.find((x) => x.fecha === fecha && x.companerismoId === companerismoId);
+  const porClave = new Map(turnos.map((x) => [`${x.fecha}|${x.companerismoId}`, x]));
+  const turnoDe = (fecha: string, companerismoId: string) => porClave.get(`${fecha}|${companerismoId}`);
 
   const chip = (c: DatosCalendario["companerismos"][number]): CSSProperties => ({
     width: 16,

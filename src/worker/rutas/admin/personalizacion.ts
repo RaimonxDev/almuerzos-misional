@@ -1,5 +1,6 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, type SQL } from "drizzle-orm";
 import { Hono } from "hono";
+import type { Db } from "@/db";
 import { meses } from "@/db/schema";
 import {
   esquemaPersonalizacion,
@@ -9,12 +10,11 @@ import {
 } from "@/shared/personalizacion";
 import type { AppEnvBarrioAdmin } from "../../contexto";
 import { fallar, validar } from "../../http";
-import { paramsMes } from "../../params";
+import { aNumeros, paramsMes } from "../../params";
 
 const EXTENSION: Record<TipoImagen, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 
 const columnas = {
-  id: meses.id,
   imagenKey: meses.imagenKey,
   escritura: meses.escritura,
   escrituraRef: meses.escrituraRef,
@@ -22,7 +22,11 @@ const columnas = {
   plantilla: meses.plantilla,
 };
 
-const personalizacionDe = ({ id: _id, ...resto }: { id: string } & Record<string, unknown>) => resto as Omit<typeof resto, "id">;
+/** El mes `periodo` del barrio. */
+const dondeMes = (barrioId: string, periodo: string) => {
+  const [anio, numeroMes] = aNumeros(periodo);
+  return and(eq(meses.barrioId, barrioId), eq(meses.anio, anio), eq(meses.mes, numeroMes));
+};
 
 /** Lee el cuerpo contando bytes; devuelve null si pasa el máximo (sin confiar en Content-Length). */
 async function leerAcotado(req: Request, max: number): Promise<Uint8Array | null> {
@@ -67,27 +71,25 @@ export const rutasPersonalizacion = new Hono<AppEnvBarrioAdmin>()
     validar("json", esquemaPersonalizacion),
     async (c) => {
       const { db, barrio } = c.var;
-      const [anio, numeroMes] = c.req.valid("param").periodo.split("-").map(Number);
-      const cambios = c.req.valid("json");
-      const donde = and(eq(meses.barrioId, barrio.id), eq(meses.anio, anio), eq(meses.mes, numeroMes));
+      const donde = dondeMes(barrio.id, c.req.valid("param").periodo);
+      const set = Object.fromEntries(Object.entries(c.req.valid("json")).filter(([, v]) => v !== undefined));
 
-      const mes = await db.select(columnas).from(meses).where(donde).get();
-      if (!mes) return fallar(c, "NO_ENCONTRADO", 404);
-
-      const set = Object.fromEntries(Object.entries(cambios).filter(([, v]) => v !== undefined));
-      if (Object.keys(set).length === 0) return c.json({ personalizacion: personalizacionDe(mes) }, 200);
-      const actualizado = await db.update(meses).set(set).where(donde).returning(columnas).get();
-      return c.json({ personalizacion: personalizacionDe(actualizado) }, 200);
+      const personalizacion =
+        Object.keys(set).length === 0
+          ? await db.select(columnas).from(meses).where(donde).get()
+          : await db.update(meses).set(set).where(donde).returning(columnas).get();
+      if (!personalizacion) return fallar(c, "NO_ENCONTRADO", 404);
+      return c.json({ personalizacion }, 200);
     },
   )
 
   .put("/meses/:periodo/imagen", validar("param", paramsMes), async (c) => {
     const { db, barrio } = c.var;
-    const [anio, numeroMes] = c.req.valid("param").periodo.split("-").map(Number);
-    const donde = and(eq(meses.barrioId, barrio.id), eq(meses.anio, anio), eq(meses.mes, numeroMes));
+    const { periodo } = c.req.valid("param");
+    const donde = dondeMes(barrio.id, periodo);
 
-    const mes = await db.select(columnas).from(meses).where(donde).get();
-    if (!mes) return fallar(c, "NO_ENCONTRADO", 404);
+    const existe = await db.select({ id: meses.id }).from(meses).where(donde).get();
+    if (!existe) return fallar(c, "NO_ENCONTRADO", 404);
 
     const tipo = c.req.header("Content-Type")?.split(";")[0].trim().toLowerCase() as TipoImagen | undefined;
     if (!tipo || !TIPOS_IMAGEN.includes(tipo)) return fallar(c, "IMAGEN_INVALIDA", 400);
@@ -98,22 +100,35 @@ export const rutasPersonalizacion = new Hono<AppEnvBarrioAdmin>()
     if (!bytes) return fallar(c, "IMAGEN_MUY_GRANDE", 413);
     if (bytes.byteLength === 0) return fallar(c, "IMAGEN_INVALIDA", 400);
 
-    const key = `meses/${barrio.id}/${c.req.valid("param").periodo}/${crypto.randomUUID()}.${EXTENSION[tipo]}`;
+    const key = `meses/${barrio.id}/${periodo}/${crypto.randomUUID()}.${EXTENSION[tipo]}`;
     await c.env.IMAGENES.put(key, bytes, { httpMetadata: { contentType: tipo } });
-    const actualizado = await db.update(meses).set({ imagenKey: key }).where(donde).returning(columnas).get();
-    if (mes.imagenKey) await c.env.IMAGENES.delete(mes.imagenKey);
-    return c.json({ personalizacion: personalizacionDe(actualizado) }, 200);
+    let resultado;
+    try {
+      resultado = await reemplazarImagen(db, donde, key);
+    } catch (err) {
+      await c.env.IMAGENES.delete(key); // sin fila que la apunte quedaría huérfana
+      throw err;
+    }
+    if (resultado.anterior) await c.env.IMAGENES.delete(resultado.anterior);
+    return c.json({ personalizacion: resultado.personalizacion }, 200);
   })
 
   .delete("/meses/:periodo/imagen", validar("param", paramsMes), async (c) => {
     const { db, barrio } = c.var;
-    const [anio, numeroMes] = c.req.valid("param").periodo.split("-").map(Number);
-    const donde = and(eq(meses.barrioId, barrio.id), eq(meses.anio, anio), eq(meses.mes, numeroMes));
-
-    const mes = await db.select(columnas).from(meses).where(donde).get();
-    if (!mes) return fallar(c, "NO_ENCONTRADO", 404);
-
-    const actualizado = await db.update(meses).set({ imagenKey: null }).where(donde).returning(columnas).get();
-    if (mes.imagenKey) await c.env.IMAGENES.delete(mes.imagenKey);
-    return c.json({ personalizacion: personalizacionDe(actualizado) }, 200);
+    const resultado = await reemplazarImagen(db, dondeMes(barrio.id, c.req.valid("param").periodo), null);
+    if (!resultado.personalizacion) return fallar(c, "NO_ENCONTRADO", 404);
+    if (resultado.anterior) await c.env.IMAGENES.delete(resultado.anterior);
+    return c.json({ personalizacion: resultado.personalizacion }, 200);
   });
+
+/**
+ * Cambia la clave de la imagen y devuelve la que reemplazó. El batch de D1 es una transacción:
+ * la clave leída es justo la que se pisa, así dos subidas a la vez no dejan objetos sin borrar.
+ */
+async function reemplazarImagen(db: Db, donde: SQL | undefined, key: string | null) {
+  const [[actual], [personalizacion]] = await db.batch([
+    db.select({ imagenKey: meses.imagenKey }).from(meses).where(donde),
+    db.update(meses).set({ imagenKey: key }).where(donde).returning(columnas),
+  ]);
+  return { anterior: actual?.imagenKey ?? null, personalizacion };
+}

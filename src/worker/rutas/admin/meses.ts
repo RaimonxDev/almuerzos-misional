@@ -6,7 +6,7 @@ import { companerismos, inscripciones, meses, turnos } from "@/db/schema";
 import type { AppEnvBarrioAdmin } from "../../contexto";
 import { insertsDeTurnos } from "../../consultas";
 import { esViolacionUnica, fallar, validar } from "../../http";
-import { esquemaPeriodo, paramsMes } from "../../params";
+import { aNumeros, esquemaPeriodo, paramsMes } from "../../params";
 
 const esquemaNuevoMes = z.object({ periodo: esquemaPeriodo });
 const esquemaCambioEstado = z.object({ estado: z.enum(["borrador", "abierto", "cerrado"]) });
@@ -50,8 +50,6 @@ async function resumenes(db: Db, barrioId: string, filtro?: SQL) {
 
 const resumenDeMes = async (db: Db, barrioId: string, anio: number, mes: number) =>
   (await resumenes(db, barrioId, and(eq(meses.anio, anio), eq(meses.mes, mes))))[0] ?? null;
-
-const aNumeros = (periodo: string) => periodo.split("-").map(Number) as [number, number];
 
 /** Meses del barrio (issue #8). Se monta en `/api/admin/barrios/:slug`. */
 export const rutasMeses = new Hono<AppEnvBarrioAdmin>()

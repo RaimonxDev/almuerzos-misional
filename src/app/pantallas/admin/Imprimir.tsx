@@ -1,8 +1,8 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 import { ArrowLeftIcon, ImageIcon, PrinterIcon } from "lucide-react";
 import { toast } from "sonner";
-import { compartirPng, nombreArchivoCalendario } from "@/app/compartir-imagen";
+import { compartirPng, nombreArchivoCalendario, prepararFuentes } from "@/app/compartir-imagen";
 import { useBarrioAdmin, useMesAdmin } from "@/app/consultas-admin";
 import { useIdiomaDelBarrio, useTitulo } from "@/app/hooks";
 import { useIdioma } from "@/app/i18n";
@@ -43,6 +43,8 @@ function VistaImprimir() {
   const [compartiendo, setCompartiendo] = useState(false);
   useIdiomaDelBarrio(barrio.data?.barrio.idioma);
   useTitulo(barrio.data?.barrio.nombre);
+  // Lo lento de la imagen (incrustar fuentes) se hace antes del toque en "Compartir imagen".
+  useEffect(() => void prepararFuentes().catch(() => {}), []);
 
   const volver = `/admin/${slug}?mes=${periodo}`;
   const error = barrio.error ?? mes.error;

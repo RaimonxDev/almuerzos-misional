@@ -48,4 +48,13 @@ describe("compartirPng", () => {
     Object.defineProperty(navigator, "share", { value: vi.fn(async () => { throw abort; }), configurable: true });
     await expect(compartirPng(nodo, "a.png")).resolves.toBe("cancelado");
   });
+
+  it("descarga si Safari rechaza share() por haber pasado el gesto", async () => {
+    const rechazo = Object.assign(new Error("no gesture"), { name: "NotAllowedError" });
+    Object.defineProperty(navigator, "canShare", { value: () => true, configurable: true });
+    Object.defineProperty(navigator, "share", { value: vi.fn(async () => { throw rechazo; }), configurable: true });
+    const clic = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    await expect(compartirPng(nodo, "a.png")).resolves.toBe("descargado");
+    expect(clic).toHaveBeenCalledOnce();
+  });
 });

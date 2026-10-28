@@ -7,7 +7,8 @@ import type { AppEnv } from "../contexto";
  * desde los calendarios. La clave cambia al reemplazar la imagen, por eso la caché es inmutable.
  */
 export const rutasImagenes = new Hono<AppEnv>().get("/*", async (c) => {
-  const key = decodeURIComponent(c.req.path.replace(/^\/api\/imagenes\//, ""));
+  // Hono ya decodificó la ruta (y deja tal cual una secuencia % inválida).
+  const key = c.req.path.replace(/^\/api\/imagenes\//, "");
   if (!key.startsWith("meses/") || key.includes("..")) return fallar(c, "NO_ENCONTRADO", 404);
 
   const objeto = await c.env.IMAGENES.get(key);

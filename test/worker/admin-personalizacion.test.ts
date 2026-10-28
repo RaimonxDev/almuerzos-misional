@@ -202,4 +202,9 @@ describe("GET /api/imagenes/*", () => {
     const res = await pedir("/api/imagenes/privado/secreto.png");
     expect(res.status).toBe(404);
   });
+
+  test("una secuencia % inválida → 404, no 500", async () => {
+    const res = await pedir("/api/imagenes/meses/%E0%A4%A.png");
+    expect(res.status).toBe(404);
+  });
 });

@@ -61,10 +61,11 @@ function Formulario({ slug, periodo, barrio, datos }: { slug: string; periodo: s
   const quitar = useQuitarImagen(slug, periodo);
   const archivo = useRef<HTMLInputElement>(null);
 
+  // La API recorta los textos: se comparan y mandan recortados, así tras guardar no quedan cambios.
   const cambios = Object.fromEntries(
     (Object.keys(guardado) as (keyof typeof guardado)[])
-      .filter((k) => valores[k] !== guardado[k])
-      .map((k) => [k, valores[k]]),
+      .map((k) => [k, valores[k].trim()] as const)
+      .filter(([k, v]) => v !== guardado[k]),
   );
   const hayCambios = Object.keys(cambios).length > 0;
   const poner = <K extends keyof typeof valores>(campo: K, valor: (typeof valores)[K]) =>

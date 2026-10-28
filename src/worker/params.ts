@@ -5,4 +5,6 @@ export const paramsBarrio = z.object({ slug: z.string().min(1).max(60) });
 /** Periodo `YYYY-MM` (ej. `2026-11`). */
 export const esquemaPeriodo = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
 export const paramsMes = paramsBarrio.extend({ periodo: esquemaPeriodo });
+/** `2026-11` → `[2026, 11]` (el periodo ya validado con `esquemaPeriodo`). */
+export const aNumeros = (periodo: string) => periodo.split("-").map(Number) as [number, number];
 export const paramsTurno = paramsBarrio.extend({ turnoId: z.string().min(1).max(100) });
