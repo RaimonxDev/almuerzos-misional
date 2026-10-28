@@ -1,18 +1,45 @@
 import path from "node:path";
 import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react";
 import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-plugin";
 
-// Los tests corren dentro de workerd con una D1 en memoria (aislada por archivo de test).
+const alias = { "@": path.resolve(import.meta.dirname, "./src") };
+
+/**
+ * Dos proyectos:
+ *  - worker: la API dentro de workerd con una D1 en memoria (aislada por archivo de test).
+ *  - app: componentes y lógica de React en jsdom con Testing Library.
+ */
 export default defineConfig(async () => {
   const migraciones = await readD1Migrations(path.join(import.meta.dirname, "migrations"));
   return {
-    plugins: [
-      cloudflareTest({
-        wrangler: { configPath: "./wrangler.jsonc" },
-        miniflare: { bindings: { MIGRACIONES: migraciones } },
-      }),
-    ],
-    resolve: { alias: { "@": path.resolve(import.meta.dirname, "./src") } },
-    test: { setupFiles: ["./test/aplicar-migraciones.ts"] },
+    test: {
+      projects: [
+        {
+          plugins: [
+            cloudflareTest({
+              wrangler: { configPath: "./wrangler.jsonc" },
+              miniflare: { bindings: { MIGRACIONES: migraciones } },
+            }),
+          ],
+          resolve: { alias },
+          test: {
+            name: "worker",
+            include: ["test/worker/**/*.test.ts"],
+            setupFiles: ["./test/worker/aplicar-migraciones.ts"],
+          },
+        },
+        {
+          plugins: [react()],
+          resolve: { alias },
+          test: {
+            name: "app",
+            environment: "jsdom",
+            include: ["test/app/**/*.test.{ts,tsx}"],
+            setupFiles: ["./test/app/setup.ts"],
+          },
+        },
+      ],
+    },
   };
 });

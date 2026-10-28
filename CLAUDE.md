@@ -115,9 +115,24 @@ Sin login. Nunca devuelve teléfono, dirección ni nota de otra persona: cada `s
 
 - Validación con zod; los esquemas del formulario están en `src/shared/inscripciones.ts` y los usa también el frontend. Datos inválidos → 400 `{ error: "DATOS_INVALIDOS", campos: [...] }`.
 - Un bloqueo manda sobre una inscripción existente: el turno se muestra `bloqueado` y sin nombre.
-- Tests: `npm test` (Vitest dentro de workerd con D1 en memoria, `test/`). Usan fechas en 2000 y 2099 para no depender del día.
+- Tests de la API en `test/worker/` (ver **Tests**). Usan fechas en 2000 y 2099 para no depender del día.
+
+## Tests
+
+**Tests primero**: cada issue trae una sección "Tests primero"; se escriben antes de implementar y el issue se cierra con todos en verde.
+
+`npm test` corre dos proyectos de Vitest (`vitest.config.ts`); `--project worker` o `--project app` corre uno solo.
+
+- **worker** (`test/worker/`): la API real dentro de workerd con una D1 en memoria y las migraciones aplicadas. `datos.ts` siembra datos fijos y `pedir()` llama al Worker como el navegador.
+- **app** (`test/app/`): React en jsdom con Testing Library. `utilidades.tsx` trae `Proveedores` (React Query sin reintentos + idioma), `renderizarRuta`, `simularApi` (reemplaza `fetch` por URL) y `guardarInscripciones`. El setup fija el navegador en `es-CL`, limpia `localStorage` y simula `ResizeObserver` para Radix.
+- Para cambiar de idioma en un test, usar `useIdioma().cambiarIdioma` desde un componente auxiliar: el Select de Radix no funciona bien en jsdom.
+- Buscar por rol y texto visible (`getByRole`, `getByLabelText`), como lo usaría una persona. Los textos con mayúscula inicial por CSS (`first-letter:uppercase`) están en minúscula en el DOM.
+- `npm run typecheck` también revisa los tests (`tsconfig.test.json` y `tsconfig.test-app.json`).
 
 ## Hitos
+
+Se siguen en GitHub: un milestone por hito e issues con criterios de aceptación y tests en [RaimonxDev/almuerzos-misional](https://github.com/RaimonxDev/almuerzos-misional/milestones). Etiquetas: `api`, `frontend`, `diseño`, `infra`, `tests`. Los commits que completan un issue llevan `Closes #N`. Resumen:
+
 
 1. **Base** ✅ — scaffold, seed y API pública con tests.
 2. **Flujo público** ✅ — vista pública y formulario según las maquetas 1 y 2, con selector de idioma, "Tu turno", éxito con `.ics` y 409 amable.
