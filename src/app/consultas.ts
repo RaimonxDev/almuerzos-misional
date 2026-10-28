@@ -28,6 +28,20 @@ export const useTurno = (slug: string, turnoId: string) =>
     queryFn: () => datos(barrios[":slug"].turnos[":turnoId"].$get({ param: { slug, turnoId } })),
   });
 
+/** Calendario de misioneros: el token del enlace va en el header, no en la URL de la API. */
+export const useMisioneros = (slug: string, token: string) =>
+  useQuery({
+    queryKey: ["misioneros", slug, token],
+    queryFn: () => datos(barrios[":slug"].misioneros.$get({ param: { slug } }, conToken(token))),
+  });
+
+export const useMesMisioneros = (slug: string, token: string, periodo: string) =>
+  useQuery({
+    queryKey: ["misioneros", slug, token, periodo],
+    queryFn: () =>
+      datos(barrios[":slug"].misioneros.meses[":periodo"].$get({ param: { slug, periodo } }, conToken(token))),
+  });
+
 export function useAnotarse(slug: string, turnoId: string) {
   const queryClient = useQueryClient();
   return useMutation({

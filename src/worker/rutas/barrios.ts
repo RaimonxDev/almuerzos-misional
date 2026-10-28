@@ -1,24 +1,17 @@
 import { Hono } from "hono";
-import { and, asc, eq, inArray } from "drizzle-orm";
-import { z } from "zod";
+import { and, asc, eq } from "drizzle-orm";
 import { companerismos, inscripciones, meses, turnos } from "@/db/schema";
 import { hoyEnZona } from "@/shared/fechas";
 import { esquemaNuevaInscripcion } from "@/shared/inscripciones";
 import type { AppEnv } from "../contexto";
-import { buscarBarrio, buscarTurno, estadoTurno } from "../consultas";
+import { buscarBarrio, buscarMesVisible, buscarTurno, companerismosActivos, estadoTurno } from "../consultas";
 import { esViolacionUnica, fallar, nuevoTokenEdicion, sha256Hex, validar } from "../http";
+import { paramsBarrio, paramsMes, paramsTurno } from "../params";
 
 /**
  * API pública (sin login). Regla de oro: aquí nunca sale teléfono, dirección ni nota
  * de una inscripción; solo el nombre. Cada `select` nombra sus columnas a propósito.
  */
-
-const paramsBarrio = z.object({ slug: z.string().min(1).max(60) });
-const paramsMes = paramsBarrio.extend({ periodo: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/) });
-const paramsTurno = paramsBarrio.extend({ turnoId: z.string().min(1).max(100) });
-
-/** El público ve meses abiertos y cerrados (solo lectura); los borradores no existen para él. */
-const ESTADOS_VISIBLES = ["abierto", "cerrado"] as const;
 
 export const rutasBarrios = new Hono<AppEnv>()
   /** Datos del barrio y los meses en que se puede anotar. */
@@ -53,41 +46,31 @@ export const rutasBarrios = new Hono<AppEnv>()
     const barrio = await buscarBarrio(db, slug);
     if (!barrio) return fallar(c, "NO_ENCONTRADO", 404);
 
-    const [anio, numeroMes] = periodo.split("-").map(Number);
-    const mes = await db.query.meses.findFirst({
-      where: and(
-        eq(meses.barrioId, barrio.id),
-        eq(meses.anio, anio),
-        eq(meses.mes, numeroMes),
-        inArray(meses.estado, ESTADOS_VISIBLES),
-      ),
-    });
+    const mes = await buscarMesVisible(db, barrio.id, periodo);
     if (!mes) return fallar(c, "NO_ENCONTRADO", 404);
 
-    const listaCompanerismos = await db
-      .select({ id: companerismos.id, nombre: companerismos.nombre, tipo: companerismos.tipo })
-      .from(companerismos)
-      .where(and(eq(companerismos.barrioId, barrio.id), eq(companerismos.activo, true)))
-      .orderBy(asc(companerismos.orden));
-
-    const filas = await db
-      .select({
-        id: turnos.id,
-        fecha: turnos.fecha,
-        companerismoId: turnos.companerismoId,
-        bloqueado: turnos.bloqueado,
-        motivoBloqueo: turnos.motivoBloqueo,
-        nombre: inscripciones.nombre,
-        inscripcionId: inscripciones.id,
-      })
-      .from(turnos)
-      .innerJoin(
-        companerismos,
-        and(eq(companerismos.id, turnos.companerismoId), eq(companerismos.activo, true)),
-      )
-      .leftJoin(inscripciones, eq(inscripciones.turnoId, turnos.id))
-      .where(eq(turnos.mesId, mes.id))
-      .orderBy(asc(turnos.fecha), asc(companerismos.orden));
+    // Independientes entre sí: se piden a la vez.
+    const [listaCompanerismos, filas] = await Promise.all([
+      companerismosActivos(db, barrio.id),
+      db
+        .select({
+          id: turnos.id,
+          fecha: turnos.fecha,
+          companerismoId: turnos.companerismoId,
+          bloqueado: turnos.bloqueado,
+          motivoBloqueo: turnos.motivoBloqueo,
+          nombre: inscripciones.nombre,
+          inscripcionId: inscripciones.id,
+        })
+        .from(turnos)
+        .innerJoin(
+          companerismos,
+          and(eq(companerismos.id, turnos.companerismoId), eq(companerismos.activo, true)),
+        )
+        .leftJoin(inscripciones, eq(inscripciones.turnoId, turnos.id))
+        .where(eq(turnos.mesId, mes.id))
+        .orderBy(asc(turnos.fecha), asc(companerismos.orden)),
+    ]);
 
     return c.json({
       mes: { anio: mes.anio, mes: mes.mes, estado: mes.estado },

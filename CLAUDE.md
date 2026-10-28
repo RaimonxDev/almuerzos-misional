@@ -74,8 +74,10 @@ Pocos usuarios. Prioridad: simple de mantener y gratis de hospedar.
 - `FormularioInscripcion` (`src/app/components/`) es el mismo formulario para anotarse y para editar.
 - El mes visible va en la URL (`/centro?mes=2026-11`); sin parámetro se elige con `mesInicial` (`src/app/periodos.ts`). Las flechas solo recorren meses abiertos.
 - En la vista pública, los días pasados se ocultan detrás de "Ver los N días anteriores" y "Anotarme" solo aparece en turnos libres de hoy en adelante de un mes abierto.
+- Misioneros (`pantallas/VistaMisioneros.tsx`): el token de la URL de la página va a la API solo en `Authorization: Bearer`, nunca en la URL de la API ni en `document.title`. WhatsApp con `enlaceWhatsApp` (`src/shared/telefonos.ts`: deja los dígitos y agrega el código del país deducido de la zona del barrio si el número es local) y `rel="noreferrer"` para que el token no viaje como referer.
+- Compartidos entre pantallas de calendario: `SelectorMes` (flechas del encabezado), `TarjetaDia`/`FilaTurno` y el hook `usePeriodoDeLaUrl`.
 - "Agregar a mi calendario": `crearIcs` (`src/shared/ics.ts`, evento de día completo) y `abrirIcs` (hoja de compartir del móvil o descarga).
-- Las maquetas de referencia están en el artifact "Almuerzo Misional — Maquetas" (vista pública, formulario, panel de la presidenta, calendario imprimible).
+- Las maquetas de referencia están en el artifact "Almuerzo Misional — Maquetas" (vista pública, formulario, panel de la presidenta, calendario imprimible, misioneros).
 
 ## Estructura
 
@@ -111,6 +113,8 @@ Sin login. Nunca devuelve teléfono, dirección ni nota de otra persona: cada `s
 | `GET /api/barrios/:slug/meses/:periodo` | Compañerismos activos y turnos (`libre`/`tomado`/`bloqueado`, nombre si está tomado). Meses `abierto` y `cerrado`; `borrador` → 404 |
 | `GET /api/barrios/:slug/turnos/:turnoId` | Un turno, para el encabezado del formulario |
 | `POST /api/barrios/:slug/turnos/:turnoId/inscripcion` | Anotarse → 201 con `tokenEdicion` (se entrega una sola vez). 409 `TURNO_TOMADO`, 422 `TURNO_BLOQUEADO`/`TURNO_PASADO`/`MES_NO_ABIERTO` |
+| `GET /api/barrios/:slug/misioneros` | Misioneros, con `Authorization: Bearer <token_misioneros>`: barrio, `meses` (abiertos y cerrados) y `hoy`. Sin token, token de otro barrio o regenerado, o barrio inexistente → el mismo 404 `TOKEN_INVALIDO` |
+| `GET /api/barrios/:slug/misioneros/meses/:periodo` | Turnos con nombre, modalidad, nota y teléfono (solo con consentimiento). Borrador → 404 |
 | `GET/PATCH/DELETE /api/inscripciones/:id` | "Mi turno" con `Authorization: Bearer <tokenEdicion>`. 403 `TOKEN_INVALIDO`; 404 = ya no existe (el cliente puede olvidar el token). Editar/cancelar solo en mes abierto y día no pasado |
 
 - Validación con zod; los esquemas del formulario están en `src/shared/inscripciones.ts` y los usa también el frontend. Datos inválidos → 400 `{ error: "DATOS_INVALIDOS", campos: [...] }`.
@@ -137,7 +141,7 @@ Se siguen en GitHub: un milestone por hito e issues con criterios de aceptación
 1. **Base** ✅ — scaffold, seed y API pública con tests.
 2. **Flujo público** ✅ — vista pública y formulario según las maquetas 1 y 2, con selector de idioma, "Tu turno", éxito con `.ics` y 409 amable.
 3. **Mi turno** ✅ — ver, editar y cancelar con el token guardado (sin maqueta: sigue el estilo de las pantallas 1 y 2).
-4. **Misioneros** — API y pantalla de `/:barrio/m/:token`: calendario con teléfonos solo si hubo consentimiento y botón a WhatsApp. *Falta maqueta.*
+4. **Misioneros** ✅ — API y pantalla de `/:barrio/m/:token` (maqueta 5): calendario con teléfonos solo si hubo consentimiento y botón a WhatsApp.
 5. **Admin: auth y API** — Better Auth (regenerar `auth-schema.ts`), login (*falta maqueta*), `admins_barrio`, super admin crea barrios. API: crear el mes siguiente generando turnos, cambiar estado `borrador`/`abierto`/`cerrado` (*falta en la maqueta del panel*), bloquear/desbloquear, asignar a mano, editar/borrar inscripciones, regenerar enlace de misioneros, nota para cocinar, activar/desactivar compañerismos.
 6. **Panel de la presidenta** — frontend según la maqueta 3, con columnas desde los compañerismos del barrio y teléfonos solo con consentimiento.
 7. **Calendario imprimible y compartir** — personalización (imagen en R2, escritura, mensaje, plantilla), vista A4 según la maqueta 4 calculando el día en que parte el mes y 5 o 6 filas, PNG con `html-to-image` + Web Share API.

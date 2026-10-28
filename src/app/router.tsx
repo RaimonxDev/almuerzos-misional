@@ -4,6 +4,7 @@ import { Pendiente } from "./pantallas/Pendiente";
 import { VistaPublica } from "./pantallas/VistaPublica";
 import { Anotarse } from "./pantallas/Anotarse";
 import { MiTurnoRuta } from "./pantallas/MiTurno";
+import { VistaMisioneros } from "./pantallas/VistaMisioneros";
 
 export const router = createBrowserRouter([
   { path: "/", element: <Inicio /> },
@@ -12,5 +13,5 @@ export const router = createBrowserRouter([
   { path: "/:barrio", element: <VistaPublica /> },
   { path: "/:barrio/anotarse/:turnoId", element: <Anotarse /> },
   { path: "/:barrio/mi-turno/:inscripcionId", element: <MiTurnoRuta /> },
-  { path: "/:barrio/m/:token", element: <Pendiente nombre="Vista de misioneros" /> },
+  { path: "/:barrio/m/:token", element: <VistaMisioneros /> },
 ]);

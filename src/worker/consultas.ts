@@ -1,9 +1,33 @@
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import type { Db } from "@/db";
 import { barrios, companerismos, inscripciones, meses, turnos } from "@/db/schema";
 
 export const buscarBarrio = async (db: Db, slug: string) =>
   db.query.barrios.findFirst({ where: and(eq(barrios.slug, slug), eq(barrios.activo, true)) });
+
+/** Meses que se pueden ver sin ser admin: abiertos y cerrados (solo lectura); los borradores no existen. */
+export const ESTADOS_VISIBLES = ["abierto", "cerrado"] as const;
+
+/** Un mes visible del barrio por su periodo `2026-11`. */
+export async function buscarMesVisible(db: Db, barrioId: string, periodo: string) {
+  const [anio, numeroMes] = periodo.split("-").map(Number);
+  return db.query.meses.findFirst({
+    where: and(
+      eq(meses.barrioId, barrioId),
+      eq(meses.anio, anio),
+      eq(meses.mes, numeroMes),
+      inArray(meses.estado, ESTADOS_VISIBLES),
+    ),
+  });
+}
+
+/** Columnas del calendario, en orden. */
+export const companerismosActivos = (db: Db, barrioId: string) =>
+  db
+    .select({ id: companerismos.id, nombre: companerismos.nombre, tipo: companerismos.tipo })
+    .from(companerismos)
+    .where(and(eq(companerismos.barrioId, barrioId), eq(companerismos.activo, true)))
+    .orderBy(asc(companerismos.orden));
 
 /**
  * Un turno con todo lo necesario para decidir si se puede tomar o editar.

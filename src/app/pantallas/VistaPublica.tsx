@@ -1,75 +1,49 @@
 import { useMemo, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router";
-import { CheckIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { Link, useParams } from "react-router";
+import { CheckIcon, ChevronRightIcon } from "lucide-react";
 import { useMes } from "@/app/consultas";
 import { useIdioma } from "@/app/i18n";
-import { useBarrioConIdioma, useTitulo } from "@/app/hooks";
+import { useBarrioConIdioma, usePeriodoDeLaUrl, useTitulo } from "@/app/hooks";
 import { useMisInscripciones } from "@/app/mis-inscripciones";
-import { leerPeriodo, mesInicial, textoPeriodo, type Periodo } from "@/app/periodos";
+import { textoPeriodo } from "@/app/periodos";
+import { agruparPorDia, diasVisibles } from "@/app/dias";
 import { rutaAnotarse, rutaMiTurno } from "@/app/rutas";
-import { cn } from "@/app/lib/utils";
 import { Encabezado } from "@/app/components/Encabezado";
 import { Aviso, Cargando, ErrorCarga } from "@/app/components/Estado";
+import { SelectorMes } from "@/app/components/SelectorMes";
+import { BotonDiasAnteriores, FilaTurno, TarjetaDia } from "@/app/components/TarjetaDia";
+import { GrupoPildoras } from "@/app/components/GrupoPildoras";
 import { Button } from "@/app/components/ui/button";
 
 /** `/:barrio` — turnos del mes con solo nombres, para que las hermanas elijan un día. */
 export function VistaPublica() {
   const { barrio: slug = "" } = useParams();
-  const [params, setParams] = useSearchParams();
-  const { t, formatearMes } = useIdioma();
+  const { t } = useIdioma();
   const consulta = useBarrioConIdioma(slug);
   const barrio = consulta.data?.barrio;
+  const mesesAbiertos = consulta.data?.mesesAbiertos ?? [];
+  const [periodo, ir] = usePeriodoDeLaUrl(mesesAbiertos, consulta.data?.hoy ?? "");
   useTitulo(barrio?.nombre);
 
-  if (!consulta.data) {
+  if (!barrio) {
     return (
       <>
-        <Encabezado titulo={barrio?.nombre ?? ""} />
+        <Encabezado titulo="" />
         {consulta.isError ? <ErrorCarga error={consulta.error} reintentar={consulta.refetch} /> : <Cargando />}
       </>
     );
   }
 
-  const { mesesAbiertos, hoy } = consulta.data;
-  // El mes puede venir en la URL (?mes=2026-11); si no, el que corresponde a hoy.
-  const periodo = leerPeriodo(params.get("mes")) ?? mesInicial(mesesAbiertos, hoy);
-  const actual = periodo ? textoPeriodo(periodo) : null;
-  const anterior = mesesAbiertos.filter((p) => actual && textoPeriodo(p) < actual).at(-1);
-  const siguiente = mesesAbiertos.find((p) => actual && textoPeriodo(p) > actual);
-  const ir = (p: Periodo) => setParams({ mes: textoPeriodo(p) }, { replace: true });
-
   return (
     <>
-      <Encabezado titulo={consulta.data.barrio.nombre}>
-        {periodo && (
-          <nav className="mt-2.5 flex items-center justify-between rounded-xl bg-white/10 p-0.5">
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={t.publico.mesAnterior}
-              disabled={!anterior}
-              onClick={() => anterior && ir(anterior)}
-              className="text-white hover:bg-white/10 hover:text-white disabled:opacity-30"
-            >
-              <ChevronLeftIcon className="size-5" />
-            </Button>
-            <div className="font-bold" aria-live="polite">
-              {formatearMes(periodo.anio, periodo.mes)}
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={t.publico.mesSiguiente}
-              disabled={!siguiente}
-              onClick={() => siguiente && ir(siguiente)}
-              className="text-white hover:bg-white/10 hover:text-white disabled:opacity-30"
-            >
-              <ChevronRightIcon className="size-5" />
-            </Button>
-          </nav>
-        )}
+      <Encabezado titulo={barrio.nombre}>
+        {periodo && <SelectorMes periodo={periodo} meses={mesesAbiertos} onCambiar={ir} />}
       </Encabezado>
-      {actual ? <TurnosDelMes slug={slug} periodo={actual} /> : <Aviso>{t.publico.sinMesAbierto}</Aviso>}
+      {periodo ? (
+        <TurnosDelMes slug={slug} periodo={textoPeriodo(periodo)} />
+      ) : (
+        <Aviso>{t.publico.sinMesAbierto}</Aviso>
+      )}
     </>
   );
 }
@@ -86,7 +60,6 @@ function TurnosDelMes({ slug, periodo }: { slug: string; periodo: string }) {
     const { turnos, companerismos, hoy, mes } = consulta.data;
     const nombres = new Map(companerismos.map((c) => [c.id, c.nombre]));
     const misIds = new Set(mias.map((m) => m.id));
-    const porFecha = new Map<string, typeof filas>();
     const filas = turnos.map((turno) => ({
       ...turno,
       companerismo: nombres.get(turno.companerismoId) ?? "",
@@ -98,8 +71,7 @@ function TurnosDelMes({ slug, periodo }: { slug: string; periodo: string }) {
       // Solo se ofrece "Anotarme" en meses abiertos y para hoy en adelante.
       anotable: turno.estado === "libre" && mes.estado === "abierto" && turno.fecha >= hoy,
     }));
-    for (const fila of filas) porFecha.set(fila.fecha, [...(porFecha.get(fila.fecha) ?? []), fila]);
-    return [...porFecha].map(([fecha, turnosDelDia]) => ({ fecha, pasado: fecha < hoy, turnos: turnosDelDia }));
+    return agruparPorDia(filas, hoy);
   }, [consulta.data, mias]);
 
   if (!consulta.data) {
@@ -107,11 +79,7 @@ function TurnosDelMes({ slug, periodo }: { slug: string; periodo: string }) {
   }
 
   const libres = dias.reduce((n, d) => n + d.turnos.filter((x) => x.anotable).length, 0);
-  const anteriores = dias.filter((d) => d.pasado).length;
-  const visibles = dias
-    .filter((d) => verAnteriores || !d.pasado)
-    .map((d) => (soloLibres ? { ...d, turnos: d.turnos.filter((x) => x.anotable) } : d))
-    .filter((d) => d.turnos.length > 0);
+  const { visibles, anteriores } = diasVisibles(dias, (x) => !soloLibres || x.anotable, verAnteriores);
   const cerrado = consulta.data.mes.estado !== "abierto";
   const proximas = mias.filter((m) => m.fecha >= consulta.data.hoy).sort((a, b) => a.fecha.localeCompare(b.fecha));
 
@@ -121,25 +89,14 @@ function TurnosDelMes({ slug, periodo }: { slug: string; periodo: string }) {
         <p className="text-sm leading-snug text-muted-foreground">{cerrado ? t.publico.mesCerrado : t.publico.intro}</p>
         {!cerrado && (
           <div className="flex items-center justify-between gap-2">
-            <div className="flex rounded-full bg-cielo-claro p-[3px]" role="group">
-              {[
-                { activo: !soloLibres, texto: t.publico.todos, valor: false },
-                { activo: soloLibres, texto: t.publico.soloLibres, valor: true },
-              ].map((op) => (
-                <button
-                  key={op.texto}
-                  type="button"
-                  aria-pressed={op.activo}
-                  onClick={() => setSoloLibres(op.valor)}
-                  className={cn(
-                    "h-11 rounded-full px-4 text-sm font-bold text-azul-profundo transition-colors",
-                    op.activo && "bg-azul-profundo text-white",
-                  )}
-                >
-                  {op.texto}
-                </button>
-              ))}
-            </div>
+            <GrupoPildoras
+              opciones={[
+                { valor: false, texto: t.publico.todos },
+                { valor: true, texto: t.publico.soloLibres },
+              ]}
+              valor={soloLibres}
+              onCambiar={setSoloLibres}
+            />
             <div className="text-sm font-bold text-azul-medio">{t.publico.turnosLibres(libres)}</div>
           </div>
         )}
@@ -170,31 +127,14 @@ function TurnosDelMes({ slug, periodo }: { slug: string; periodo: string }) {
           </nav>
         )}
 
-        {anteriores > 0 && !soloLibres && (
-          <Button variant="ghost" className="self-center text-azul-medio" onClick={() => setVerAnteriores((v) => !v)}>
-            {verAnteriores ? t.publico.ocultarAnteriores : t.publico.verAnteriores(anteriores)}
-          </Button>
-        )}
+        <BotonDiasAnteriores cantidad={anteriores} abiertos={verAnteriores} onCambiar={setVerAnteriores} />
 
         {visibles.length === 0 && <Aviso>{t.publico.sinLibres}</Aviso>}
 
         {visibles.map((dia) => (
-          <section
-            key={dia.fecha}
-            aria-label={formatearFecha(dia.fecha)}
-            className={cn("flex flex-col gap-2 rounded-[14px] border bg-card px-3.5 py-3", dia.pasado && "opacity-60")}
-          >
-            <div className="flex items-baseline gap-2">
-              <span className="text-[22px] leading-none font-extrabold text-azul-profundo">
-                {Number(dia.fecha.slice(8))}
-              </span>
-              <span className="inline-block text-sm font-bold text-muted-foreground first-letter:uppercase">
-                {formatearFecha(dia.fecha, { weekday: "long" })}
-              </span>
-            </div>
-
+          <TarjetaDia key={dia.fecha} fecha={dia.fecha} pasado={dia.pasado}>
             {dia.turnos.map((turno) => (
-              <div key={turno.id} className="flex min-h-11 items-center justify-between gap-2.5 border-t border-[#EEF2F6] pt-2">
+              <FilaTurno key={turno.id} className="items-center justify-between gap-2.5">
                 <div className="flex min-w-0 flex-col gap-0.5">
                   <span className="text-xs font-extrabold tracking-[0.06em] text-muted-foreground uppercase">
                     {turno.companerismo}
@@ -224,9 +164,9 @@ function TurnosDelMes({ slug, periodo }: { slug: string; periodo: string }) {
                     <Link to={rutaAnotarse(slug, turno.id)}>{t.publico.anotarme}</Link>
                   </Button>
                 )}
-              </div>
+              </FilaTurno>
             ))}
-          </section>
+          </TarjetaDia>
         ))}
 
         {mias.length > 0 || !cerrado ? (
