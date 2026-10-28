@@ -78,6 +78,7 @@ Pocos usuarios. Prioridad: simple de mantener y gratis de hospedar.
 - Misioneros (`pantallas/VistaMisioneros.tsx`): el token de la URL de la página va a la API solo en `Authorization: Bearer`, nunca en la URL de la API ni en `document.title`. WhatsApp con `enlaceWhatsApp` (`src/shared/telefonos.ts`: deja los dígitos y agrega el código del país deducido de la zona del barrio si el número es local) y `rel="noreferrer"` para que el token no viaje como referer.
 - Compartidos entre pantallas de calendario: `SelectorMes` (flechas del encabezado), `TarjetaDia`/`FilaTurno` y el hook `usePeriodoDeLaUrl`.
 - "Agregar a mi calendario": `crearIcs` (`src/shared/ics.ts`, evento de día completo) y `abrirIcs` (hoja de compartir del móvil o descarga).
+- Admin: `authClient` (`src/app/auth.ts`, `better-auth/react`) para entrar y salir; `useYo()` (`GET /api/admin/yo`) dice si hay sesión. Las rutas de `/admin` van envueltas en `RutaAdmin`, que redirige a `/admin/login` con un 401. Better Auth informa credenciales malas como `code: "INVALID_EMAIL_OR_PASSWORD"`, que el login traduce con `t.errores.CREDENCIALES_INVALIDAS`.
 - Las maquetas de referencia están en el artifact "Almuerzo Misional — Maquetas" (vista pública, formulario, panel de la presidenta, calendario imprimible, misioneros).
 
 ## Estructura
@@ -130,6 +131,21 @@ Sin login. Nunca devuelve teléfono, dirección ni nota de otra persona: cada `s
 - Super admin = `user.role === "admin"`; admins de barrio = rol `user` + filas en `admins_barrio`.
 - Todo cuelga de `/api/admin` (`rutas/admin/index.ts`), con `conSesion` (401 `NO_AUTORIZADO`, deja `c.var.usuario`). Lo de `/api/admin/barrios/:slug/*` pasa además por `conBarrioAdmin` (403 `SIN_PERMISO`, también si el barrio no existe; super admin con slug inexistente → 404; deja `c.var.barrio`). Tipos de contexto: `AppEnvAdmin` y `AppEnvBarrioAdmin` (`src/worker/contexto.ts`); middlewares en `src/worker/permisos.ts`. Para agregar rutas de un barrio se encadenan en `rutas/admin/{meses,turnos,barrio}.ts`.
 - `GET /api/admin/yo` (usuario y sus barrios; super admin: todos), `POST /api/admin/barrios` (solo super admin: slug único, compañerismos; 409 `SLUG_EXISTENTE`), `POST /api/admin/barrios/:slug/admins` (solo super admin: asigna por email un usuario existente; idempotente, 404 si no existe).
+- Rutas de un barrio (todas bajo `/api/admin/barrios/:slug`):
+
+| Método y ruta | Qué hace |
+|---|---|
+| `GET /` · `PATCH /` | Datos del barrio (con `tokenMisioneros`) y compañerismos; editar nombre, nota para cocinar, contacto, idioma y zona (zona IANA inválida → 400 `campos: ["zonaHoraria"]`) |
+| `POST /token-misioneros` | Regenera el enlace de misioneros; el anterior da 404 |
+| `POST /companerismos` · `PATCH /companerismos/:id` | Crear (al final del orden) o cambiar nombre, `activo` y `orden`. Nunca se borran: desactivar conserva el historial |
+| `GET /meses` · `POST /meses` | Meses con conteos (`turnos`, `tomados`, `bloqueados`); crear `{ periodo }` en `borrador` con un turno por día y compañerismo activo (409 `MES_EXISTENTE`) |
+| `GET /meses/:periodo` · `PATCH /meses/:periodo` | Mes completo para el panel (incluye borradores e inscripciones de turnos bloqueados); `{ estado }` con transiciones borrador→abierto→cerrado→abierto (si no, 422 `TRANSICION_INVALIDA`) |
+| `PATCH /turnos/:turnoId` · `PATCH /dias/:fecha` | `{ bloqueado, motivo? }` para un turno o para todos los de esa fecha (también los de compañerismos inactivos) |
+| `POST /turnos/:turnoId/inscripcion` | Anotar a mano: `origen = 'admin'`, `creadoPorUserId`, sin token de edición. Sirve en días pasados y meses no abiertos. 409 `TURNO_TOMADO`, 422 `TURNO_BLOQUEADO` |
+| `PATCH/DELETE /inscripciones/:id` | Editar o borrar cualquier inscripción del barrio, sin restricción de día ni estado |
+
+- Un turno, inscripción o compañerismo de otro barrio da 404 aunque se conozca su id. El admin ve nota y modalidad, y el teléfono **solo con consentimiento**, igual que los misioneros.
+- D1 admite 100 parámetros por consulta: los INSERT grandes van en tandas dentro de un `db.batch` (ver `rutas/admin/meses.ts`).
 - Tests de admin: `crearAdmin({ email, superAdmin?, barrios?: ids })` e `iniciarSesion(email)` en `test/worker/datos.ts`; la cookie va en `pedir(ruta, { cookie })` (agrega `Origin`, que Better Auth exige en los POST con cookie).
 
 ## Tests
@@ -154,7 +170,7 @@ Se siguen en GitHub: un milestone por hito e issues con criterios de aceptación
 2. **Flujo público** ✅ — vista pública y formulario según las maquetas 1 y 2, con selector de idioma, "Tu turno", éxito con `.ics` y 409 amable.
 3. **Mi turno** ✅ — ver, editar y cancelar con el token guardado (sin maqueta: sigue el estilo de las pantallas 1 y 2).
 4. **Misioneros** ✅ — API y pantalla de `/:barrio/m/:token` (maqueta 5): calendario con teléfonos solo si hubo consentimiento y botón a WhatsApp.
-5. **Admin: auth y API** — Better Auth (regenerar `auth-schema.ts`), login (*falta maqueta*), `admins_barrio`, super admin crea barrios. API: crear el mes siguiente generando turnos, cambiar estado `borrador`/`abierto`/`cerrado` (*falta en la maqueta del panel*), bloquear/desbloquear, asignar a mano, editar/borrar inscripciones, regenerar enlace de misioneros, nota para cocinar, activar/desactivar compañerismos.
+5. **Admin: auth y API** ✅ (salvo las maquetas) — Better Auth (regenerar `auth-schema.ts`), login (*falta maqueta*), `admins_barrio`, super admin crea barrios. API: crear el mes siguiente generando turnos, cambiar estado `borrador`/`abierto`/`cerrado` (*falta en la maqueta del panel*), bloquear/desbloquear, asignar a mano, editar/borrar inscripciones, regenerar enlace de misioneros, nota para cocinar, activar/desactivar compañerismos.
 6. **Panel de la presidenta** — frontend según la maqueta 3, con columnas desde los compañerismos del barrio y teléfonos solo con consentimiento.
 7. **Calendario imprimible y compartir** — personalización (imagen en R2, escritura, mensaje, plantilla), vista A4 según la maqueta 4 calculando el día en que parte el mes y 5 o 6 filas, PNG con `html-to-image` + Web Share API.
 8. **Producción** — crear D1 y R2 reales, `database_id`, migraciones `--remote`, deploy y dominio; protección básica contra abuso del formulario público (ej. Turnstile o rate limiting).
