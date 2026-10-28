@@ -5,18 +5,9 @@ import { adminsBarrio, barrios, companerismos } from "@/db/schema";
 import { user } from "@/db/auth-schema";
 import { IDIOMAS } from "@/shared/idiomas";
 import type { AppEnvAdmin } from "../../contexto";
-import { esViolacionUnica, fallar, validar } from "../../http";
+import { esViolacionUnica, fallar, validar, zonaValida } from "../../http";
 import { paramsBarrio } from "../../params";
 import { esSuperAdmin } from "../../permisos";
-
-const zonaValida = (zona: string) => {
-  try {
-    new Intl.DateTimeFormat(undefined, { timeZone: zona });
-    return true;
-  } catch {
-    return false;
-  }
-};
 
 const esquemaNuevoBarrio = z.object({
   slug: z
