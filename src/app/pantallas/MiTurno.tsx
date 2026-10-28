@@ -10,7 +10,7 @@ import { rutaCalendario } from "@/app/rutas";
 import { Encabezado, LinkVolver } from "@/app/components/Encabezado";
 import { AlertaError, Aviso, AvisoAmbar, Cargando, ErrorCarga } from "@/app/components/Estado";
 import { FormularioInscripcion } from "@/app/components/FormularioInscripcion";
-import { Button } from "@/app/components/ui/button";
+import { Button, buttonVariants } from "@/app/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -51,9 +51,9 @@ function MiTurno({ slug, inscripcionId }: { slug: string; inscripcionId: string 
   const fecha = inscripcion?.fecha ?? guardada?.fecha;
   const volver = rutaCalendario(slug, fecha);
   const botonVolver = (
-    <Button asChild variant="accion" size="lg">
-      <Link to={volver}>{t.formulario.volver}</Link>
-    </Button>
+    <Link to={volver} className={buttonVariants({ variant: "accion", size: "lg" })}>
+      {t.formulario.volver}
+    </Link>
   );
 
   if (!inscripcion) {

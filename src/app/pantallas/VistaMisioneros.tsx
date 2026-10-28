@@ -13,7 +13,8 @@ import { Aviso, Cargando, ErrorCarga } from "@/app/components/Estado";
 import { GrupoPildoras } from "@/app/components/GrupoPildoras";
 import { SelectorMes } from "@/app/components/SelectorMes";
 import { BotonDiasAnteriores, FilaTurno, TarjetaDia } from "@/app/components/TarjetaDia";
-import { Button } from "@/app/components/ui/button";
+import { cn } from "@/app/lib/utils";
+import { buttonVariants } from "@/app/components/ui/button";
 
 /**
  * Token regenerado o equivocado. Se revisa antes que los datos: si regeneran el enlace con la
@@ -203,13 +204,17 @@ function Telefono({
     <div className="mt-0.5 flex items-center justify-between gap-2.5">
       <span className="text-sm font-semibold">{telefono}</span>
       {enlace && (
-        <Button asChild variant="accion" className="shrink-0 px-4">
-          {/* noreferrer: la URL de esta página lleva el token y no debe llegar a WhatsApp. */}
-          <a href={enlace} target="_blank" rel="noreferrer noopener" aria-label={t.misioneros.escribirA(nombre)}>
-            <MessageCircleIcon className="size-[18px]" aria-hidden="true" />
-            {t.misioneros.whatsapp}
-          </a>
-        </Button>
+        // noreferrer: la URL de esta página lleva el token y no debe llegar a WhatsApp.
+        <a
+          href={enlace}
+          target="_blank"
+          rel="noreferrer noopener"
+          aria-label={t.misioneros.escribirA(nombre)}
+          className={cn(buttonVariants({ variant: "accion" }), "shrink-0 px-4")}
+        >
+          <MessageCircleIcon className="size-[18px]" aria-hidden="true" />
+          {t.misioneros.whatsapp}
+        </a>
       )}
     </div>
   );

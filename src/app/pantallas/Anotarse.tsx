@@ -11,7 +11,8 @@ import { useMisInscripciones } from "@/app/mis-inscripciones";
 import { Encabezado, LinkVolver } from "@/app/components/Encabezado";
 import { Aviso, Cargando, ErrorCarga } from "@/app/components/Estado";
 import { FormularioInscripcion } from "@/app/components/FormularioInscripcion";
-import { Button } from "@/app/components/ui/button";
+import { cn } from "@/app/lib/utils";
+import { Button, buttonVariants } from "@/app/components/ui/button";
 
 /** `/:barrio/anotarse/:turnoId` — formulario para tomar un turno. */
 export function Anotarse() {
@@ -109,9 +110,9 @@ function NoDisponible({ mensaje, volver }: { mensaje: string; volver: string }) 
     <main className="mx-auto max-w-xl">
       <Aviso
         accion={
-          <Button asChild variant="accion" size="lg">
-            <Link to={volver}>{t.formulario.elegirOtro}</Link>
-          </Button>
+          <Link to={volver} className={buttonVariants({ variant: "accion", size: "lg" })}>
+            {t.formulario.elegirOtro}
+          </Link>
         }
       >
         {mensaje}
@@ -152,13 +153,13 @@ function Exito({
         <Button variant="accion-outline" className="h-[50px]" onClick={agregar}>
           {t.exito.agregarCalendario}
         </Button>
-        <Button asChild variant="accion" className="h-[50px]">
-          <Link to={volver}>{t.formulario.volver}</Link>
-        </Button>
+        <Link to={volver} className={cn(buttonVariants({ variant: "accion" }), "h-[50px]")}>
+          {t.formulario.volver}
+        </Link>
         {miTurno && (
-          <Button asChild variant="ghost" className="text-azul-medio">
-            <Link to={miTurno}>{t.publico.verMiTurno}</Link>
-          </Button>
+          <Link to={miTurno} className={cn(buttonVariants({ variant: "ghost" }), "text-azul-medio")}>
+            {t.publico.verMiTurno}
+          </Link>
         )}
       </div>
     </main>

@@ -141,7 +141,7 @@ export function FormularioInscripcion({
             ).map(([valor, texto]) => (
               <Label
                 key={valor}
-                className="flex min-h-12 cursor-pointer items-center gap-2.5 rounded-xl border border-input bg-card px-3.5 text-[15px] font-normal has-data-[state=checked]:border-azul-medio has-data-[state=checked]:bg-cielo-claro"
+                className="flex min-h-12 cursor-pointer items-center gap-2.5 rounded-xl border border-input bg-card px-3.5 text-[15px] font-normal has-data-checked:border-azul-medio has-data-checked:bg-cielo-claro"
               >
                 <RadioGroupItem value={valor} className="size-5" />
                 {texto}

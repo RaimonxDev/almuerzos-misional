@@ -13,7 +13,8 @@ import { Aviso, Cargando, ErrorCarga } from "@/app/components/Estado";
 import { SelectorMes } from "@/app/components/SelectorMes";
 import { BotonDiasAnteriores, FilaTurno, TarjetaDia } from "@/app/components/TarjetaDia";
 import { GrupoPildoras } from "@/app/components/GrupoPildoras";
-import { Button } from "@/app/components/ui/button";
+import { cn } from "@/app/lib/utils";
+import { buttonVariants } from "@/app/components/ui/button";
 
 /** `/:barrio` — turnos del mes con solo nombres, para que las hermanas elijan un día. */
 export function VistaPublica() {
@@ -155,14 +156,14 @@ function TurnosDelMes({ slug, periodo }: { slug: string; periodo: string }) {
                   )}
                 </div>
                 {turno.mia && (
-                  <Button asChild variant="accion-outline" className="shrink-0 px-4">
-                    <Link to={rutaMiTurno(slug, turno.mia)}>{t.publico.verMiTurno}</Link>
-                  </Button>
+                  <Link to={rutaMiTurno(slug, turno.mia)} className={cn(buttonVariants({ variant: "accion-outline" }), "shrink-0 px-4")}>
+                    {t.publico.verMiTurno}
+                  </Link>
                 )}
                 {turno.anotable && (
-                  <Button asChild variant="accion" className="shrink-0 px-[18px]">
-                    <Link to={rutaAnotarse(slug, turno.id)}>{t.publico.anotarme}</Link>
-                  </Button>
+                  <Link to={rutaAnotarse(slug, turno.id)} className={cn(buttonVariants({ variant: "accion" }), "shrink-0 px-[18px]")}>
+                    {t.publico.anotarme}
+                  </Link>
                 )}
               </FilaTurno>
             ))}

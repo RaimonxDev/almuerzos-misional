@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 export function SelectorIdioma({ oscuro = false }: { oscuro?: boolean }) {
   const { idioma, cambiarIdioma, t } = useIdioma();
   return (
-    <Select value={idioma} onValueChange={(v) => esIdioma(v) && cambiarIdioma(v)}>
+    // `items`: así el trigger muestra "Português" y no el valor "pt".
+    <Select items={NOMBRES_IDIOMA} value={idioma} onValueChange={(v) => esIdioma(v) && cambiarIdioma(v)}>
       <SelectTrigger
         aria-label={t.comun.idioma}
         className={cn(

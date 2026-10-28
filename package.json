@@ -17,17 +17,16 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@base-ui/react": "^1.9.0",
     "@fontsource-variable/lora": "^5.3.0",
     "@fontsource-variable/nunito-sans": "^5.3.0",
     "@hono/zod-validator": "^0.9.1",
     "@tanstack/react-query": "^5.105.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "cn": "^0.5.0",
     "drizzle-orm": "^0.45.4",
     "hono": "^4.13.14",
     "lucide-react": "^1.63.0",
-    "radix-ui": "^1.8.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router": "^8.5.1",
