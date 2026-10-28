@@ -117,6 +117,8 @@ export const es = {
     contrasena: "Contraseña",
     entrar: "Entrar",
     entrando: "Entrando…",
+    intro: "Para la presidenta de la Sociedad de Socorro y quienes administran el barrio.",
+    olvido: "¿Olvidaste tu contraseña? Pídele al administrador que te asigne una nueva.",
   },
   errores: {
     TURNO_TOMADO: "Alguien se te adelantó y tomó este turno. Elige otro día, por favor.",

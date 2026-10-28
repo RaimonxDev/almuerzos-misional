@@ -79,7 +79,7 @@ Pocos usuarios. Prioridad: simple de mantener y gratis de hospedar.
 - Compartidos entre pantallas de calendario: `SelectorMes` (flechas del encabezado), `TarjetaDia`/`FilaTurno` y el hook `usePeriodoDeLaUrl`.
 - "Agregar a mi calendario": `crearIcs` (`src/shared/ics.ts`, evento de día completo) y `abrirIcs` (hoja de compartir del móvil o descarga).
 - Admin: `authClient` (`src/app/auth.ts`, `better-auth/react`) para entrar y salir; `useYo()` (`GET /api/admin/yo`) dice si hay sesión. Las rutas de `/admin` van envueltas en `RutaAdmin`, que redirige a `/admin/login` con un 401. Better Auth informa credenciales malas como `code: "INVALID_EMAIL_OR_PASSWORD"`, que el login traduce con `t.errores.CREDENCIALES_INVALIDAS`.
-- Las maquetas de referencia están en el artifact "Almuerzo Misional — Maquetas" (vista pública, formulario, panel de la presidenta, calendario imprimible, misioneros).
+- Las maquetas de referencia están en el artifact "Almuerzo Misional — Maquetas" (vista pública, formulario, panel de la presidenta con estados del mes y "crear mes siguiente", calendario imprimible, misioneros, login móvil y escritorio).
 
 ## Estructura
 
@@ -170,7 +170,7 @@ Se siguen en GitHub: un milestone por hito e issues con criterios de aceptación
 2. **Flujo público** ✅ — vista pública y formulario según las maquetas 1 y 2, con selector de idioma, "Tu turno", éxito con `.ics` y 409 amable.
 3. **Mi turno** ✅ — ver, editar y cancelar con el token guardado (sin maqueta: sigue el estilo de las pantallas 1 y 2).
 4. **Misioneros** ✅ — API y pantalla de `/:barrio/m/:token` (maqueta 5): calendario con teléfonos solo si hubo consentimiento y botón a WhatsApp.
-5. **Admin: auth y API** ✅ (salvo las maquetas) — Better Auth (regenerar `auth-schema.ts`), login (*falta maqueta*), `admins_barrio`, super admin crea barrios. API: crear el mes siguiente generando turnos, cambiar estado `borrador`/`abierto`/`cerrado` (*falta en la maqueta del panel*), bloquear/desbloquear, asignar a mano, editar/borrar inscripciones, regenerar enlace de misioneros, nota para cocinar, activar/desactivar compañerismos.
+5. **Admin: auth y API** ✅ — Better Auth (regenerar `auth-schema.ts`), login (maqueta 6), `admins_barrio`, super admin crea barrios. API: crear el mes siguiente generando turnos, cambiar estado `borrador`/`abierto`/`cerrado` (en la maqueta 3), bloquear/desbloquear, asignar a mano, editar/borrar inscripciones, regenerar enlace de misioneros, nota para cocinar, activar/desactivar compañerismos.
 6. **Panel de la presidenta** — frontend según la maqueta 3, con columnas desde los compañerismos del barrio y teléfonos solo con consentimiento.
 7. **Calendario imprimible y compartir** — personalización (imagen en R2, escritura, mensaje, plantilla), vista A4 según la maqueta 4 calculando el día en que parte el mes y 5 o 6 filas, PNG con `html-to-image` + Web Share API.
 8. **Producción** — crear D1 y R2 reales, `database_id`, migraciones `--remote`, deploy y dominio; protección básica contra abuso del formulario público (ej. Turnstile o rate limiting).

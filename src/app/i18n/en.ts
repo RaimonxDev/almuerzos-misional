@@ -109,6 +109,8 @@ export const en: Mensajes = {
     contrasena: "Password",
     entrar: "Sign in",
     entrando: "Signing in…",
+    intro: "For the Relief Society president and the ward's administrators.",
+    olvido: "Forgot your password? Ask the administrator to set a new one.",
   },
   errores: {
     TURNO_TOMADO: "Someone just took this slot. Please choose another day.",

@@ -112,6 +112,8 @@ export const pt: Mensajes = {
     contrasena: "Senha",
     entrar: "Entrar",
     entrando: "Entrando…",
+    intro: "Para a presidente da Sociedade de Socorro e quem administra a ala.",
+    olvido: "Esqueceu a senha? Peça ao administrador que defina uma nova.",
   },
   errores: {
     TURNO_TOMADO: "Alguém chegou antes e pegou este horário. Escolha outro dia, por favor.",

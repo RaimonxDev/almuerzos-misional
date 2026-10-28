@@ -54,6 +54,7 @@ export function Login() {
       <Encabezado antetitulo={t.login.antetitulo} titulo={t.login.titulo} />
       <main className="mx-auto max-w-xl px-4 pt-[18px] pb-8">
         <form onSubmit={enviar} className="flex flex-col gap-4">
+          <p className="text-[15px] leading-normal text-muted-foreground">{t.login.intro}</p>
           <div className="flex flex-col gap-2">
             <Label htmlFor="login-email">{t.login.correo}</Label>
             <Input id="login-email" name="email" type="email" autoComplete="email" required />
@@ -66,6 +67,7 @@ export function Login() {
           <Button type="submit" variant="accion" size="lg" disabled={enviando}>
             {enviando ? t.login.entrando : t.login.entrar}
           </Button>
+          <p className="text-[13px] leading-normal text-muted-foreground">{t.login.olvido}</p>
         </form>
       </main>
     </>
