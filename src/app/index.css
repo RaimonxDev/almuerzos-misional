@@ -1,0 +1,91 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@fontsource-variable/lora";
+@import "@fontsource-variable/nunito-sans";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Paleta de Almuerzo Misional mapeada a los tokens de shadcn.
+ * Los componentes de ui/ usan estos nombres (primary, secondary, muted…);
+ * los colores propios (dorado, cielo, azul-medio) quedan como utilidades extra.
+ */
+:root {
+  --radius: 0.75rem;
+
+  --background: #f6f8fb;
+  --foreground: #1a2633;
+  --card: #ffffff;
+  --card-foreground: #1a2633;
+  --popover: #ffffff;
+  --popover-foreground: #1a2633;
+
+  --primary: #14304f;
+  --primary-foreground: #ffffff;
+  --secondary: #dceaf6;
+  --secondary-foreground: #14304f;
+  --muted: #eaf2f9;
+  --muted-foreground: #5b6b7d;
+  --accent: #eaf2f9;
+  --accent-foreground: #14304f;
+  --destructive: #b42318;
+
+  --border: #d6e2ee;
+  --input: #c9d7e6;
+  --ring: #1f5c99;
+
+  --azul-profundo: #14304f;
+  --azul-medio: #1f5c99;
+  --cielo: #dceaf6;
+  --cielo-claro: #eaf2f9;
+  --dorado: #c49a3a;
+  --dorado-claro: #e2c27a;
+}
+
+@theme inline {
+  --font-sans: "Nunito Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Lora Variable", ui-serif, Georgia, serif;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-azul-profundo: var(--azul-profundo);
+  --color-azul-medio: var(--azul-medio);
+  --color-cielo: var(--cielo);
+  --color-cielo-claro: var(--cielo-claro);
+  --color-dorado: var(--dorado);
+  --color-dorado-claro: var(--dorado-claro);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  h1, h2, h3 {
+    @apply font-serif;
+  }
+}
