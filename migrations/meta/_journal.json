@@ -8,6 +8,13 @@
       "when": 1793186370873,
       "tag": "0000_inicial",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1793194291543,
+      "tag": "0001_familiar_lilith",
+      "breakpoints": true
     }
   ]
 }

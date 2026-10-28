@@ -110,7 +110,12 @@ export const en: Mensajes = {
     NO_ENCONTRADO: "We couldn't find what you're looking for. Check the link.",
     TOKEN_INVALIDO: "This link is no longer valid.",
     DATOS_INVALIDOS: "Please check the form.",
-    NO_AUTORIZADO: "You don't have permission to do this.",
+    NO_AUTORIZADO: "Sign in to continue.",
+    SIN_PERMISO: "You don't have permission to do this.",
+    SLUG_EXISTENTE: "A ward with that link already exists.",
+    MES_EXISTENTE: "That month already exists.",
+    TRANSICION_INVALIDA: "The month can't be changed to that status.",
+    CREDENCIALES_INVALIDAS: "The email or password is incorrect.",
     ERROR_INTERNO: "Something went wrong or you're offline. Please try again in a moment.",
   },
 };

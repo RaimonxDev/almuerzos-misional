@@ -118,7 +118,12 @@ export const es = {
     NO_ENCONTRADO: "No encontramos lo que buscas. Revisa el enlace.",
     TOKEN_INVALIDO: "Este enlace ya no es válido.",
     DATOS_INVALIDOS: "Revisa los datos del formulario.",
-    NO_AUTORIZADO: "No tienes permiso para hacer esto.",
+    NO_AUTORIZADO: "Inicia sesión para continuar.",
+    SIN_PERMISO: "No tienes permiso para hacer esto.",
+    SLUG_EXISTENTE: "Ya existe un barrio con ese enlace.",
+    MES_EXISTENTE: "Ese mes ya existe.",
+    TRANSICION_INVALIDA: "No se puede cambiar el mes a ese estado.",
+    CREDENCIALES_INVALIDAS: "El correo o la contraseña no son correctos.",
     ERROR_INTERNO: "Algo salió mal o no hay conexión. Inténtalo de nuevo en un momento.",
   } satisfies Record<CodigoError, string>,
 };

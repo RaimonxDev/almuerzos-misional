@@ -11,6 +11,7 @@ import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { diaDeSemana, fechasDelMes, hoyEnZona } from "../src/shared/fechas.ts";
+import { hashPassword } from "../src/shared/password.ts";
 
 /** Tokens fijos para poder abrir las URLs de prueba sin consultar la base. */
 const TOKEN_MISIONEROS_CENTRO = "dev-misioneros-centro";
@@ -82,8 +83,39 @@ const BARRIOS: Barrio[] = [
   },
 ];
 
+/** Cuentas de prueba (solo desarrollo local). El hash es el mismo PBKDF2 que usa el Worker. */
+const ADMINS = [
+  { id: "seed-user-super", email: "super@ejemplo.cl", nombre: "Super Admin", password: "super-dev-123", role: "admin", barrio: null, cargo: null },
+  {
+    id: "seed-user-presidenta",
+    email: "presidenta@ejemplo.cl",
+    nombre: "Hna. Rojas",
+    password: "presidenta-dev-123",
+    role: "user",
+    barrio: "centro",
+    cargo: "Presidenta de la Sociedad de Socorro",
+  },
+] as const;
+
 const sql: string[] = [];
 const argPeriodo = process.argv[2];
+
+for (const a of ADMINS) {
+  sql.push(`DELETE FROM session WHERE user_id = ${sqlValor(a.id)};`);
+  sql.push(`DELETE FROM account WHERE user_id = ${sqlValor(a.id)};`);
+  sql.push(`DELETE FROM user WHERE id = ${sqlValor(a.id)} OR email = ${sqlValor(a.email)};`);
+  sql.push(insert("user", { id: a.id, name: a.nombre, email: a.email, email_verified: true, role: a.role }));
+  sql.push(
+    insert("account", {
+      id: `${a.id}-credencial`,
+      account_id: a.id,
+      provider_id: "credential",
+      user_id: a.id,
+      password: await hashPassword(a.password),
+      updated_at: Date.now(), // timestamp_ms
+    }),
+  );
+}
 
 for (const b of BARRIOS) {
   const barrioId = `seed-${b.slug}`;
@@ -102,6 +134,10 @@ for (const b of BARRIOS) {
       contacto_telefono: b.contactoTelefono,
     }),
   );
+
+  for (const a of ADMINS) {
+    if (a.barrio === b.slug) sql.push(insert("admins_barrio", { user_id: a.id, barrio_id: barrioId, cargo: a.cargo }));
+  }
 
   const companerismoIds = b.companerismos.map((c, orden) => {
     const id = `${barrioId}-${c.tipo}`;
@@ -183,6 +219,7 @@ for (const b of BARRIOS) {
   console.log(`  misioneros: /${b.slug}/m/${b.token}`);
 }
 
+for (const a of ADMINS) console.log(`  admin: ${a.email} / ${a.password}${a.barrio ? ` (barrio ${a.barrio})` : " (super admin)"}`);
 console.log(`  token de edición de ejemplo (Hna. Pérez): ${TOKEN_EDICION_DEMO}`);
 
 mkdirSync(".wrangler", { recursive: true });

@@ -4,5 +4,5 @@
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test-app.tsbuildinfo",
     "types": ["vite/client", "./worker-configuration.d.ts", "@testing-library/jest-dom/vitest"]
   },
-  "include": ["test/app", "src/app", "src/shared"]
+  "include": ["test/app", "src/app", "src/shared", "src/worker/env.d.ts"]
 }

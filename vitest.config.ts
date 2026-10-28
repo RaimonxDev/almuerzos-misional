@@ -19,7 +19,8 @@ export default defineConfig(async () => {
           plugins: [
             cloudflareTest({
               wrangler: { configPath: "./wrangler.jsonc" },
-              miniflare: { bindings: { MIGRACIONES: migraciones } },
+              miniflare: { bindings: { MIGRACIONES: migraciones, BETTER_AUTH_SECRET: "secreto-solo-para-tests-0123456789abcdef",
+                BETTER_AUTH_URL: "http://localhost" } },
             }),
           ],
           resolve: { alias },

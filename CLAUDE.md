@@ -95,6 +95,7 @@ Comandos: `bun run dev`, `bun run typecheck`, `bun run build`, `bun run db:gener
 Datos de prueba: `bun run db:seed:local` (mes actual y el siguiente) o `bun run db:seed:local -- 2026-11` (solo ese mes). Es idempotente y crea:
 - `centro` (es, `America/Santiago`) y `jardim` (pt, `America/Sao_Paulo`), cada uno con élderes y hermanas, los meses en estado `abierto` y el tercer domingo bloqueado.
 - Enlaces de misioneros: `/centro/m/dev-misioneros-centro` y `/jardim/m/dev-misioneros-jardim`.
+- Cuentas de admin: `super@ejemplo.cl` / `super-dev-123` (super admin) y `presidenta@ejemplo.cl` / `presidenta-dev-123` (admin de `centro`). Requiere `.dev.vars` (copiar `.dev.vars.example`) para iniciar sesión.
 - En `centro`, en el último mes sembrado, tres inscripciones: Hna. Pérez (con consentimiento; token de edición `dev-edicion-demo`), Hna. González (teléfono sin consentimiento) y Familia Muñoz (`origen = 'admin'`).
 - Fechas: `src/shared/fechas.ts` (`hoyEnZona`, `fechasDelMes`, `diaDeSemana`), compartido con el Worker.
 
@@ -102,7 +103,7 @@ Pendiente para producción: crear la base con `bunx wrangler d1 create almuerzo-
 
 ## Esquema
 
-`src/db/schema.ts` (dominio) y `src/db/auth-schema.ts` (Better Auth). Este último se escribió a mano como referencia: regenerarlo con `bunx @better-auth/cli generate` tras instalar Better Auth.
+`src/db/schema.ts` (dominio) y `src/db/auth-schema.ts` (Better Auth). Este último lo genera el CLI de Better Auth (`bunx auth@latest generate --config <archivo con betterAuth({ plugins: [admin()] })> --output src/db/auth-schema.ts`; el paquete `@better-auth/cli` está obsoleto): regenerarlo y correr `bun run db:generate` si se cambian sus plugins. Los timestamps de Better Auth son `timestamp_ms`.
 
 ## API pública
 
@@ -121,6 +122,15 @@ Sin login. Nunca devuelve teléfono, dirección ni nota de otra persona: cada `s
 - Validación con zod; los esquemas del formulario están en `src/shared/inscripciones.ts` y los usa también el frontend. Datos inválidos → 400 `{ error: "DATOS_INVALIDOS", campos: [...] }`.
 - Un bloqueo manda sobre una inscripción existente: el turno se muestra `bloqueado` y sin nombre.
 - Tests de la API en `test/worker/` (ver **Tests**). Usan fechas en 2000 y 2099 para no depender del día.
+
+## API de admin y auth
+
+- Better Auth se arma por request (`crearAuth(env, db)` en `src/worker/auth.ts`) y vive en `/api/auth/*` (login `POST /api/auth/sign-in/email`, cookie de sesión). `disableSignUp: true`: las cuentas las crea el super admin con `/api/auth/admin/create-user` del plugin. Contraseñas con PBKDF2-SHA256 de Web Crypto (`src/shared/password.ts`, 100 000 iteraciones), no el scrypt por defecto, que excede la CPU del plan gratis.
+- Secretos: `BETTER_AUTH_SECRET` (y `BETTER_AUTH_URL` opcional) en `.dev.vars` (ver `.dev.vars.example`); en producción `bunx wrangler secret put BETTER_AUTH_SECRET`. En los tests son bindings de `vitest.config.ts`.
+- Super admin = `user.role === "admin"`; admins de barrio = rol `user` + filas en `admins_barrio`.
+- Todo cuelga de `/api/admin` (`rutas/admin/index.ts`), con `conSesion` (401 `NO_AUTORIZADO`, deja `c.var.usuario`). Lo de `/api/admin/barrios/:slug/*` pasa además por `conBarrioAdmin` (403 `SIN_PERMISO`, también si el barrio no existe; super admin con slug inexistente → 404; deja `c.var.barrio`). Tipos de contexto: `AppEnvAdmin` y `AppEnvBarrioAdmin` (`src/worker/contexto.ts`); middlewares en `src/worker/permisos.ts`. Para agregar rutas de un barrio se encadenan en `rutas/admin/{meses,turnos,barrio}.ts`.
+- `GET /api/admin/yo` (usuario y sus barrios; super admin: todos), `POST /api/admin/barrios` (solo super admin: slug único, compañerismos; 409 `SLUG_EXISTENTE`), `POST /api/admin/barrios/:slug/admins` (solo super admin: asigna por email un usuario existente; idempotente, 404 si no existe).
+- Tests de admin: `crearAdmin({ email, superAdmin?, barrios?: ids })` e `iniciarSesion(email)` en `test/worker/datos.ts`; la cookie va en `pedir(ruta, { cookie })` (agrega `Origin`, que Better Auth exige en los POST con cookie).
 
 ## Tests
 

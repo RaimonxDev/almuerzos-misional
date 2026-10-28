@@ -113,7 +113,12 @@ export const pt: Mensajes = {
     NO_ENCONTRADO: "Não encontramos o que você procura. Confira o link.",
     TOKEN_INVALIDO: "Este link não é mais válido.",
     DATOS_INVALIDOS: "Revise os dados do formulário.",
-    NO_AUTORIZADO: "Você não tem permissão para fazer isto.",
+    NO_AUTORIZADO: "Entre na sua conta para continuar.",
+    SIN_PERMISO: "Você não tem permissão para fazer isto.",
+    SLUG_EXISTENTE: "Já existe uma ala com esse link.",
+    MES_EXISTENTE: "Esse mês já existe.",
+    TRANSICION_INVALIDA: "Não é possível mudar o mês para esse estado.",
+    CREDENCIALES_INVALIDAS: "O e-mail ou a senha não estão corretos.",
     ERROR_INTERNO: "Algo deu errado ou não há conexão. Tente novamente em instantes.",
   },
 };
