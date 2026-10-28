@@ -4,6 +4,7 @@ import { obtenerAuth } from "./auth";
 import { conDb, type AppEnv } from "./contexto";
 import { rutasAdmin } from "./rutas/admin";
 import { rutasBarrios } from "./rutas/barrios";
+import { rutasImagenes } from "./rutas/imagenes";
 import { rutasInscripciones } from "./rutas/inscripciones";
 import { rutasMisioneros } from "./rutas/misioneros";
 
@@ -18,6 +19,7 @@ const rutas = app
   .get("/salud", (c) => c.json({ ok: true }))
   .route("/barrios", rutasBarrios)
   .route("/barrios", rutasMisioneros)
+  .route("/imagenes", rutasImagenes)
   .route("/inscripciones", rutasInscripciones)
   .route("/admin", rutasAdmin);
 

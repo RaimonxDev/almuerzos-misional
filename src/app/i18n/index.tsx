@@ -7,7 +7,7 @@ import { en } from "./en";
 const DICCIONARIOS: Record<Idioma, Mensajes> = { es, pt, en };
 
 /** Para el locale de `Intl` (fechas, números). */
-const LOCALES: Record<Idioma, string> = { es: "es-CL", pt: "pt-BR", en: "en-US" };
+export const LOCALES: Record<Idioma, string> = { es: "es-CL", pt: "pt-BR", en: "en-US" };
 
 export const NOMBRES_IDIOMA: Record<Idioma, string> = {
   es: "Español",
