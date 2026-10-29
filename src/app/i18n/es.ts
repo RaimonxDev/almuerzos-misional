@@ -119,7 +119,7 @@ export const es = {
     entrar: "Entrar",
     entrando: "Entrando…",
     intro: "Para la presidenta de la Sociedad de Socorro y quienes administran el barrio.",
-    olvido: "¿Olvidaste tu contraseña? Pídele al administrador que te asigne una nueva.",
+    olvido: "¿Olvidaste tu contraseña?",
   },
   cuenta: {
     titulo: "Mi cuenta",
@@ -133,6 +133,25 @@ export const es = {
     cambiando: "Cambiando…",
     cambiada: "Tu contraseña cambió. Cerramos la sesión en tus otros dispositivos.",
     volver: "Volver al panel",
+  },
+  olvide: {
+    titulo: "Recuperar contraseña",
+    intro: "Escribe el correo con que entras. Te mandaremos un enlace para elegir una contraseña nueva.",
+    enviar: "Enviar enlace",
+    enviando: "Enviando…",
+    enviado:
+      "Si existe una cuenta con ese correo, te llegará un enlace en unos minutos. Vence en 1 hora; si no lo ves, revisa la carpeta de spam.",
+    volver: "Volver a entrar",
+  },
+  restablecer: {
+    titulo: "Nueva contraseña",
+    intro: "Elige la contraseña con que vas a entrar. Se cerrará la sesión en todos tus dispositivos.",
+    guardar: "Guardar contraseña",
+    guardando: "Guardando…",
+    lista: "Tu contraseña cambió. Ya puedes entrar con ella.",
+    entrar: "Entrar",
+    invalido: "Este enlace venció o ya se usó.",
+    pedirOtro: "Pedir otro enlace",
   },
   panel: {
     antetitulo: "Administración",

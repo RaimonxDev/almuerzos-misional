@@ -1,7 +1,8 @@
 import { env } from "cloudflare:test";
 import { exports } from "cloudflare:workers";
 import { crearDb } from "@/db";
-import { account, rateLimit, user } from "@/db/auth-schema";
+import { vi } from "vitest";
+import { account, rateLimit, user, verification } from "@/db/auth-schema";
 import { adminsBarrio, barrios, companerismos, inscripciones, meses, turnos } from "@/db/schema";
 import { hashPassword } from "@/shared/password";
 import { sha256Hex } from "@/worker/http";
@@ -32,6 +33,7 @@ export async function sembrar() {
   await db.delete(barrios);
   await db.delete(user); // en cascada: cuentas, sesiones y admins_barrio
   await db.delete(rateLimit); // los intentos de login de un test no cuentan para el siguiente
+  await db.delete(verification); // tokens de restablecer contraseña
 
   await db.insert(barrios).values([
     { id: "b1", slug: "prueba", nombre: "Barrio Prueba", tokenMisioneros: "tm-1" },
@@ -152,4 +154,29 @@ export async function iniciarSesion(email: string, password = PASSWORD_PRUEBA) {
     .getSetCookie()
     .map((c) => c.split(";")[0])
     .join("; ");
+}
+
+export interface CorreoCapturado {
+  para: string;
+  asunto: string;
+  texto: string;
+}
+
+/**
+ * Captura los correos que salen en el test. En los tests `RESEND_API_KEY` está vacía, así que
+ * `enviarCorreo` los escribe en la consola (el Worker corre en el mismo isolate que el test):
+ * se espía `console.log` y se leen los que empiezan con "[correo]". Devuelve una función que
+ * lista los capturados hasta ese momento. `vi.restoreAllMocks()` en un `afterEach` lo deshace.
+ */
+export function capturarCorreos() {
+  const consola = vi.spyOn(console, "log").mockImplementation(() => {});
+  return (): CorreoCapturado[] =>
+    consola.mock.calls
+      .map(([mensaje]) => String(mensaje))
+      .filter((m) => m.startsWith("[correo]"))
+      .map((m) => {
+        const lineas = m.split("\n");
+        const valor = (prefijo: string) => lineas.find((l) => l.startsWith(prefijo))?.slice(prefijo.length) ?? "";
+        return { para: valor("Para: "), asunto: valor("Asunto: "), texto: lineas.slice(lineas.indexOf("") + 1).join("\n") };
+      });
 }

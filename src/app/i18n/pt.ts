@@ -114,7 +114,7 @@ export const pt: Mensajes = {
     entrar: "Entrar",
     entrando: "Entrando…",
     intro: "Para a presidente da Sociedade de Socorro e quem administra a ala.",
-    olvido: "Esqueceu a senha? Peça ao administrador que defina uma nova.",
+    olvido: "Esqueceu a senha?",
   },
   cuenta: {
     titulo: "Minha conta",
@@ -128,6 +128,25 @@ export const pt: Mensajes = {
     cambiando: "Alterando…",
     cambiada: "Sua senha foi alterada. Encerramos a sessão nos seus outros dispositivos.",
     volver: "Voltar ao painel",
+  },
+  olvide: {
+    titulo: "Recuperar senha",
+    intro: "Digite o e-mail com que você entra. Vamos enviar um link para escolher uma nova senha.",
+    enviar: "Enviar link",
+    enviando: "Enviando…",
+    enviado:
+      "Se existir uma conta com esse e-mail, você vai receber um link em alguns minutos. Ele vence em 1 hora; se não aparecer, olhe a pasta de spam.",
+    volver: "Voltar para entrar",
+  },
+  restablecer: {
+    titulo: "Nova senha",
+    intro: "Escolha a senha com que você vai entrar. A sessão será encerrada em todos os seus dispositivos.",
+    guardar: "Salvar senha",
+    guardando: "Salvando…",
+    lista: "Sua senha foi alterada. Já pode entrar com ela.",
+    entrar: "Entrar",
+    invalido: "Este link venceu ou já foi usado.",
+    pedirOtro: "Pedir outro link",
   },
   panel: {
     antetitulo: "Administração",

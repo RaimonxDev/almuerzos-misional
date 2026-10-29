@@ -111,7 +111,7 @@ export const en: Mensajes = {
     entrar: "Sign in",
     entrando: "Signing in…",
     intro: "For the Relief Society president and the ward's administrators.",
-    olvido: "Forgot your password? Ask the administrator to set a new one.",
+    olvido: "Forgot your password?",
   },
   cuenta: {
     titulo: "My account",
@@ -125,6 +125,25 @@ export const en: Mensajes = {
     cambiando: "Changing…",
     cambiada: "Your password was changed. We signed you out on your other devices.",
     volver: "Back to the dashboard",
+  },
+  olvide: {
+    titulo: "Reset password",
+    intro: "Enter the email you sign in with. We'll send you a link to choose a new password.",
+    enviar: "Send link",
+    enviando: "Sending…",
+    enviado:
+      "If there's an account with that email, a link will arrive in a few minutes. It expires in 1 hour; if you don't see it, check your spam folder.",
+    volver: "Back to sign in",
+  },
+  restablecer: {
+    titulo: "New password",
+    intro: "Choose the password you'll sign in with. You'll be signed out on all your devices.",
+    guardar: "Save password",
+    guardando: "Saving…",
+    lista: "Your password was changed. You can sign in with it now.",
+    entrar: "Sign in",
+    invalido: "This link has expired or was already used.",
+    pedirOtro: "Request a new link",
   },
   panel: {
     antetitulo: "Administration",
