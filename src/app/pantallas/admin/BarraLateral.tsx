@@ -9,6 +9,8 @@ import {
   useAdminsBarrio,
   useEditarCompanerismo,
   useRegenerarToken,
+  useCorregirCorreoAdmin,
+  useNuevaPasswordTemporal,
   useReenviarInvitacion,
 } from "@/app/consultas-admin";
 import { useIdioma } from "@/app/i18n";
@@ -26,6 +28,7 @@ import {
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/app/components/ui/radio-group";
+import { DatosCuenta } from "./DatosCuenta";
 import { DisenoCalendario } from "./DisenoCalendario";
 import { Textarea } from "@/app/components/ui/textarea";
 
@@ -348,12 +351,18 @@ function AgregarCompanerismo({ slug }: { slug: string }) {
 
 /**
  * Administradores del barrio (solo super admin) con "Reenviar invitación" si no les llegó el correo:
- * la bienvenida con un enlace nuevo si aún no crean su contraseña, o el aviso de asignación.
+ * la bienvenida con un enlace nuevo si aún no crean su contraseña, o el aviso de asignación. A quien
+ * aún no la crea también se le puede corregir el correo o dar otra contraseña temporal.
  */
 function Administradores({ slug }: { slug: string }) {
   const { t } = useIdioma();
-  const admins = useAdminsBarrio(slug, true);
+  const admins = useAdminsBarrio(slug);
   const reenviar = useReenviarInvitacion(slug);
+  const temporal = useNuevaPasswordTemporal(slug);
+  const [corrigiendo, setCorrigiendo] = useState<string | null>(null);
+  const [datos, setDatos] = useState<{ email: string; passwordTemporal: string } | null>(null);
+
+  const accion = "self-start px-0 text-[13px] font-bold text-azul-medio hover:bg-transparent hover:underline";
 
   return (
     <Seccion titulo={t.panel.administradores}>
@@ -374,27 +383,129 @@ function Administradores({ slug }: { slug: string }) {
                   {t.panel.faltaContrasena}
                 </span>
               )}
-              <Button
-                variant="ghost"
-                aria-label={t.panel.reenviarInvitacionA(a.nombre)}
-                disabled={reenviar.isPending}
-                onClick={() =>
-                  reenviar.mutate(a.id, {
-                    onSuccess: ({ correoEnviado }) =>
-                      correoEnviado
-                        ? toast.success(t.panel.invitacionReenviada(a.email))
-                        : toast.error(t.panel.invitacionNoSalio),
-                    onError: (e) => toast.error(t.errores[codigoDe(e)]),
-                  })
-                }
-                className="self-start px-0 text-[13px] font-bold text-azul-medio hover:bg-transparent hover:underline"
-              >
-                {t.panel.reenviarInvitacion}
-              </Button>
+              {corrigiendo === a.id ? (
+                <CorregirCorreo slug={slug} admin={a} alTerminar={() => setCorrigiendo(null)} />
+              ) : (
+                <div className="flex flex-wrap gap-x-4">
+                  <Button
+                    variant="ghost"
+                    aria-label={t.panel.reenviarInvitacionA(a.nombre)}
+                    disabled={reenviar.isPending}
+                    onClick={() =>
+                      reenviar.mutate(a.id, {
+                        onSuccess: ({ correoEnviado }) =>
+                          correoEnviado
+                            ? toast.success(t.panel.invitacionReenviada(a.email))
+                            : toast.error(t.panel.invitacionNoSalio),
+                        onError: (e) => toast.error(t.errores[codigoDe(e)]),
+                      })
+                    }
+                    className={accion}
+                  >
+                    {t.panel.reenviarInvitacion}
+                  </Button>
+                  {a.debeCambiarPassword && (
+                    <>
+                      <Button
+                        variant="ghost"
+                        aria-label={t.panel.corregirCorreoA(a.nombre)}
+                        onClick={() => setCorrigiendo(a.id)}
+                        className={accion}
+                      >
+                        {t.panel.corregirCorreo}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        aria-label={t.panel.nuevaTemporalA(a.nombre)}
+                        disabled={temporal.isPending}
+                        onClick={() =>
+                          temporal.mutate(a.id, {
+                            onSuccess: setDatos,
+                            onError: (e) => toast.error(t.errores[codigoDe(e)]),
+                          })
+                        }
+                        className={accion}
+                      >
+                        {t.panel.nuevaTemporal}
+                      </Button>
+                    </>
+                  )}
+                </div>
+              )}
             </li>
           ))}
         </ul>
       )}
+      {datos && (
+        <DatosCuenta
+          email={datos.email}
+          password={datos.passwordTemporal}
+          titulo={t.panel.nuevaTemporalTitulo}
+          texto={t.panel.nuevaTemporalTexto}
+          textoCerrar={t.panel.listo}
+          alCerrar={() => setDatos(null)}
+        />
+      )}
     </Seccion>
+  );
+}
+
+/** Formulario en la fila: el correo bien escrito; al guardar se le manda la invitación ahí. */
+function CorregirCorreo({
+  slug,
+  admin,
+  alTerminar,
+}: {
+  slug: string;
+  admin: { id: string; nombre: string; email: string };
+  alTerminar: () => void;
+}) {
+  const { t } = useIdioma();
+  const corregir = useCorregirCorreoAdmin(slug);
+  const [email, setEmail] = useState(admin.email);
+  const id = `correo-admin-${admin.id}`;
+
+  const enviar = (e: FormEvent) => {
+    e.preventDefault();
+    corregir.mutate(
+      { userId: admin.id, email: email.trim() },
+      {
+        onSuccess: ({ admin: corregido, correoEnviado }) => {
+          if (correoEnviado) toast.success(t.panel.correoCorregido(corregido.email));
+          else toast.warning(t.panel.correoCorregidoSinEnvio);
+          alTerminar();
+        },
+      },
+    );
+  };
+
+  return (
+    <form
+      onSubmit={enviar}
+      aria-label={t.panel.corregirCorreoA(admin.nombre)}
+      className="flex flex-col gap-3 rounded-[10px] border bg-cielo-claro p-3"
+    >
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor={id}>{t.panel.correoCorrecto}</Label>
+        <Input
+          id={id}
+          type="email"
+          autoComplete="off"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          className="rounded-[10px] bg-card"
+        />
+      </div>
+      {corregir.isError && <AlertaError>{t.errores[codigoDe(corregir.error)]}</AlertaError>}
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="ghost" onClick={alTerminar} className="rounded-[10px] font-bold">
+          {t.panel.cancelar}
+        </Button>
+        <Button type="submit" disabled={corregir.isPending} className="rounded-[10px] font-bold">
+          {t.panel.guardar}
+        </Button>
+      </div>
+    </form>
   );
 }

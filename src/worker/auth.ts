@@ -3,7 +3,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { createAuthMiddleware, isAPIError } from "better-auth/api";
 import { admin } from "better-auth/plugins";
 import { waitUntil } from "cloudflare:workers";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, count, eq, gt, like, ne } from "drizzle-orm";
 import { crearDb, type Db } from "@/db";
 import * as authSchema from "@/db/auth-schema";
 import { adminsBarrio, barrios } from "@/db/schema";
@@ -35,12 +35,45 @@ export async function idiomaDelUsuario(db: Db, userId: string): Promise<Idioma> 
   return fila?.idioma ?? "es";
 }
 
+/** Correos de restablecer por persona y por hora; los que pasen no se mandan (cuidan el cupo de Resend). */
+export const MAX_RESTABLECER_POR_HORA = 3;
+
+/** Tokens de restablecer de una persona (los de "¿Olvidaste…?" y los de la bienvenida). */
+const enlacesDe = (userId: string) =>
+  and(eq(authSchema.verification.value, userId), like(authSchema.verification.identifier, "reset-password:%"));
+
 /**
- * Apaga la marca de "debe cambiar la contraseña" (la prende `POST /api/admin/barrios` al crear una
- * cuenta con contraseña temporal). Se llama cuando la persona elige su propia contraseña.
+ * Invalida los enlaces de restablecer pendientes de una persona: Better Auth solo consume el que
+ * se usó, y los de otros correos (reenvíos de la bienvenida, pedidos repetidos) seguirían sirviendo.
+ */
+export const borrarEnlacesRestablecer = (db: Db, userId: string) =>
+  db.delete(authSchema.verification).where(enlacesDe(userId));
+
+/**
+ * La persona eligió su propia contraseña: apaga "debe cambiar la contraseña" (la prende
+ * `POST /api/admin/barrios` al crear una cuenta con contraseña temporal) y borra los enlaces
+ * de restablecer que le queden.
  */
 export const contrasenaElegida = (db: Db, userId: string) =>
-  db.update(authSchema.user).set({ debeCambiarPassword: false }).where(eq(authSchema.user.id, userId));
+  db.batch([
+    db.update(authSchema.user).set({ debeCambiarPassword: false }).where(eq(authSchema.user.id, userId)),
+    borrarEnlacesRestablecer(db, userId),
+  ]);
+
+/** Cuántos enlaces de restablecer recibió la persona en la última hora, sin contar `token`. */
+async function enlacesRecientes(db: Db, userId: string, token: string) {
+  const [fila] = await db
+    .select({ n: count() })
+    .from(authSchema.verification)
+    .where(
+      and(
+        enlacesDe(userId),
+        ne(authSchema.verification.identifier, `reset-password:${token}`),
+        gt(authSchema.verification.createdAt, new Date(Date.now() - 3_600_000)),
+      ),
+    );
+  return fila?.n ?? 0;
+}
 
 const crearAuth = (env: Env) => {
   const db = crearDb(env.DB);
@@ -67,7 +100,13 @@ const crearAuth = (env: Env) => {
       // `url` apunta a la API de Better Auth; el enlace va directo a la pantalla con el token.
       // Corre en segundo plano (`backgroundTasks`): la respuesta no espera a Resend, así tarda
       // lo mismo exista o no el correo.
+      // Pasado el máximo por hora no se manda (la respuesta es la misma): el límite por IP no
+      // alcanza para que nadie llene la bandeja de alguien ni gaste el cupo diario de Resend.
       sendResetPassword: async ({ user, url, token }, request) => {
+        if ((await enlacesRecientes(db, user.id, token)) >= MAX_RESTABLECER_POR_HORA) {
+          console.warn("[correo] Restablecer: máximo por hora alcanzado, no se manda", user.id);
+          return;
+        }
         const origen = new URL(request?.url ?? url).origin;
         const correo = armarCorreo(await idiomaDelUsuario(db, user.id), "restablecerPassword", {
           nombre: user.name,

@@ -201,12 +201,11 @@ export const useQuitarImagen = (slug: string, periodo: string) =>
     ["mes"],
   );
 
-/** Admins del barrio, con si les falta crear la contraseña. Solo super admin (`enabled`). */
-export const useAdminsBarrio = (slug: string, enabled: boolean) =>
+/** Admins del barrio, con si les falta crear la contraseña. Solo para el super admin. */
+export const useAdminsBarrio = (slug: string) =>
   useQuery({
     queryKey: claves.admins(slug),
     queryFn: () => datos(barrios[":slug"].admins.$get({ param: { slug } })),
-    enabled,
   });
 
 /** Reenvía la bienvenida (o el aviso de asignación) → `{ correoEnviado }`. */
@@ -214,5 +213,22 @@ export const useReenviarInvitacion = (slug: string) =>
   useMutacionBarrio(
     slug,
     (userId: string) => datos(barrios[":slug"].admins[":userId"].invitacion.$post({ param: { slug, userId } })),
+    ["admins"],
+  );
+
+/** Corrige el correo de quien aún no crea su contraseña y le reenvía la invitación → `{ admin, correoEnviado }`. */
+export const useCorregirCorreoAdmin = (slug: string) =>
+  useMutacionBarrio(
+    slug,
+    ({ userId, email }: { userId: string; email: string }) =>
+      datos(barrios[":slug"].admins[":userId"].$patch({ param: { slug, userId }, json: { email } })),
+    ["admins"],
+  );
+
+/** Otra contraseña temporal para quien aún no crea la suya → `{ email, passwordTemporal }` (solo esta vez). */
+export const useNuevaPasswordTemporal = (slug: string) =>
+  useMutacionBarrio(
+    slug,
+    (userId: string) => datos(barrios[":slug"].admins[":userId"]["password-temporal"].$post({ param: { slug, userId } })),
     ["admins"],
   );

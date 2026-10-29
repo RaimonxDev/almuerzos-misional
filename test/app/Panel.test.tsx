@@ -428,6 +428,45 @@ describe("Panel: enlaces, misioneros y gestión del mes", () => {
     await waitFor(() => expect(llamadas(api, "POST", `${RUTA_BARRIO}/admins/u-9/invitacion`)).toHaveLength(1));
   });
 
+  it("a quien no creó su contraseña se le corrige el correo o se le da otra temporal", async () => {
+    const user = userEvent.setup();
+    api = simular({
+      "/api/admin/yo": { json: { ...YO, usuario: { ...YO.usuario, superAdmin: true } } },
+      [`${RUTA_BARRIO}/admins/u-9/password-temporal`]: {
+        json: { email: "rojas@ejemplo.cl", passwordTemporal: "abcd-efgh-jkmn" },
+      },
+      [`${RUTA_BARRIO}/admins/u-9`]: { json: { admin: { id: "u-9", email: "rojas@gmail.com" }, correoEnviado: true } },
+      [`${RUTA_BARRIO}/admins`]: {
+        json: {
+          admins: [
+            { id: "u-9", email: "rojas@gmial.com", nombre: "Hna. Rojas", cargo: null, debeCambiarPassword: true },
+            { id: "u-8", email: "soto@ejemplo.cl", nombre: "Hna. Soto", cargo: null, debeCambiarPassword: false },
+          ],
+        },
+      },
+    });
+    await abrirPanel();
+    const seccion = (await screen.findByRole("heading", { name: "Administradores" })).closest("section")!;
+    await within(seccion).findByText("Hna. Rojas");
+    // Quien ya creó su contraseña es dueña de su cuenta: no hay cómo cambiársela.
+    expect(within(seccion).queryByRole("button", { name: "Corregir el correo de Hna. Soto" })).not.toBeInTheDocument();
+    expect(within(seccion).queryByRole("button", { name: "Nueva contraseña temporal para Hna. Soto" })).not.toBeInTheDocument();
+
+    await user.click(within(seccion).getByRole("button", { name: "Corregir el correo de Hna. Rojas" }));
+    const correo = within(seccion).getByLabelText("Correo correcto");
+    await user.clear(correo);
+    await user.type(correo, "rojas@gmail.com");
+    await user.click(within(seccion).getByRole("button", { name: "Guardar" }));
+    await waitFor(() => expect(llamadas(api, "PATCH", `${RUTA_BARRIO}/admins/u-9`)).toEqual([{ email: "rojas@gmail.com" }]));
+
+    await user.click(await within(seccion).findByRole("button", { name: "Nueva contraseña temporal para Hna. Rojas" }));
+    const dialogo = await screen.findByRole("dialog", { name: "Contraseña temporal nueva" });
+    expect(within(dialogo).getByText("abcd-efgh-jkmn")).toBeInTheDocument();
+    expect(within(dialogo).getByRole("button", { name: "Copiar datos" })).toBeInTheDocument();
+    await user.click(within(dialogo).getByRole("button", { name: "Listo" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
   it("sin selector de barrio si administra uno solo", async () => {
     await abrirPanel();
     expect(screen.queryByRole("combobox", { name: "Barrio" })).not.toBeInTheDocument();

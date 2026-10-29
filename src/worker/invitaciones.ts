@@ -1,3 +1,4 @@
+import { generateRandomString } from "better-auth/crypto";
 import type { Idioma } from "@/shared/idiomas";
 import { enlaceRestablecer, obtenerAuth } from "./auth";
 import { enviarCorreo } from "./correo";
@@ -5,20 +6,6 @@ import { armarCorreo } from "./correos";
 
 /** Vencimiento del enlace de la bienvenida (el de "¿Olvidaste tu contraseña?" es de 1 hora). */
 export const DIAS_INVITACION = 7;
-
-const ALFANUMERICO = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-
-/** Como `generateId(24)` de Better Auth: 24 letras y números al azar (sin sesgo de módulo). */
-function tokenAleatorio(largo = 24) {
-  let token = "";
-  while (token.length < largo) {
-    for (const b of crypto.getRandomValues(new Uint8Array(largo * 2))) {
-      // 248 = 62 × 4: lo que queda por encima sesgaría las primeras letras.
-      if (b < 248 && token.length < largo) token += ALFANUMERICO[b % 62];
-    }
-  }
-  return token;
-}
 
 /**
  * Token de restablecer contraseña con vencimiento propio. Better Auth tiene uno solo global
@@ -28,7 +15,8 @@ function tokenAleatorio(largo = 24) {
  */
 export async function tokenDeInvitacion(env: Env, userId: string) {
   const ctx = await obtenerAuth(env).$context;
-  const token = tokenAleatorio();
+  // Como el de Better Auth (`generateId(24)`): 24 letras y números.
+  const token = generateRandomString(24, "a-z", "A-Z", "0-9");
   await ctx.internalAdapter.createVerificationValue({
     value: userId,
     identifier: `reset-password:${token}`,
@@ -51,7 +39,8 @@ export interface Invitado {
  *
  * Devuelve si el correo **salió de verdad**: sin `RESEND_API_KEY` (desarrollo) `enviarCorreo` solo
  * lo escribe en la consola y aquí cuenta como no enviado, así el panel muestra la contraseña
- * temporal y se puede entrar igual.
+ * temporal y se puede entrar igual. Nunca lanza: si falla crear el token, también es `false`
+ * (se llama después de crear el barrio o asignar al admin, que no se deshacen por esto).
  */
 export async function avisarAdmin(
   env: Env,
@@ -59,16 +48,21 @@ export async function avisarAdmin(
   persona: Invitado,
   barrio: { slug: string; nombre: string; idioma: Idioma },
 ): Promise<boolean> {
-  const panel = `${origen}/admin/${barrio.slug}`;
-  const correo = persona.debeCambiarPassword
-    ? armarCorreo(barrio.idioma, "bienvenidaPresidenta", {
-        nombre: persona.name,
-        barrio: barrio.nombre,
-        enlace: enlaceRestablecer(origen, await tokenDeInvitacion(env, persona.id)),
-        panel,
-        dias: DIAS_INVITACION,
-      })
-    : armarCorreo(barrio.idioma, "barrioAsignado", { nombre: persona.name, barrio: barrio.nombre, enlace: panel });
-  const resultado = await enviarCorreo(env, { para: persona.email, ...correo });
-  return resultado.ok && Boolean(env.RESEND_API_KEY);
+  try {
+    const panel = `${origen}/admin/${barrio.slug}`;
+    const correo = persona.debeCambiarPassword
+      ? armarCorreo(barrio.idioma, "bienvenidaPresidenta", {
+          nombre: persona.name,
+          barrio: barrio.nombre,
+          enlace: enlaceRestablecer(origen, await tokenDeInvitacion(env, persona.id)),
+          panel,
+          dias: DIAS_INVITACION,
+        })
+      : armarCorreo(barrio.idioma, "barrioAsignado", { nombre: persona.name, barrio: barrio.nombre, enlace: panel });
+    const resultado = await enviarCorreo(env, { para: persona.email, ...correo });
+    return resultado.ok && Boolean(env.RESEND_API_KEY);
+  } catch (e) {
+    console.error("[correo] No se pudo preparar el aviso al admin:", e);
+    return false;
+  }
 }

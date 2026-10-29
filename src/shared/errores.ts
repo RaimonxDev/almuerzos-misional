@@ -13,6 +13,8 @@ export const CODIGOS_ERROR = [
   "NO_AUTORIZADO", // 401: sin sesión
   "SIN_PERMISO", // 403: con sesión pero sin acceso a ese barrio o acción
   "SLUG_EXISTENTE", // 409
+  "CORREO_EXISTENTE", // 409: corregir el correo de un admin con uno que ya tiene otra cuenta
+  "CUENTA_EN_USO", // 422: el admin ya eligió su contraseña; su correo y contraseña son suyos
   "MES_EXISTENTE", // 409
   "TRANSICION_INVALIDA", // 422: cambio de estado del mes no permitido
   "CREDENCIALES_INVALIDAS", // lo traduce el frontend desde el error de Better Auth

@@ -253,3 +253,114 @@ describe("POST /api/admin/barrios/:slug/admins/:userId/invitacion", () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe("enlaces pendientes", () => {
+  it("elegir la contraseña con un enlace invalida los demás (reenvíos de la bienvenida)", async () => {
+    const root = await comoSuperAdmin();
+    const enviados = conResend();
+    await crearBarrio(root);
+    const nueva = await crearDb(env.DB).select().from(user).where(eq(user.email, "nueva@ejemplo.cl")).get();
+    await pedir(`/api/admin/barrios/oriente/admins/${nueva!.id}/invitacion`, { method: "POST", cookie: root });
+    const [primero, segundo] = enviados().map((c) => c.texto.match(ENLACE)![1]);
+
+    expect((await restablecer(segundo, "mi-clave-propia-1")).status).toBe(200);
+    expect((await restablecer(primero, "otra-clave-ajena-2")).status).toBe(400);
+    const restantes = await crearDb(env.DB).select().from(verification).where(eq(verification.value, nueva!.id));
+    expect(restantes).toEqual([]);
+  });
+
+  it("si no se puede crear el token de la bienvenida, el barrio igual se crea con la contraseña temporal", async () => {
+    const root = await comoSuperAdmin();
+    conResend();
+    await env.DB.exec("ALTER TABLE verification RENAME TO verification_aparte");
+    try {
+      const res = await crearBarrio(root);
+      expect(res.status).toBe(201);
+      const { presidenta } = await res.json<any>();
+      expect(presidenta.correoEnviado).toBe(false);
+      expect(presidenta.passwordTemporal).toMatch(/^.{12,}$/);
+    } finally {
+      await env.DB.exec("ALTER TABLE verification_aparte RENAME TO verification");
+    }
+  });
+});
+
+describe("PATCH /api/admin/barrios/:slug/admins/:userId (corregir el correo)", () => {
+  const corregir = (cookie: string, userId: string, email: string) =>
+    pedir(`/api/admin/barrios/oriente/admins/${userId}`, { method: "PATCH", cookie, json: { email } });
+
+  it("cambia el correo, invalida el enlace mandado al equivocado y manda la bienvenida al nuevo", async () => {
+    const root = await comoSuperAdmin();
+    const enviados = conResend();
+    await crearBarrio(root, { email: "nueva@gmial.com", nombre: "Hna. Rojas" });
+    const nueva = await crearDb(env.DB).select().from(user).where(eq(user.email, "nueva@gmial.com")).get();
+    const viejo = enviados()[0].texto.match(ENLACE)![1];
+
+    const res = await corregir(root, nueva!.id, " Nueva@Gmail.com ");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ admin: { id: nueva!.id, email: "nueva@gmail.com" }, correoEnviado: true });
+
+    const segundo = enviados()[1];
+    expect(segundo.para).toBe("nueva@gmail.com");
+    expect((await restablecer(viejo, "otra-clave-ajena-2")).status).toBe(400);
+    expect((await restablecer(segundo.texto.match(ENLACE)![1], "mi-clave-propia-1")).status).toBe(200);
+    expect(await iniciarSesion("nueva@gmail.com", "mi-clave-propia-1")).toContain("session_token=");
+  });
+
+  it("un correo que ya tiene cuenta → 409; si ya eligió su contraseña → 422; un admin normal → 403", async () => {
+    const root = await comoSuperAdmin();
+    const enviados = conResend();
+    await crearBarrio(root);
+    const nueva = await crearDb(env.DB).select().from(user).where(eq(user.email, "nueva@ejemplo.cl")).get();
+
+    const repetido = await corregir(root, nueva!.id, "root@ejemplo.cl");
+    expect(repetido.status).toBe(409);
+    expect(await repetido.json()).toEqual({ error: "CORREO_EXISTENTE" });
+
+    await restablecer(enviados()[0].texto.match(ENLACE)![1], "mi-clave-propia-1");
+    const enUso = await corregir(root, nueva!.id, "otra@ejemplo.cl");
+    expect(enUso.status).toBe(422);
+    expect(await enUso.json()).toEqual({ error: "CUENTA_EN_USO" });
+
+    const suya = await iniciarSesion("nueva@ejemplo.cl", "mi-clave-propia-1");
+    expect((await corregir(suya, nueva!.id, "otra@ejemplo.cl")).status).toBe(403);
+  });
+});
+
+describe("POST /api/admin/barrios/:slug/admins/:userId/password-temporal", () => {
+  const nuevaTemporal = (cookie: string, userId: string) =>
+    pedir(`/api/admin/barrios/oriente/admins/${userId}/password-temporal`, { method: "POST", cookie });
+
+  it("da otra contraseña temporal: con ella entra (y debe cambiarla), con la anterior no", async () => {
+    const root = await comoSuperAdmin();
+    conResend(500);
+    const { presidenta } = await (await crearBarrio(root)).json<any>();
+    const nueva = await crearDb(env.DB).select().from(user).where(eq(user.email, "nueva@ejemplo.cl")).get();
+    const anterior = await iniciarSesion("nueva@ejemplo.cl", presidenta.passwordTemporal);
+
+    const res = await nuevaTemporal(root, nueva!.id);
+    expect(res.status).toBe(200);
+    const { email, passwordTemporal } = await res.json<any>();
+    expect(email).toBe("nueva@ejemplo.cl");
+    expect(passwordTemporal).not.toBe(presidenta.passwordTemporal);
+
+    // La sesión abierta con la anterior se cerró.
+    expect((await pedir("/api/admin/yo", { cookie: anterior })).status).toBe(401);
+    const login = await pedir("/api/auth/sign-in/email", {
+      method: "POST",
+      json: { email: "nueva@ejemplo.cl", password: presidenta.passwordTemporal },
+    });
+    expect(login.status).toBe(401);
+    const suya = await iniciarSesion("nueva@ejemplo.cl", passwordTemporal);
+    const yo = await (await pedir("/api/admin/yo", { cookie: suya })).json<any>();
+    expect(yo.usuario.debeCambiarPassword).toBe(true);
+  });
+
+  it("si ya eligió su contraseña → 422 y no se toca", async () => {
+    const { id } = await crearAdmin({ email: "a@ejemplo.cl", barrios: ["b1"] });
+    const root = await comoSuperAdmin();
+    const res = await pedir(`/api/admin/barrios/prueba/admins/${id}/password-temporal`, { method: "POST", cookie: root });
+    expect(res.status).toBe(422);
+    expect(await iniciarSesion("a@ejemplo.cl")).toContain("session_token=");
+  });
+});

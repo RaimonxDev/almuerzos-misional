@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { toast } from "sonner";
+import { describe, expect, it, vi } from "vitest";
 import { renderizarApp, simularApi } from "./utilidades";
 
 const SUPER = {
@@ -123,6 +124,32 @@ describe("Nuevo barrio", () => {
 
     await user.click(within(dialogo).getByRole("button", { name: "Ir al panel del barrio" }));
     expect(await screen.findByText("Todavía no hay meses. Crea el primero para empezar.")).toBeInTheDocument();
+  });
+
+  it("presidenta con cuenta y el aviso sin salir: lo advierte para que le avise a mano", async () => {
+    const user = userEvent.setup();
+    const advertencia = vi.spyOn(toast, "warning");
+    simularApi({
+      "/api/admin/yo": { json: SUPER },
+      "/api/admin/barrios": {
+        status: 201,
+        json: {
+          ...CREADO,
+          presidenta: { email: "rojas@ejemplo.cl", nombre: "Hna. Rojas", cargo: null, cuentaNueva: false, correoEnviado: false, passwordTemporal: null },
+        },
+      },
+      "/api/admin/barrios/barrio-norte/meses": { json: { meses: [] } },
+      "/api/admin/barrios/barrio-norte/admins": { json: { admins: [] } },
+      "/api/admin/barrios/barrio-norte": { json: { barrio: { ...CREADO.barrio, notaParaCocinar: null, contactoNombre: null, contactoTelefono: null }, companerismos: CREADO.companerismos } },
+    });
+    await abrir();
+
+    await user.type(screen.getByLabelText("Nombre del barrio"), "Barrio Norte");
+    await user.type(screen.getByLabelText("Correo de la presidenta"), "rojas@ejemplo.cl");
+    await user.type(screen.getByLabelText("Nombre de la presidenta"), "Hna. Rojas");
+    await user.click(screen.getByRole("button", { name: "Crear barrio" }));
+
+    await waitFor(() => expect(advertencia).toHaveBeenCalledWith(expect.stringContaining("No pudimos avisarle por correo a rojas@ejemplo.cl")));
   });
 
   it("presidenta a medias (correo sin nombre) → pide el nombre", async () => {

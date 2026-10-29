@@ -6,13 +6,14 @@ import { useYo } from "@/app/consultas";
 import { useIdioma } from "@/app/i18n";
 import { useTitulo } from "@/app/hooks";
 import { cn } from "@/app/lib/utils";
-import { PASSWORD_MAX, PASSWORD_MIN } from "@/shared/cuenta";
+import { PASSWORD_MAX } from "@/shared/cuenta";
 import type { CodigoError } from "@/shared/errores";
 import { RutaAdmin } from "@/app/components/RutaAdmin";
 import { AlertaError } from "@/app/components/Estado";
 import { Button, buttonVariants } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
+import { CamposContrasenaNueva, codigoDeErrorAuth, validarContrasenaNueva } from "./contrasena";
 import { EncabezadoAdmin } from "./EncabezadoAdmin";
 
 /** `/admin/cuenta` — cambiar la contraseña; obligatorio si se entró con una temporal. */
@@ -22,14 +23,6 @@ export function CuentaRuta() {
       <Cuenta />
     </RutaAdmin>
   );
-}
-
-/** Traduce el error de Better Auth en `/change-password`. */
-function codigoDeCambio(fallo: { status: number; code?: string }): CodigoError {
-  if (fallo.status === 429) return "DEMASIADOS_INTENTOS";
-  if (fallo.code === "INVALID_PASSWORD") return "CONTRASENA_INCORRECTA";
-  if (fallo.code === "PASSWORD_TOO_SHORT") return "CONTRASENA_CORTA";
-  return "ERROR_INTERNO";
 }
 
 function Cuenta() {
@@ -49,11 +42,10 @@ function Cuenta() {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
     const actual = String(form.get("actual"));
-    const nueva = String(form.get("nueva"));
     setCambiada(false);
-    // Antes de llamar a la API: lo que se puede saber aquí no gasta intentos.
-    if (nueva.length < PASSWORD_MIN) return setError("CONTRASENA_CORTA");
-    if (nueva !== String(form.get("repetida"))) return setError("CONTRASENAS_DISTINTAS");
+    const validada = validarContrasenaNueva(form);
+    if ("error" in validada) return setError(validada.error);
+    const { nueva } = validada;
     setError(null);
     setEnviando(true);
     try {
@@ -62,7 +54,7 @@ function Cuenta() {
         newPassword: nueva,
         revokeOtherSessions: true,
       });
-      if (fallo) return setError(codigoDeCambio(fallo));
+      if (fallo) return setError(codigoDeErrorAuth(fallo));
       formulario.current?.reset();
       // La marca se apagó en el servidor: `yo` tiene que saberlo antes de volver al panel.
       await queryClient.invalidateQueries({ queryKey: ["admin", "yo"] });
@@ -94,35 +86,7 @@ function Cuenta() {
               aria-invalid={error === "CONTRASENA_INCORRECTA" || undefined}
             />
           </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor={`${id}-nueva`}>{c.nueva}</Label>
-            <Input
-              id={`${id}-nueva`}
-              name="nueva"
-              type="password"
-              autoComplete="new-password"
-              minLength={PASSWORD_MIN}
-              maxLength={PASSWORD_MAX}
-              required
-              aria-describedby={`${id}-ayuda`}
-              aria-invalid={error === "CONTRASENA_CORTA" || undefined}
-            />
-            <p id={`${id}-ayuda`} className="text-[13px] text-muted-foreground">
-              {c.ayudaNueva}
-            </p>
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor={`${id}-repetida`}>{c.repetir}</Label>
-            <Input
-              id={`${id}-repetida`}
-              name="repetida"
-              type="password"
-              autoComplete="new-password"
-              maxLength={PASSWORD_MAX}
-              required
-              aria-invalid={error === "CONTRASENAS_DISTINTAS" || undefined}
-            />
-          </div>
+          <CamposContrasenaNueva error={error} />
           {error && <AlertaError>{t.errores[error]}</AlertaError>}
           {cambiada && (
             <p

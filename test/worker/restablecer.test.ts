@@ -104,6 +104,18 @@ describe("POST /api/auth/request-password-reset", () => {
     expect((await pedirEnlace("nadie@ejemplo.cl", "203.0.113.7")).status).toBe(429);
     expect((await pedirEnlace("nadie@ejemplo.cl", "203.0.113.8")).status).toBe(200);
   });
+
+  it("a la misma persona le llegan como máximo 3 por hora aunque se pidan desde otras IPs", async () => {
+    await crearAdmin({ email: "a@ejemplo.cl" });
+    const correos = capturarCorreos();
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    for (let i = 1; i <= 5; i++) expect((await pedirEnlace("a@ejemplo.cl", `198.51.100.${i}`)).status).toBe(200);
+
+    await esperarCorreos(correos, 3);
+    // Los que pasan del máximo salen (o no) en segundo plano: se espera un poco antes de contar.
+    await new Promise((r) => setTimeout(r, 200));
+    expect(correos()).toHaveLength(3);
+  });
 });
 
 describe("POST /api/auth/reset-password", () => {

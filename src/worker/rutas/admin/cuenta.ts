@@ -3,13 +3,14 @@ import type { Db } from "@/db";
 import { Hono } from "hono";
 import { z } from "zod";
 import { adminsBarrio, barrios, companerismos } from "@/db/schema";
-import { account, user } from "@/db/auth-schema";
+import { account, session, user } from "@/db/auth-schema";
 import { hashPassword } from "@/shared/password";
 import { IDIOMAS } from "@/shared/idiomas";
 import type { AppEnvAdmin } from "../../contexto";
 import { esViolacionUnica, fallar, validar, zonaValida } from "../../http";
 import { paramsBarrio } from "../../params";
 import { esSuperAdmin } from "../../permisos";
+import { borrarEnlacesRestablecer } from "../../auth";
 import { avisarAdmin } from "../../invitaciones";
 
 const esquemaNuevoBarrio = z.object({
@@ -73,6 +74,17 @@ const columnasInvitado = {
   name: user.name,
   debeCambiarPassword: user.debeCambiarPassword,
 };
+
+/** Una persona que administra ese barrio (si no, `undefined`: un id de otro barrio da 404). */
+const adminDelBarrio = (db: Db, barrioId: string, userId: string) =>
+  db
+    .select(columnasInvitado)
+    .from(adminsBarrio)
+    .innerJoin(user, eq(user.id, adminsBarrio.userId))
+    .where(and(eq(adminsBarrio.barrioId, barrioId), eq(adminsBarrio.userId, userId)))
+    .get();
+
+const esquemaCorregirCorreo = z.object({ email: z.string().trim().toLowerCase().pipe(z.email()) });
 
 /** Cuenta del admin y gestión de barrios/admins (solo super admin). */
 export const rutasCuenta = new Hono<AppEnvAdmin>()
@@ -258,20 +270,72 @@ export const rutasCuenta = new Hono<AppEnvAdmin>()
 
   /**
    * "No le llegó": reenvía la bienvenida con un enlace nuevo de 7 días si aún no eligió su
-   * contraseña, o el aviso de asignación si ya la tiene. Los enlaces anteriores siguen hasta vencer.
+   * contraseña, o el aviso de asignación si ya la tiene. Los enlaces anteriores siguen hasta vencer
+   * o hasta que elija su contraseña.
    */
   .post("/barrios/:slug/admins/:userId/invitacion", validar("param", paramsInvitacion), async (c) => {
     if (!esSuperAdmin(c.var.usuario)) return fallar(c, "SIN_PERMISO", 403);
     const { db } = c.var;
     const { slug, userId } = c.req.valid("param");
     const barrio = await barrioPorSlug(db, slug);
-    if (!barrio) return fallar(c, "NO_ENCONTRADO", 404);
-    const persona = await db
-      .select(columnasInvitado)
-      .from(adminsBarrio)
-      .innerJoin(user, eq(user.id, adminsBarrio.userId))
-      .where(and(eq(adminsBarrio.barrioId, barrio.id), eq(adminsBarrio.userId, userId)))
-      .get();
-    if (!persona) return fallar(c, "NO_ENCONTRADO", 404);
+    const persona = barrio && (await adminDelBarrio(db, barrio.id, userId));
+    if (!barrio || !persona) return fallar(c, "NO_ENCONTRADO", 404);
     return c.json({ correoEnviado: await avisarAdmin(c.env, origenDe(c.req.url), persona, barrio) });
+  })
+
+  /**
+   * Corregir el correo de quien todavía no entra (se escribió mal al crearla): invalida los enlaces
+   * mandados a la dirección equivocada y le manda la bienvenida a la nueva. Si ya eligió su
+   * contraseña, la cuenta es suya y no se toca (422 `CUENTA_EN_USO`).
+   */
+  .patch(
+    "/barrios/:slug/admins/:userId",
+    validar("param", paramsInvitacion),
+    validar("json", esquemaCorregirCorreo),
+    async (c) => {
+      if (!esSuperAdmin(c.var.usuario)) return fallar(c, "SIN_PERMISO", 403);
+      const { db } = c.var;
+      const { slug, userId } = c.req.valid("param");
+      const { email } = c.req.valid("json");
+      const barrio = await barrioPorSlug(db, slug);
+      const persona = barrio && (await adminDelBarrio(db, barrio.id, userId));
+      if (!barrio || !persona) return fallar(c, "NO_ENCONTRADO", 404);
+      if (!persona.debeCambiarPassword) return fallar(c, "CUENTA_EN_USO", 422);
+
+      try {
+        await db.batch([
+          db.update(user).set({ email, updatedAt: new Date() }).where(eq(user.id, userId)),
+          borrarEnlacesRestablecer(db, userId),
+        ]);
+      } catch (err) {
+        if (esViolacionUnica(err)) return fallar(c, "CORREO_EXISTENTE", 409);
+        throw err;
+      }
+      const correoEnviado = await avisarAdmin(c.env, origenDe(c.req.url), { ...persona, email }, barrio);
+      return c.json({ admin: { id: userId, email }, correoEnviado });
+    },
+  )
+
+  /**
+   * Otra contraseña temporal para quien todavía no entra (el correo no le llega): reemplaza la
+   * anterior, cierra sus sesiones y se devuelve una sola vez para mandarla por WhatsApp.
+   */
+  .post("/barrios/:slug/admins/:userId/password-temporal", validar("param", paramsInvitacion), async (c) => {
+    if (!esSuperAdmin(c.var.usuario)) return fallar(c, "SIN_PERMISO", 403);
+    const { db } = c.var;
+    const { slug, userId } = c.req.valid("param");
+    const barrio = await barrioPorSlug(db, slug);
+    const persona = barrio && (await adminDelBarrio(db, barrio.id, userId));
+    if (!barrio || !persona) return fallar(c, "NO_ENCONTRADO", 404);
+    if (!persona.debeCambiarPassword) return fallar(c, "CUENTA_EN_USO", 422);
+
+    const password = passwordTemporal();
+    await db.batch([
+      db
+        .update(account)
+        .set({ password: await hashPassword(password), updatedAt: new Date() })
+        .where(and(eq(account.userId, userId), eq(account.providerId, "credential"))),
+      db.delete(session).where(eq(session.userId, userId)),
+    ]);
+    return c.json({ email: persona.email, passwordTemporal: password });
   });

@@ -7,6 +7,7 @@ Object.defineProperty(navigator, "language", { value: "es-CL", configurable: tru
 
 beforeEach(() => {
   localStorage.clear();
+  sessionStorage.clear();
 });
 
 afterEach(() => {

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it } from "vitest";
@@ -90,6 +90,24 @@ describe("/admin/restablecer", () => {
     expect(await screen.findByRole("status")).toHaveTextContent("Tu contraseña cambió");
     expect(screen.getByRole("link", { name: "Entrar" })).toHaveAttribute("href", "/admin/login");
     expect(cuerposA(api, "/api/auth/reset-password")).toEqual([{ newPassword: "mi-clave-nueva-1", token: TOKEN }]);
+  });
+
+  it("recargar la pantalla (sin el token en la URL) no pierde el token; al terminar se olvida", async () => {
+    const user = userEvent.setup();
+    const api = simularApi({ "/api/auth/reset-password": { json: { status: true } } });
+    renderizar(`/admin/restablecer?token=${TOKEN}`);
+    expect(await screen.findByLabelText("Contraseña nueva")).toBeInTheDocument();
+
+    // Como un F5, o el móvil que descarta la pestaña: la URL ya no trae el token.
+    cleanup();
+    renderizar("/admin/restablecer");
+    await elegir(user, "mi-clave-nueva-1");
+    expect(await screen.findByRole("status")).toHaveTextContent("Tu contraseña cambió");
+    expect(cuerposA(api, "/api/auth/reset-password")).toEqual([{ newPassword: "mi-clave-nueva-1", token: TOKEN }]);
+
+    cleanup();
+    renderizar("/admin/restablecer");
+    expect(await screen.findByRole("link", { name: "Pedir otro enlace" })).toBeInTheDocument();
   });
 
   it("valida largo y repetición antes de llamar a la API", async () => {

@@ -12,17 +12,10 @@ import { RutaAdmin } from "@/app/components/RutaAdmin";
 import { AlertaError, Aviso } from "@/app/components/Estado";
 import { Button, buttonVariants } from "@/app/components/ui/button";
 import { Checkbox } from "@/app/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/app/components/ui/dialog";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
+import { DatosCuenta } from "./DatosCuenta";
 import { EncabezadoAdmin } from "./EncabezadoAdmin";
 
 /** Mismas reglas que la API (`rutas/admin/cuenta.ts`). */
@@ -132,7 +125,9 @@ function NuevoBarrio() {
           if (presidenta?.cuentaNueva) {
             setCuentaNueva({ slug: barrio.slug, email: presidenta.email, password: presidenta.passwordTemporal });
           } else {
+            // Sin correo no se entera sola: el super admin le avisa (o reenvía desde el panel).
             if (presidenta?.correoEnviado) toast.success(nb.avisoEnviado(presidenta.email));
+            else if (presidenta) toast.warning(nb.avisoNoSalio(presidenta.email));
             navigate(`/admin/${barrio.slug}`);
           }
         },
@@ -305,66 +300,16 @@ function NuevoBarrio() {
         </form>
       </main>
 
-      {cuentaNueva && <DatosCuenta cuenta={cuentaNueva} alCerrar={() => navigate(`/admin/${cuentaNueva.slug}`)} />}
+      {cuentaNueva && (
+        <DatosCuenta
+          email={cuentaNueva.email}
+          password={cuentaNueva.password}
+          titulo={nb.cuentaCreadaTitulo}
+          texto={cuentaNueva.password ? nb.cuentaCreadaTexto : nb.correoEnviadoTexto(cuentaNueva.email)}
+          textoCerrar={nb.irAlPanel}
+          alCerrar={() => navigate(`/admin/${cuentaNueva.slug}`)}
+        />
+      )}
     </>
-  );
-}
-
-/**
- * Presidenta con cuenta nueva: si le llegó la bienvenida, solo se avisa; si el correo no salió,
- * sus datos para entrar, que se copian para mandarlos por WhatsApp.
- */
-function DatosCuenta({ cuenta, alCerrar }: { cuenta: CuentaNueva; alCerrar: () => void }) {
-  const { t } = useIdioma();
-  const nb = t.nuevoBarrio;
-  const url = `${location.origin}/admin/login`;
-
-  const { password } = cuenta;
-
-  const copiar = async () => {
-    if (!password) return;
-    try {
-      await navigator.clipboard.writeText(nb.mensajeCuenta(url, cuenta.email, password));
-      toast.success(nb.datosCopiados);
-    } catch {
-      toast.error(t.errores.ERROR_INTERNO);
-    }
-  };
-
-  const fila = (etiqueta: string, valor: string) => (
-    <div className="flex flex-col gap-0.5">
-      <dt className="text-xs font-bold text-muted-foreground uppercase">{etiqueta}</dt>
-      <dd className="font-mono text-[15px] break-all text-azul-profundo">{valor}</dd>
-    </div>
-  );
-
-  return (
-    <Dialog open onOpenChange={(abierto) => !abierto && alCerrar()}>
-      <DialogContent showCloseButton={false} className="rounded-2xl">
-        <DialogHeader>
-          <DialogTitle className="text-xl text-azul-profundo">{nb.cuentaCreadaTitulo}</DialogTitle>
-          <DialogDescription className="text-[15px]">
-            {password ? nb.cuentaCreadaTexto : nb.correoEnviadoTexto(cuenta.email)}
-          </DialogDescription>
-        </DialogHeader>
-        {password && (
-          <dl className="flex flex-col gap-3 rounded-[10px] bg-cielo-claro p-3">
-            {fila(nb.entrarEn, url)}
-            {fila(nb.correo, cuenta.email)}
-            {fila(nb.contrasena, password)}
-          </dl>
-        )}
-        <DialogFooter className="gap-2.5">
-          {password && (
-            <Button variant="outline" onClick={copiar} className="rounded-[10px] font-bold">
-              {nb.copiarDatos}
-            </Button>
-          )}
-          <Button onClick={alCerrar} className="rounded-[10px] font-bold">
-            {nb.irAlPanel}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }

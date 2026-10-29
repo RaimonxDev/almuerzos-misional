@@ -8,7 +8,7 @@
  * La contraseña se pide oculta en la terminal (o se lee de stdin si no es una terminal), así no
  * queda en el historial. Si el correo ya existe sirve para recuperar el acceso: le da el rol `admin`,
  * actualiza el nombre, lo desbloquea, le cambia la contraseña (la elige quien corre el script, así que no
- * se le pide cambiarla al entrar) y cierra sus sesiones abiertas.
+ * se le pide cambiarla al entrar), cierra sus sesiones abiertas y anula sus enlaces de restablecer.
  */
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -78,6 +78,7 @@ INSERT INTO user (id, name, email, email_verified, role, debe_cambiar_password)
   ON CONFLICT (email) DO UPDATE SET name = excluded.name, role = 'admin', banned = 0, ban_reason = NULL,
     ban_expires = NULL, debe_cambiar_password = 0, updated_at = ${ahora};
 DELETE FROM session WHERE user_id = ${usuario};
+DELETE FROM verification WHERE value = ${usuario} AND identifier LIKE 'reset-password:%';
 DELETE FROM account WHERE provider_id = 'credential' AND user_id = ${usuario};
 INSERT INTO account (id, account_id, provider_id, user_id, password, updated_at)
   SELECT id || '-credencial', id, 'credential', id, ${v(await hashPassword(password))}, ${ahora} FROM user WHERE email = ${v(correo)};
