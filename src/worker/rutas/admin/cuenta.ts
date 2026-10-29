@@ -68,7 +68,13 @@ export const rutasCuenta = new Hono<AppEnvAdmin>()
           .where(eq(adminsBarrio.userId, usuario.id))
           .orderBy(asc(barrios.nombre));
     return c.json({
-      usuario: { id: usuario.id, email: usuario.email, nombre: usuario.name, superAdmin },
+      usuario: {
+        id: usuario.id,
+        email: usuario.email,
+        nombre: usuario.name,
+        superAdmin,
+        debeCambiarPassword: usuario.debeCambiarPassword,
+      },
       barrios: lista,
     });
   })
@@ -91,7 +97,15 @@ export const rutasCuenta = new Hono<AppEnvAdmin>()
     const userId = conCuenta?.id ?? nueva?.id;
     const cuenta = nueva
       ? [
-          db.insert(user).values({ id: nueva.id, name: p!.nombre, email: p!.email, emailVerified: true, role: "user" }),
+          // Con la contraseña temporal entra una vez: el panel la lleva a elegir la suya (`/admin/cuenta`).
+          db.insert(user).values({
+            id: nueva.id,
+            name: p!.nombre,
+            email: p!.email,
+            emailVerified: true,
+            role: "user",
+            debeCambiarPassword: true,
+          }),
           // Igual que la crea Better Auth: proveedor "credential" con el id del usuario.
           db.insert(account).values({
             id: crypto.randomUUID(),

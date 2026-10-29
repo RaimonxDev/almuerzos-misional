@@ -1,4 +1,5 @@
 import type { Mensajes } from "./es";
+import { PASSWORD_MIN } from "@/shared/cuenta";
 
 export const pt: Mensajes = {
   comun: {
@@ -115,11 +116,25 @@ export const pt: Mensajes = {
     intro: "Para a presidente da Sociedade de Socorro e quem administra a ala.",
     olvido: "Esqueceu a senha? Peça ao administrador que defina uma nova.",
   },
+  cuenta: {
+    titulo: "Minha conta",
+    obligado: "Você entrou com uma senha temporária. Escolha uma nova para continuar usando o painel.",
+    intro: "Altere sua senha. A sessão será encerrada nos seus outros dispositivos.",
+    actual: "Senha atual",
+    nueva: "Nova senha",
+    ayudaNueva: `Pelo menos ${PASSWORD_MIN} caracteres.`,
+    repetir: "Repita a nova senha",
+    cambiar: "Alterar senha",
+    cambiando: "Alterando…",
+    cambiada: "Sua senha foi alterada. Encerramos a sessão nos seus outros dispositivos.",
+    volver: "Voltar ao painel",
+  },
   panel: {
     antetitulo: "Administração",
     nuevoBarrio: "Nova ala",
     barrio: "Ala",
     salir: "Sair",
+    miCuenta: "Minha conta",
     sinBarrios: "Sua conta ainda não administra nenhuma ala. Peça ao administrador que lhe atribua uma.",
     meses: "Meses da ala",
     sinMeses: "Ainda não há meses. Crie o primeiro para começar.",
@@ -294,6 +309,9 @@ export const pt: Mensajes = {
     TRANSICION_INVALIDA: "Não é possível mudar o mês para esse estado.",
     CREDENCIALES_INVALIDAS: "O e-mail ou a senha não estão corretos.",
     CUENTA_BLOQUEADA: "Esta conta está bloqueada. Fale com quem administra o aplicativo.",
+    CONTRASENA_INCORRECTA: "A senha atual não está correta.",
+    CONTRASENA_CORTA: `A nova senha deve ter pelo menos ${PASSWORD_MIN} caracteres.`,
+    CONTRASENAS_DISTINTAS: "As novas senhas não coincidem.",
     DEMASIADOS_INTENTOS: "Muitas tentativas. Espere um minuto e tente de novo.",
     IMAGEN_INVALIDA: "Essa imagem não pode ser usada. Envie uma foto JPG, PNG ou WebP.",
     IMAGEN_MUY_GRANDE: "A imagem é muito pesada. O máximo é 5 MB.",

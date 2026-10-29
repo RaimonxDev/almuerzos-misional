@@ -1,20 +1,52 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { createAuthMiddleware, isAPIError } from "better-auth/api";
 import { admin } from "better-auth/plugins";
-import { crearDb } from "@/db";
+import { eq } from "drizzle-orm";
+import { crearDb, type Db } from "@/db";
 import * as authSchema from "@/db/auth-schema";
+import { PASSWORD_MAX, PASSWORD_MIN } from "@/shared/cuenta";
 import { hashPassword, verificarPassword } from "@/shared/password";
 
-const crearAuth = (env: Env) =>
-  betterAuth({
+/**
+ * Apaga la marca de "debe cambiar la contraseña" (la prende `POST /api/admin/barrios` al crear una
+ * cuenta con contraseña temporal). Se llama cuando la persona elige su propia contraseña.
+ */
+export const contrasenaElegida = (db: Db, userId: string) =>
+  db.update(authSchema.user).set({ debeCambiarPassword: false }).where(eq(authSchema.user.id, userId));
+
+const crearAuth = (env: Env) => {
+  const db = crearDb(env.DB);
+  return betterAuth({
     basePath: "/api/auth",
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
-    database: drizzleAdapter(crearDb(env.DB), { provider: "sqlite", schema: authSchema }),
+    database: drizzleAdapter(db, { provider: "sqlite", schema: authSchema }),
+    user: {
+      additionalFields: {
+        // `input: false`: nadie la prende ni la apaga desde los endpoints de Better Auth (update-user…).
+        debeCambiarPassword: { type: "boolean", required: false, defaultValue: false, input: false },
+      },
+    },
     emailAndPassword: {
       enabled: true,
       disableSignUp: true,
+      minPasswordLength: PASSWORD_MIN,
+      maxPasswordLength: PASSWORD_MAX,
       password: { hash: hashPassword, verify: verificarPassword },
+      // Restablecer por correo también es elegir la contraseña propia.
+      onPasswordReset: async ({ user }) => {
+        await contrasenaElegida(db, user.id);
+      },
+    },
+    hooks: {
+      // Solo si el cambio salió bien: un error (contraseña actual incorrecta, muy corta) es un APIError.
+      after: createAuthMiddleware(async (ctx) => {
+        if (ctx.path !== "/change-password") return;
+        const respuesta = ctx.context.returned as { user?: { id: string } } | undefined;
+        if (!respuesta || isAPIError(respuesta) || !respuesta.user) return;
+        await contrasenaElegida(db, respuesta.user.id);
+      }),
     },
     // En la base y no en memoria: en Workers cada isolate tendría su propio contador.
     rateLimit: {
@@ -26,6 +58,7 @@ const crearAuth = (env: Env) =>
     advanced: { ipAddress: { ipAddressHeaders: ["cf-connecting-ip"] } },
     plugins: [admin()],
   });
+};
 
 export type Auth = ReturnType<typeof crearAuth>;
 

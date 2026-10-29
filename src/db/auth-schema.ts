@@ -1,9 +1,10 @@
 /**
  * Tablas de Better Auth (núcleo + plugin `admin` para el rol de super admin + `rate_limit` para el
- * límite de intentos guardado en la base). Generado con el CLI de Better Auth (1.7.x) y no se edita a mano:
- *   bunx auth@latest generate --config <archivo con betterAuth({ rateLimit: { storage: "database" }, plugins: [admin()] })> --output src/db/auth-schema.ts
+ * límite de intentos guardado en la base + el campo propio `debeCambiarPassword` de `user.additionalFields`).
+ * Generado con el CLI de Better Auth (1.7.x) y no se edita a mano:
+ *   bunx auth@latest generate --config <archivo con betterAuth({ rateLimit: { storage: "database" }, user: { additionalFields }, plugins: [admin()] })> --output src/db/auth-schema.ts
  * (el paquete `@better-auth/cli` está obsoleto; el CLI actual es `auth`). Ojo: los timestamps son
- * `timestamp_ms` (milisegundos). Regenerar si se cambian los plugins o el rate limit de `src/worker/auth.ts`.
+ * `timestamp_ms` (milisegundos). Regenerar si se cambian los plugins, el rate limit o los `additionalFields` de `src/worker/auth.ts`.
  */
 import { relations, sql } from "drizzle-orm";
 import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
@@ -27,6 +28,9 @@ export const user = sqliteTable("user", {
   banned: integer("banned", { mode: "boolean" }).default(false),
   banReason: text("ban_reason"),
   banExpires: integer("ban_expires", { mode: "timestamp_ms" }),
+  debeCambiarPassword: integer("debe_cambiar_password", {
+    mode: "boolean",
+  }).default(false),
 });
 
 export const session = sqliteTable(

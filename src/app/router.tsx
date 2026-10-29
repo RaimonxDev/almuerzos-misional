@@ -16,6 +16,10 @@ export const rutas: RouteObject[] = [
   { path: "/admin/login", lazy: () => import("./pantallas/Login").then((m) => ({ Component: m.Login })) },
   { path: "/admin", lazy: panel },
   {
+    path: "/admin/cuenta",
+    lazy: () => import("./pantallas/admin/Cuenta").then((m) => ({ Component: m.CuentaRuta })),
+  },
+  {
     path: "/admin/nuevo-barrio",
     lazy: () => import("./pantallas/admin/NuevoBarrio").then((m) => ({ Component: m.NuevoBarrioRuta })),
   },

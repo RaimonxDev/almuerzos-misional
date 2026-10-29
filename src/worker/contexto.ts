@@ -8,7 +8,14 @@ export type AppEnv = {
 };
 
 /** Usuario con sesión válida (Better Auth). `role === "admin"` es el super admin. */
-export type UsuarioAdmin = { id: string; email: string; name: string; role: string | null };
+export type UsuarioAdmin = {
+  id: string;
+  email: string;
+  name: string;
+  role: string | null;
+  /** Entró con una contraseña temporal y todavía no eligió la suya. */
+  debeCambiarPassword: boolean;
+};
 
 /** Rutas bajo `/api/admin`: detrás de `conSesion`. */
 export type AppEnvAdmin = AppEnv & { Variables: { usuario: UsuarioAdmin } };
