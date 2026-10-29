@@ -1,4 +1,5 @@
-import type { Context, ValidationTargets } from "hono";
+import type { Context, MiddlewareHandler, ValidationTargets } from "hono";
+import { createMiddleware } from "hono/factory";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { zValidator } from "@hono/zod-validator";
 import type { ZodType } from "zod";
@@ -48,3 +49,31 @@ export function leerBearer(c: Context): string | null {
   const valor = c.req.header("Authorization");
   return valor?.startsWith("Bearer ") ? valor.slice(7).trim() || null : null;
 }
+
+/**
+ * Clave del límite por IP. IPv4 tal cual; IPv6 por su /64, que suele ser de un solo cliente y
+ * dentro de la cual puede cambiar de dirección cuando quiera.
+ */
+export function claveDeIp(ip: string): string {
+  if (!ip.includes(":")) return ip;
+  const [inicio, fin = ""] = ip.toLowerCase().split("::");
+  const izquierda = inicio ? inicio.split(":") : [];
+  const derecha = fin ? fin.split(":") : [];
+  const grupos = ip.includes("::")
+    ? [...izquierda, ...Array(8 - izquierda.length - derecha.length).fill("0"), ...derecha]
+    : izquierda;
+  return `${grupos.slice(0, 4).map((g) => g.replace(/^0+(?=.)/, "")).join(":")}::/64`;
+}
+
+/**
+ * 429 `DEMASIADOS_INTENTOS` si la IP del cliente (`cf-connecting-ip`, que pone Cloudflare) pasó el
+ * límite del binding. Sin ese header no se limita: en producción siempre viene.
+ */
+export const limitarPorIp = (limitador: (env: Env) => RateLimit): MiddlewareHandler =>
+  createMiddleware(async (c, next) => {
+    const ip = c.req.header("cf-connecting-ip");
+    if (ip && !(await limitador(c.env).limit({ key: claveDeIp(ip) })).success) {
+      return fallar(c, "DEMASIADOS_INTENTOS", 429);
+    }
+    await next();
+  });

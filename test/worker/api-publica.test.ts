@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { inscripciones, meses } from "@/db/schema";
 import type { Db } from "@/db";
-import { esViolacionUnica, sha256Hex } from "@/worker/http";
+import { claveDeIp, esViolacionUnica, sha256Hex } from "@/worker/http";
 import { IDS, NOTA_PRIVADA, TELEFONO_PRIVADO, TOKEN_TOMADO, pedir, sembrar } from "./datos";
 
 let db: Db;
@@ -243,3 +243,54 @@ describe("/api/inscripciones/:id con token de edición", () => {
   });
 });
 
+
+describe("límite de inscripciones por IP", () => {
+  /** El mismo `limit` que el binding LIMITE_INSCRIPCIONES de wrangler.jsonc. */
+  const LIMITE = 30;
+  // El contador vive en el binding y no se reinicia entre tests: cada test usa su propia IP.
+  const desde = (ip: string, turnoId = "no-existe") =>
+    pedir(`/api/barrios/prueba/turnos/${turnoId}/inscripcion`, {
+      method: "POST",
+      json: { nombre: "Hna. Nueva" },
+      headers: { "cf-connecting-ip": ip },
+    });
+  /**
+   * Manda intentos hasta el primer 429 y devuelve cuántos pasaron. El limitador usa ventanas fijas:
+   * si el minuto cambia a mitad de camino pasan más de LIMITE, pero nunca más del doble.
+   */
+  const agotar = async (ip: (i: number) => string) => {
+    let pasaron = 0;
+    while ((await desde(ip(pasaron))).status !== 429 && pasaron <= 2 * LIMITE) pasaron++;
+    expect(pasaron).toBeGreaterThanOrEqual(LIMITE);
+    expect(pasaron).toBeLessThanOrEqual(2 * LIMITE);
+  };
+
+  it("al pasar el límite responde 429 DEMASIADOS_INTENTOS sin tocar la base", async () => {
+    await agotar(() => "203.0.113.1");
+    const res = await desde("203.0.113.1", IDS.libreHermanas);
+    expect(res.status).toBe(429);
+    expect(await res.json()).toEqual({ error: "DEMASIADOS_INTENTOS" });
+    const mes = await (await pedir("/api/barrios/prueba/meses/2099-01")).json<any>();
+    expect(mes.turnos.find((t: any) => t.id === IDS.libreHermanas)).toMatchObject({ estado: "libre" });
+  });
+
+  it("cuenta cada IP por separado", async () => {
+    await agotar(() => "203.0.113.2");
+    expect((await desde("203.0.113.3", IDS.libreHermanas)).status).toBe(201);
+  });
+
+  it("en IPv6 cuenta la /64 completa: cambiar de dirección dentro de ella no reinicia el contador", async () => {
+    await agotar((i) => `2001:db8:1:2::${(i + 1).toString(16)}`);
+    expect((await desde("2001:0db8:0001:0002:ffff:ffff:ffff:ffff")).status).toBe(429);
+    expect((await desde("2001:db8:1:3::1", IDS.libreHermanas)).status).toBe(201);
+  });
+});
+
+describe("claveDeIp", () => {
+  it("IPv4 tal cual; IPv6 por su /64 aunque venga abreviada", () => {
+    expect(claveDeIp("203.0.113.7")).toBe("203.0.113.7");
+    expect(claveDeIp("2001:db8::1")).toBe("2001:db8:0:0::/64");
+    expect(claveDeIp("2001:DB8:0:0:abcd::")).toBe("2001:db8:0:0::/64");
+    expect(claveDeIp("::1")).toBe("0:0:0:0::/64");
+  });
+});

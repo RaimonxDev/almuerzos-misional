@@ -5,6 +5,12 @@
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
+  // Dominio temporal mientras se elige el definitivo. Al cambiarlo, dejar el viejo con un redirect
+  // 301 que conserve la ruta: los links de /:barrio y /:barrio/m/:token ya circulan por WhatsApp.
+  "routes": [{ "pattern": "almuerzo.ramonmartinez.dev", "custom_domain": true }],
+  // Una sola dirección pública (sin *.workers.dev): la cookie de sesión y localStorage van por dominio.
+  "workers_dev": false,
+  "preview_urls": false,
   // El Worker responde /api/*; el resto lo sirve el build de React (SPA).
   "assets": {
     "not_found_handling": "single-page-application",
@@ -14,10 +20,19 @@
     {
       "binding": "DB",
       "database_name": "almuerzo-misional",
-      // Reemplazar con el id que entrega `bunx wrangler d1 create almuerzo-misional`.
-      // En local no hace falta: wrangler usa una base SQLite en .wrangler/.
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      // La base de producción. En local wrangler usa una SQLite en .wrangler/.
+      "database_id": "d3ccde12-e8e4-42d4-bbaa-81b8bf1c0b7e",
       "migrations_dir": "migrations"
+    }
+  ],
+  // Anotarse desde el formulario público: 30 por minuto por IP (IPv6: por /64; ver `limitarPorIp`).
+  // Holgado a propósito: con CGNAT muchos teléfonos de la misma compañía comparten una IP.
+  // namespace_id es un número propio de la cuenta, cualquiera que no use otro Worker.
+  "ratelimits": [
+    {
+      "name": "LIMITE_INSCRIPCIONES",
+      "namespace_id": "1001",
+      "simple": { "limit": 30, "period": 60 }
     }
   ],
   "r2_buckets": [

@@ -5,7 +5,7 @@ import { hoyEnZona } from "@/shared/fechas";
 import { esquemaNuevaInscripcion } from "@/shared/inscripciones";
 import type { AppEnv } from "../contexto";
 import { buscarBarrio, buscarMesVisible, buscarTurno, companerismosActivos, estadoTurno } from "../consultas";
-import { esViolacionUnica, fallar, nuevoTokenEdicion, sha256Hex, validar } from "../http";
+import { esViolacionUnica, fallar, limitarPorIp, nuevoTokenEdicion, sha256Hex, validar } from "../http";
 import { paramsBarrio, paramsMes, paramsTurno } from "../params";
 
 /**
@@ -122,9 +122,11 @@ export const rutasBarrios = new Hono<AppEnv>()
   /**
    * Anotarse. Si dos personas toman el mismo turno a la vez, el UNIQUE de
    * inscripciones.turno_id hace fallar la segunda inserción → 409 TURNO_TOMADO.
+   * El límite por IP va primero: cuenta también los intentos con datos inválidos.
    */
   .post(
     "/:slug/turnos/:turnoId/inscripcion",
+    limitarPorIp((env) => env.LIMITE_INSCRIPCIONES),
     validar("param", paramsTurno),
     validar("json", esquemaNuevaInscripcion),
     async (c) => {

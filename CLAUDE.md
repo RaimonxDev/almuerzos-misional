@@ -104,7 +104,13 @@ Datos de prueba: `bun run db:seed:local` (mes actual y el siguiente) o `bun run 
 - En `centro`, en el último mes sembrado, tres inscripciones: Hna. Pérez (con consentimiento; token de edición `dev-edicion-demo`), Hna. González (teléfono sin consentimiento) y Familia Muñoz (`origen = 'admin'`).
 - Fechas: `src/shared/fechas.ts` (`hoyEnZona`, `fechasDelMes`, `diaDeSemana`), compartido con el Worker.
 
-Pendiente para producción: crear la base con `bunx wrangler d1 create almuerzo-misional` y el bucket R2, y poner el `database_id` real en `wrangler.jsonc`.
+## Producción
+
+- En `https://almuerzo.ramonmartinez.dev` (dominio temporal, `routes` con `custom_domain` en `wrangler.jsonc`; sin `*.workers.dev`). Al pasar al dominio definitivo, dejar el viejo con un redirect 301 que conserve la ruta: los links de `/:barrio` y `/:barrio/m/:token` circulan por WhatsApp. Lo que está en `localStorage` ("Mi turno") y la sesión de admin no se mueven de dominio.
+- Recursos: D1 `almuerzo-misional` (`database_id` en `wrangler.jsonc`), R2 `almuerzo-misional-imagenes`, rate limit `LIMITE_INSCRIPCIONES` y el secreto `BETTER_AUTH_SECRET` (`openssl rand -base64 32 | bunx wrangler secret put BETTER_AUTH_SECRET`). `BETTER_AUTH_URL` no se usa: Better Auth la deduce de la request.
+- Deploy: `bun run db:migrate:remote` si hay migraciones nuevas (antes del código que las usa) y luego `bun run deploy` (typecheck + build + `wrangler deploy`). Comprobar con `curl https://almuerzo.ramonmartinez.dev/api/salud`.
+- Primer super admin (o recuperar el acceso): `bun scripts/super-admin.ts --remote <email> "<nombre>"`, que pide la contraseña oculta y escribe directo en D1; con un correo existente actualiza el nombre, lo desbloquea y cierra sus sesiones. Los demás admins se crean desde el panel.
+- El `database_id` real también define la base local (`.wrangler/state`): tras cambiarlo hay que volver a correr `db:migrate:local` y `db:seed:local`.
 
 ## Esquema
 
@@ -124,6 +130,7 @@ Sin login. Nunca devuelve teléfono, dirección ni nota de otra persona: cada `s
 | `GET /api/barrios/:slug/misioneros/meses/:periodo` | Turnos con nombre, modalidad, nota y teléfono (solo con consentimiento). Borrador → 404 |
 | `GET/PATCH/DELETE /api/inscripciones/:id` | "Mi turno" con `Authorization: Bearer <tokenEdicion>`. 403 `TOKEN_INVALIDO`; 404 = ya no existe (el cliente puede olvidar el token). Editar/cancelar solo en mes abierto y día no pasado |
 
+- Anotarse tiene un límite por IP: binding `LIMITE_INSCRIPCIONES` de `wrangler.jsonc` (30 por minuto, holgado por el CGNAT de las compañías móviles) con `limitarPorIp` (`src/worker/http.ts`, clave `claveDeIp(cf-connecting-ip)`: IPv4 tal cual, IPv6 por su /64; sin ese header no limita) → 429 `DEMASIADOS_INTENTOS`. Va antes de validar, así cuenta también los intentos inválidos.
 - Validación con zod; los esquemas del formulario están en `src/shared/inscripciones.ts` y los usa también el frontend. Datos inválidos → 400 `{ error: "DATOS_INVALIDOS", campos: [...] }`.
 - Un bloqueo manda sobre una inscripción existente: el turno se muestra `bloqueado` y sin nombre.
 - Tests de la API en `test/worker/` (ver **Tests**). Usan fechas en 2000 y 2099 para no depender del día.
@@ -161,6 +168,8 @@ Sin login. Nunca devuelve teléfono, dirección ni nota de otra persona: cada `s
 
 **Tests primero**: cada issue trae una sección "Tests primero"; se escriben antes de implementar y el issue se cierra con todos en verde.
 
+CI: `.github/workflows/ci.yml` corre `bun run typecheck` y `bun run test` en cada PR y en cada push a `main`.
+
 `bun run test` corre dos proyectos de Vitest (`vitest.config.ts`) sobre Node; `--project worker` o `--project app` corre uno solo. Ojo: `bun test` (sin `run`) es el runner de Bun, no Vitest.
 
 - **worker** (`test/worker/`): la API real dentro de workerd con una D1 en memoria y las migraciones aplicadas. `datos.ts` siembra datos fijos y `pedir()` llama al Worker como el navegador.
@@ -173,7 +182,6 @@ Sin login. Nunca devuelve teléfono, dirección ni nota de otra persona: cada `s
 ## Hitos
 
 Se siguen en GitHub: un milestone por hito e issues con criterios de aceptación y tests en [RaimonxDev/almuerzos-misional](https://github.com/RaimonxDev/almuerzos-misional/milestones). Etiquetas: `api`, `frontend`, `diseño`, `infra`, `tests`. Los commits que completan un issue llevan `Closes #N`. Resumen:
-
 
 1. **Base** ✅ — scaffold, seed y API pública con tests.
 2. **Flujo público** ✅ — vista pública y formulario según las maquetas 1 y 2, con selector de idioma, "Tu turno", éxito con `.ics` y 409 amable.

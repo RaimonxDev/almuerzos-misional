@@ -121,6 +121,11 @@ describe("FormularioInscripcion", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Este mes no está abierto para anotarse.");
   });
 
+  it("si la API limita los intentos, pide esperar un minuto", () => {
+    renderizar({ errorEnvio: new ErrorApi("DEMASIADOS_INTENTOS", 429) });
+    expect(screen.getByRole("alert")).toHaveTextContent("Espera un minuto y vuelve a intentarlo.");
+  });
+
   it("los errores cambian de idioma junto con la pantalla", async () => {
     const { user } = renderizar();
     await user.click(screen.getByRole("button", { name: "Confirmar mi día" }));
