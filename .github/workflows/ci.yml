@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+# Solo lee el código: el token no puede escribir en el repo aunque una dependencia lo intente.
+permissions:
+  contents: read
+
 jobs:
   verificar:
     runs-on: ubuntu-latest

@@ -109,7 +109,7 @@ Datos de prueba: `bun run db:seed:local` (mes actual y el siguiente) o `bun run 
 - En `https://almuerzo.ramonmartinez.dev` (dominio temporal, `routes` con `custom_domain` en `wrangler.jsonc`; sin `*.workers.dev`). Al pasar al dominio definitivo, dejar el viejo con un redirect 301 que conserve la ruta: los links de `/:barrio` y `/:barrio/m/:token` circulan por WhatsApp. Lo que está en `localStorage` ("Mi turno") y la sesión de admin no se mueven de dominio.
 - Recursos: D1 `almuerzo-misional` (`database_id` en `wrangler.jsonc`), R2 `almuerzo-misional-imagenes`, rate limit `LIMITE_INSCRIPCIONES` y el secreto `BETTER_AUTH_SECRET` (`openssl rand -base64 32 | bunx wrangler secret put BETTER_AUTH_SECRET`). `BETTER_AUTH_URL` no se usa: Better Auth la deduce de la request.
 - Deploy: `bun run db:migrate:remote` si hay migraciones nuevas (antes del código que las usa) y luego `bun run deploy` (typecheck + build + `wrangler deploy`). Comprobar con `curl https://almuerzo.ramonmartinez.dev/api/salud`.
-- Primer super admin (o recuperar el acceso): `bun scripts/super-admin.ts --remote <email> "<nombre>"`, que pide la contraseña oculta y escribe directo en D1. Los demás admins se crean desde el panel.
+- Primer super admin (o recuperar el acceso): `bun scripts/super-admin.ts --remote <email> "<nombre>"`, que pide la contraseña oculta y escribe directo en D1; con un correo existente actualiza el nombre, lo desbloquea y cierra sus sesiones. Los demás admins se crean desde el panel.
 - El `database_id` real también define la base local (`.wrangler/state`): tras cambiarlo hay que volver a correr `db:migrate:local` y `db:seed:local`.
 
 ## Esquema
@@ -130,7 +130,7 @@ Sin login. Nunca devuelve teléfono, dirección ni nota de otra persona: cada `s
 | `GET /api/barrios/:slug/misioneros/meses/:periodo` | Turnos con nombre, modalidad, nota y teléfono (solo con consentimiento). Borrador → 404 |
 | `GET/PATCH/DELETE /api/inscripciones/:id` | "Mi turno" con `Authorization: Bearer <tokenEdicion>`. 403 `TOKEN_INVALIDO`; 404 = ya no existe (el cliente puede olvidar el token). Editar/cancelar solo en mes abierto y día no pasado |
 
-- Anotarse tiene un límite por IP: binding `LIMITE_INSCRIPCIONES` de `wrangler.jsonc` (10 por minuto) con `limitarPorIp` (`src/worker/http.ts`, clave `cf-connecting-ip`; sin ese header no limita) → 429 `DEMASIADOS_INTENTOS`. Va antes de validar, así cuenta también los intentos inválidos.
+- Anotarse tiene un límite por IP: binding `LIMITE_INSCRIPCIONES` de `wrangler.jsonc` (30 por minuto, holgado por el CGNAT de las compañías móviles) con `limitarPorIp` (`src/worker/http.ts`, clave `claveDeIp(cf-connecting-ip)`: IPv4 tal cual, IPv6 por su /64; sin ese header no limita) → 429 `DEMASIADOS_INTENTOS`. Va antes de validar, así cuenta también los intentos inválidos.
 - Validación con zod; los esquemas del formulario están en `src/shared/inscripciones.ts` y los usa también el frontend. Datos inválidos → 400 `{ error: "DATOS_INVALIDOS", campos: [...] }`.
 - Un bloqueo manda sobre una inscripción existente: el turno se muestra `bloqueado` y sin nombre.
 - Tests de la API en `test/worker/` (ver **Tests**). Usan fechas en 2000 y 2099 para no depender del día.

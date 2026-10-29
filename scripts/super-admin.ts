@@ -6,7 +6,8 @@
  *   bun scripts/super-admin.ts --local  tu@correo.cl "Tu Nombre"
  *
  * La contraseña se pide oculta en la terminal (o se lee de stdin si no es una terminal), así no
- * queda en el historial. Si el correo ya existe, le da el rol `admin` y le cambia la contraseña.
+ * queda en el historial. Si el correo ya existe sirve para recuperar el acceso: le da el rol `admin`,
+ * actualiza el nombre, lo desbloquea, le cambia la contraseña y cierra sus sesiones abiertas.
  */
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -25,7 +26,8 @@ async function leerOculto(pregunta: string): Promise<string> {
   if (!stdin.isTTY) {
     let texto = "";
     for await (const trozo of stdin) texto += trozo;
-    return texto.trim();
+    // Solo el salto de línea final (echo, printf): los espacios son parte de la contraseña.
+    return texto.replace(/\r?\n$/, "");
   }
   process.stdout.write(pregunta);
   stdin.setRawMode(true);
@@ -43,7 +45,8 @@ async function leerOculto(pregunta: string): Promise<string> {
           process.stdout.write("\n");
           return resolver(texto);
         }
-        texto = c === "\u007f" ? texto.slice(0, -1) : texto + c;
+        if (c === "\u007f" || c === "\b") texto = texto.slice(0, -1); // borrar (DEL o ^H)
+        else if (c >= " ") texto += c; // otros caracteres de control no son parte de la contraseña
       }
     };
     stdin.on("data", alEscribir);
@@ -65,11 +68,14 @@ const correo = email.trim().toLowerCase();
 const id = crypto.randomUUID();
 const ahora = Date.now(); // timestamp_ms, como Better Auth
 
-// Si el correo ya existe, el INSERT no hace nada y los UPDATE usan el id que ya tenía.
+// Si el correo ya existe, el INSERT actualiza esa fila y lo demás usa el id que ya tenía.
+const usuario = `(SELECT id FROM user WHERE email = ${v(correo)})`;
 const sql = `
 INSERT INTO user (id, name, email, email_verified, role) VALUES (${v(id)}, ${v(nombre)}, ${v(correo)}, 1, 'admin')
-  ON CONFLICT (email) DO UPDATE SET role = 'admin', updated_at = ${ahora};
-DELETE FROM account WHERE provider_id = 'credential' AND user_id = (SELECT id FROM user WHERE email = ${v(correo)});
+  ON CONFLICT (email) DO UPDATE SET name = excluded.name, role = 'admin', banned = 0, ban_reason = NULL,
+    ban_expires = NULL, updated_at = ${ahora};
+DELETE FROM session WHERE user_id = ${usuario};
+DELETE FROM account WHERE provider_id = 'credential' AND user_id = ${usuario};
 INSERT INTO account (id, account_id, provider_id, user_id, password, updated_at)
   SELECT id || '-credencial', id, 'credential', id, ${v(await hashPassword(password))}, ${ahora} FROM user WHERE email = ${v(correo)};
 `;
