@@ -6,8 +6,10 @@ import {
   type TipoCompanerismo,
   useCrearCompanerismo,
   useEditarBarrio,
+  useAdminsBarrio,
   useEditarCompanerismo,
   useRegenerarToken,
+  useReenviarInvitacion,
 } from "@/app/consultas-admin";
 import { useIdioma } from "@/app/i18n";
 import { cn } from "@/app/lib/utils";
@@ -29,12 +31,13 @@ import { Textarea } from "@/app/components/ui/textarea";
 
 type Companerismo = { id: string; nombre: string; activo: boolean };
 
-/** Columna derecha del panel: enlaces del barrio, compañerismos y nota para cocinar. */
+/** Columna derecha del panel: enlaces del barrio, compañerismos, nota para cocinar y (super admin) administradores. */
 export function BarraLateral({
   slug,
   barrio,
   companerismos,
   periodo,
+  superAdmin = false,
 }: {
   slug: string;
   barrio: {
@@ -47,12 +50,15 @@ export function BarraLateral({
   companerismos: Companerismo[];
   /** Mes visible (`2026-11`); sin él no hay sección de diseño. */
   periodo: string | null;
+  /** Solo el super admin ve la lista de administradores y reenvía invitaciones. */
+  superAdmin?: boolean;
 }) {
   return (
     <aside className="flex min-w-0 flex-[1_1_320px] flex-col gap-4">
       <Enlaces slug={slug} token={barrio.tokenMisioneros} />
       {periodo && <DisenoCalendario slug={slug} periodo={periodo} barrio={barrio} />}
       <Misioneros slug={slug} companerismos={companerismos} notaParaCocinar={barrio.notaParaCocinar} />
+      {superAdmin && <Administradores slug={slug} />}
     </aside>
   );
 }
@@ -337,5 +343,58 @@ function AgregarCompanerismo({ slug }: { slug: string }) {
         </Button>
       </div>
     </form>
+  );
+}
+
+/**
+ * Administradores del barrio (solo super admin) con "Reenviar invitación" si no les llegó el correo:
+ * la bienvenida con un enlace nuevo si aún no crean su contraseña, o el aviso de asignación.
+ */
+function Administradores({ slug }: { slug: string }) {
+  const { t } = useIdioma();
+  const admins = useAdminsBarrio(slug, true);
+  const reenviar = useReenviarInvitacion(slug);
+
+  return (
+    <Seccion titulo={t.panel.administradores}>
+      {admins.isError && <AlertaError>{t.errores[codigoDe(admins.error)]}</AlertaError>}
+      {admins.data && admins.data.admins.length === 0 && (
+        <p className="text-sm text-muted-foreground">{t.panel.sinAdministradores}</p>
+      )}
+      {admins.data && admins.data.admins.length > 0 && (
+        <ul className="flex flex-col">
+          {admins.data.admins.map((a) => (
+            <li key={a.id} className="flex flex-col gap-1 border-t border-[#EEF2F6] py-2 first:border-t-0">
+              <span className="font-bold">{a.nombre}</span>
+              <span className="text-[13px] break-all text-muted-foreground">
+                {[a.cargo, a.email].filter(Boolean).join(" · ")}
+              </span>
+              {a.debeCambiarPassword && (
+                <span className="self-start rounded-full bg-aviso-suave px-2.5 py-0.5 text-xs font-extrabold text-aviso-texto">
+                  {t.panel.faltaContrasena}
+                </span>
+              )}
+              <Button
+                variant="ghost"
+                aria-label={t.panel.reenviarInvitacionA(a.nombre)}
+                disabled={reenviar.isPending}
+                onClick={() =>
+                  reenviar.mutate(a.id, {
+                    onSuccess: ({ correoEnviado }) =>
+                      correoEnviado
+                        ? toast.success(t.panel.invitacionReenviada(a.email))
+                        : toast.error(t.panel.invitacionNoSalio),
+                    onError: (e) => toast.error(t.errores[codigoDe(e)]),
+                  })
+                }
+                className="self-start px-0 text-[13px] font-bold text-azul-medio hover:bg-transparent hover:underline"
+              >
+                {t.panel.reenviarInvitacion}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Seccion>
   );
 }

@@ -9,7 +9,8 @@ import { rutasTurnos } from "./turnos";
 
 /**
  * Todo `/api/admin`: exige sesión. Las rutas de cuenta van primero (`GET /yo`, `POST /barrios`,
- * `POST /barrios/:slug/admins`); lo que cuelga de `/barrios/:slug/*` pasa además por `conBarrioAdmin`.
+ * `GET/POST /barrios/:slug/admins`, `POST /barrios/:slug/admins/:userId/invitacion`); lo que cuelga
+ * de `/barrios/:slug/*` pasa además por `conBarrioAdmin`.
  * Para agregar rutas de un barrio basta encadenarlas en meses.ts, turnos.ts o barrio.ts.
  */
 const deBarrio = new Hono<AppEnvBarrioAdmin>()

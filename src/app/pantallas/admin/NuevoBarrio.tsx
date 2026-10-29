@@ -52,8 +52,11 @@ const zonaDelNavegador = () => Intl.DateTimeFormat().resolvedOptions().timeZone 
 
 type Campo = "nombre" | "slug" | "zonaHoraria" | "companerismos" | "presidenta";
 
-/** Cuenta recién creada: la contraseña temporal se ve solo aquí. */
-type CuentaNueva = { slug: string; email: string; password: string };
+/**
+ * Cuenta recién creada. `password`: la temporal, solo si el correo de bienvenida no salió (se ve
+ * solo aquí); `null` si salió y la presidenta crea la suya con el enlace del correo.
+ */
+type CuentaNueva = { slug: string; email: string; password: string | null };
 
 /** `/admin/nuevo-barrio` — solo el super admin crea barrios. */
 export function NuevoBarrioRuta() {
@@ -126,9 +129,10 @@ function NuevoBarrio() {
       {
         onSuccess: ({ barrio, presidenta }) => {
           toast.success(nb.creado(barrio.nombre));
-          if (presidenta?.passwordTemporal) {
+          if (presidenta?.cuentaNueva) {
             setCuentaNueva({ slug: barrio.slug, email: presidenta.email, password: presidenta.passwordTemporal });
           } else {
+            if (presidenta?.correoEnviado) toast.success(nb.avisoEnviado(presidenta.email));
             navigate(`/admin/${barrio.slug}`);
           }
         },
@@ -306,15 +310,21 @@ function NuevoBarrio() {
   );
 }
 
-/** Datos para entrar de una presidenta con cuenta nueva: se copian para mandarlos por WhatsApp. */
+/**
+ * Presidenta con cuenta nueva: si le llegó la bienvenida, solo se avisa; si el correo no salió,
+ * sus datos para entrar, que se copian para mandarlos por WhatsApp.
+ */
 function DatosCuenta({ cuenta, alCerrar }: { cuenta: CuentaNueva; alCerrar: () => void }) {
   const { t } = useIdioma();
   const nb = t.nuevoBarrio;
   const url = `${location.origin}/admin/login`;
 
+  const { password } = cuenta;
+
   const copiar = async () => {
+    if (!password) return;
     try {
-      await navigator.clipboard.writeText(nb.mensajeCuenta(url, cuenta.email, cuenta.password));
+      await navigator.clipboard.writeText(nb.mensajeCuenta(url, cuenta.email, password));
       toast.success(nb.datosCopiados);
     } catch {
       toast.error(t.errores.ERROR_INTERNO);
@@ -333,17 +343,23 @@ function DatosCuenta({ cuenta, alCerrar }: { cuenta: CuentaNueva; alCerrar: () =
       <DialogContent showCloseButton={false} className="rounded-2xl">
         <DialogHeader>
           <DialogTitle className="text-xl text-azul-profundo">{nb.cuentaCreadaTitulo}</DialogTitle>
-          <DialogDescription className="text-[15px]">{nb.cuentaCreadaTexto}</DialogDescription>
+          <DialogDescription className="text-[15px]">
+            {password ? nb.cuentaCreadaTexto : nb.correoEnviadoTexto(cuenta.email)}
+          </DialogDescription>
         </DialogHeader>
-        <dl className="flex flex-col gap-3 rounded-[10px] bg-cielo-claro p-3">
-          {fila(nb.entrarEn, url)}
-          {fila(nb.correo, cuenta.email)}
-          {fila(nb.contrasena, cuenta.password)}
-        </dl>
+        {password && (
+          <dl className="flex flex-col gap-3 rounded-[10px] bg-cielo-claro p-3">
+            {fila(nb.entrarEn, url)}
+            {fila(nb.correo, cuenta.email)}
+            {fila(nb.contrasena, password)}
+          </dl>
+        )}
         <DialogFooter className="gap-2.5">
-          <Button variant="outline" onClick={copiar} className="rounded-[10px] font-bold">
-            {nb.copiarDatos}
-          </Button>
+          {password && (
+            <Button variant="outline" onClick={copiar} className="rounded-[10px] font-bold">
+              {nb.copiarDatos}
+            </Button>
+          )}
           <Button onClick={alCerrar} className="rounded-[10px] font-bold">
             {nb.irAlPanel}
           </Button>

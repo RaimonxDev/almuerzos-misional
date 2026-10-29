@@ -14,16 +14,17 @@ export const pt: MensajesCorreo = {
     boton: { texto: "Escolher uma nova senha", enlace },
     nota: `O link vence em ${minutos} minutos. Se não foi você, ignore este e-mail: sua senha não muda.`,
   }),
-  bienvenidaPresidenta: ({ nombre, barrio, enlace, horas }) => ({
+  bienvenidaPresidenta: ({ nombre, barrio, enlace, panel, dias }) => ({
     asunto: `Boas-vindas ao Almoço Missionário: ${barrio}`,
     titulo: "Boas-vindas",
     saludo: `Olá, ${nombre}:`,
     parrafos: [
-      `A ala ${barrio} foi criada no Almoço Missionário e você é a administradora.`,
-      "No painel você pode abrir os meses, ver quem se inscreveu, bloquear dias e compartilhar o calendário. Para entrar, primeiro crie sua senha.",
+      `O Almoço Missionário é uma página para que as irmãs da ala se inscrevam para dar almoço aos missionários, sem precisar combinar tudo à mão pelo WhatsApp. A ala ${barrio} foi criada e você é a administradora.`,
+      "No painel você pode abrir os meses, ver quem se inscreveu, bloquear dias e compartilhar o calendário. Para entrar, primeiro crie sua senha com o botão.",
+      `Depois, seu painel fica em ${panel}`,
     ],
     boton: { texto: "Criar minha senha", enlace },
-    nota: `O link vence em ${horas} horas. Se vencer, peça um novo em "Esqueceu sua senha?".`,
+    nota: `O link vence em ${dias} dias. Se vencer, peça um novo em "Esqueceu sua senha?" na tela de entrada.`,
   }),
   barrioAsignado: ({ nombre, barrio, enlace }) => ({
     asunto: `Agora você administra ${barrio}`,

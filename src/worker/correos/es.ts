@@ -20,7 +20,8 @@ export interface ContenidoCorreo {
 /** Datos que necesita cada plantilla. */
 export interface DatosCorreo {
   restablecerPassword: { nombre: string; enlace: string; minutos: number };
-  bienvenidaPresidenta: { nombre: string; barrio: string; enlace: string; horas: number };
+  /** `enlace`: crear la contraseña (vence en `dias`); `panel`: el panel del barrio. */
+  bienvenidaPresidenta: { nombre: string; barrio: string; enlace: string; panel: string; dias: number };
   barrioAsignado: { nombre: string; barrio: string; enlace: string };
 }
 
@@ -49,16 +50,17 @@ export const es: MensajesCorreo = {
     boton: { texto: "Elegir una contraseña nueva", enlace },
     nota: `El enlace vence en ${minutos} minutos. Si no lo pediste tú, ignora este correo: tu contraseña no cambia.`,
   }),
-  bienvenidaPresidenta: ({ nombre, barrio, enlace, horas }) => ({
+  bienvenidaPresidenta: ({ nombre, barrio, enlace, panel, dias }) => ({
     asunto: `Bienvenida a Almuerzo Misional: ${barrio}`,
     titulo: "Te damos la bienvenida",
     saludo: `Hola, ${nombre}:`,
     parrafos: [
-      `Se creó el barrio ${barrio} en Almuerzo Misional y quedaste como su administradora.`,
-      "Desde el panel puedes abrir los meses, ver quién se anotó, bloquear días y compartir el calendario. Para entrar, primero crea tu contraseña.",
+      `Almuerzo Misional es una página para que las hermanas del barrio se anoten a dar almuerzo a los misioneros, sin coordinarlo a mano por WhatsApp. Se creó el barrio ${barrio} y quedaste como su administradora.`,
+      "Desde el panel puedes abrir los meses, ver quién se anotó, bloquear días y compartir el calendario. Para entrar, primero crea tu contraseña con el botón.",
+      `Después, tu panel queda en ${panel}`,
     ],
     boton: { texto: "Crear mi contraseña", enlace },
-    nota: `El enlace vence en ${horas} horas. Si vence, pide uno nuevo con "¿Olvidaste tu contraseña?".`,
+    nota: `El enlace vence en ${dias} días. Si vence, pide uno nuevo con "¿Olvidaste tu contraseña?" en la pantalla de ingreso.`,
   }),
   barrioAsignado: ({ nombre, barrio, enlace }) => ({
     asunto: `Ahora administras ${barrio}`,

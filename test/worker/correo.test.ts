@@ -75,7 +75,7 @@ describe("enviarCorreo", () => {
 describe("plantillas de correo", () => {
   const datos = {
     restablecerPassword: { nombre: "Ana", enlace: "https://ejemplo.cl/r?t=1&u=2", minutos: 60 },
-    bienvenidaPresidenta: { nombre: "Ana", barrio: "Centro", enlace: "https://ejemplo.cl/b?t=1", horas: 48 },
+    bienvenidaPresidenta: { nombre: "Ana", barrio: "Centro", enlace: "https://ejemplo.cl/b?t=1", panel: "https://ejemplo.cl/admin/centro", dias: 7 },
     barrioAsignado: { nombre: "Ana", barrio: "Centro", enlace: "https://ejemplo.cl/admin/centro" },
   } as const;
   const plantillas = Object.keys(datos) as (keyof typeof datos)[];
@@ -108,7 +108,8 @@ describe("plantillas de correo", () => {
       nombre: '<script>alert("x")</script>',
       barrio: "Barrio & <b>Centro</b>",
       enlace: 'https://ejemplo.cl/b?t=1&x="2"',
-      horas: 48,
+      panel: "https://ejemplo.cl/admin/centro",
+      dias: 7,
     });
     expect(armado.html).not.toContain("<script>");
     expect(armado.html).not.toContain("<b>Centro</b>");

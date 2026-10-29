@@ -15,6 +15,7 @@ const claves = {
   barrio: (slug: string) => ["admin", "barrio", slug],
   meses: (slug: string) => ["admin", "meses", slug],
   mes: (slug: string, periodo: string) => ["admin", "mes", slug, periodo],
+  admins: (slug: string) => ["admin", "admins", slug],
 };
 
 /** Datos del barrio, con el token de misioneros y todos los compañerismos. */
@@ -198,4 +199,20 @@ export const useQuitarImagen = (slug: string, periodo: string) =>
     slug,
     () => sinCuerpo(barrios[":slug"].meses[":periodo"].imagen.$delete({ param: { slug, periodo } })),
     ["mes"],
+  );
+
+/** Admins del barrio, con si les falta crear la contraseña. Solo super admin (`enabled`). */
+export const useAdminsBarrio = (slug: string, enabled: boolean) =>
+  useQuery({
+    queryKey: claves.admins(slug),
+    queryFn: () => datos(barrios[":slug"].admins.$get({ param: { slug } })),
+    enabled,
+  });
+
+/** Reenvía la bienvenida (o el aviso de asignación) → `{ correoEnviado }`. */
+export const useReenviarInvitacion = (slug: string) =>
+  useMutacionBarrio(
+    slug,
+    (userId: string) => datos(barrios[":slug"].admins[":userId"].invitacion.$post({ param: { slug, userId } })),
+    ["admins"],
   );

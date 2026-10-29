@@ -14,16 +14,17 @@ export const en: MensajesCorreo = {
     boton: { texto: "Choose a new password", enlace },
     nota: `The link expires in ${minutos} minutes. If you didn't ask for this, ignore this email: your password won't change.`,
   }),
-  bienvenidaPresidenta: ({ nombre, barrio, enlace, horas }) => ({
+  bienvenidaPresidenta: ({ nombre, barrio, enlace, panel, dias }) => ({
     asunto: `Welcome to Missionary Lunch: ${barrio}`,
     titulo: "Welcome",
     saludo: `Hi ${nombre},`,
     parrafos: [
-      `The ${barrio} ward was created on Missionary Lunch and you are its administrator.`,
-      "From the dashboard you can open months, see who signed up, block days and share the calendar. To sign in, first create your password.",
+      `Missionary Lunch is a page where the sisters of the ward sign up to give lunch to the missionaries, without coordinating it by hand on WhatsApp. The ${barrio} ward was created and you are its administrator.`,
+      "From the dashboard you can open months, see who signed up, block days and share the calendar. To sign in, first create your password with the button.",
+      `After that, your dashboard is at ${panel}`,
     ],
     boton: { texto: "Create my password", enlace },
-    nota: `The link expires in ${horas} hours. If it expires, request a new one with "Forgot your password?".`,
+    nota: `The link expires in ${dias} days. If it expires, request a new one with "Forgot your password?" on the sign-in screen.`,
   }),
   barrioAsignado: ({ nombre, barrio, enlace }) => ({
     asunto: `You now manage ${barrio}`,

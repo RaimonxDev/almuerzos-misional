@@ -31,6 +31,7 @@ describe("Nuevo barrio", () => {
       "/api/admin/yo": { json: SUPER },
       "/api/admin/barrios": { status: 201, json: CREADO },
       "/api/admin/barrios/barrio-norte/meses": { json: { meses: [] } },
+      "/api/admin/barrios/barrio-norte/admins": { json: { admins: [] } },
       "/api/admin/barrios/barrio-norte": { json: { barrio: { ...CREADO.barrio, notaParaCocinar: null, contactoNombre: null, contactoTelefono: null }, companerismos: CREADO.companerismos } },
     });
     await abrir();
@@ -58,7 +59,38 @@ describe("Nuevo barrio", () => {
     expect(await screen.findByText("Todavía no hay meses. Crea el primero para empezar.")).toBeInTheDocument();
   });
 
-  it("con presidenta nueva muestra su contraseña temporal antes de ir al panel", async () => {
+  it("con presidenta nueva y el correo enviado, el diálogo lo dice y no muestra contraseña", async () => {
+    const user = userEvent.setup();
+    simularApi({
+      "/api/admin/yo": { json: SUPER },
+      "/api/admin/barrios": {
+        status: 201,
+        json: {
+          ...CREADO,
+          presidenta: { email: "rojas@ejemplo.cl", nombre: "Hna. Rojas", cargo: null, cuentaNueva: true, correoEnviado: true, passwordTemporal: null },
+        },
+      },
+      "/api/admin/barrios/barrio-norte/meses": { json: { meses: [] } },
+      "/api/admin/barrios/barrio-norte/admins": { json: { admins: [] } },
+      "/api/admin/barrios/barrio-norte": { json: { barrio: { ...CREADO.barrio, notaParaCocinar: null, contactoNombre: null, contactoTelefono: null }, companerismos: CREADO.companerismos } },
+    });
+    await abrir();
+
+    await user.type(screen.getByLabelText("Nombre del barrio"), "Barrio Norte");
+    await user.type(screen.getByLabelText("Correo de la presidenta"), "rojas@ejemplo.cl");
+    await user.type(screen.getByLabelText("Nombre de la presidenta"), "Hna. Rojas");
+    await user.click(screen.getByRole("button", { name: "Crear barrio" }));
+
+    const dialogo = await screen.findByRole("dialog", { name: "Cuenta de la presidenta creada" });
+    expect(within(dialogo).getByText(/Le enviamos un correo a rojas@ejemplo\.cl/)).toBeInTheDocument();
+    expect(within(dialogo).queryByText("Contraseña")).not.toBeInTheDocument();
+    expect(within(dialogo).queryByRole("button", { name: "Copiar datos" })).not.toBeInTheDocument();
+
+    await user.click(within(dialogo).getByRole("button", { name: "Ir al panel del barrio" }));
+    expect(await screen.findByText("Todavía no hay meses. Crea el primero para empezar.")).toBeInTheDocument();
+  });
+
+  it("con presidenta nueva y el correo sin salir, muestra su contraseña temporal antes de ir al panel", async () => {
     const user = userEvent.setup();
     const api = simularApi({
       "/api/admin/yo": { json: SUPER },
@@ -66,10 +98,11 @@ describe("Nuevo barrio", () => {
         status: 201,
         json: {
           ...CREADO,
-          presidenta: { email: "rojas@ejemplo.cl", nombre: "Hna. Rojas", cargo: null, cuentaNueva: true, passwordTemporal: "temporal-abc-123" },
+          presidenta: { email: "rojas@ejemplo.cl", nombre: "Hna. Rojas", cargo: null, cuentaNueva: true, correoEnviado: false, passwordTemporal: "temporal-abc-123" },
         },
       },
       "/api/admin/barrios/barrio-norte/meses": { json: { meses: [] } },
+      "/api/admin/barrios/barrio-norte/admins": { json: { admins: [] } },
       "/api/admin/barrios/barrio-norte": { json: { barrio: { ...CREADO.barrio, notaParaCocinar: null, contactoNombre: null, contactoTelefono: null }, companerismos: CREADO.companerismos } },
     });
     await abrir();
@@ -83,7 +116,9 @@ describe("Nuevo barrio", () => {
       expect(llamadas(api, "POST", "/api/admin/barrios")[0].presidenta).toEqual({ email: "rojas@ejemplo.cl", nombre: "Hna. Rojas", cargo: null }),
     );
     const dialogo = await screen.findByRole("dialog", { name: "Cuenta de la presidenta creada" });
+    expect(within(dialogo).getByText(/No pudimos enviarle el correo/)).toBeInTheDocument();
     expect(within(dialogo).getByText("temporal-abc-123")).toBeInTheDocument();
+    expect(within(dialogo).getByRole("button", { name: "Copiar datos" })).toBeInTheDocument();
     expect(within(dialogo).getByText("rojas@ejemplo.cl")).toBeInTheDocument();
 
     await user.click(within(dialogo).getByRole("button", { name: "Ir al panel del barrio" }));
@@ -145,7 +180,12 @@ describe("Nuevo barrio", () => {
         companerismos: [],
       },
     };
-    simularApi({ "/api/admin/yo": { json: SUPER }, "/api/admin/barrios/centro/meses": meses, "/api/admin/barrios/centro": barrio });
+    simularApi({
+      "/api/admin/yo": { json: SUPER },
+      "/api/admin/barrios/centro/meses": meses,
+      "/api/admin/barrios/centro/admins": { json: { admins: [] } },
+      "/api/admin/barrios/centro": barrio,
+    });
     const { unmount } = renderizarApp("/admin/centro");
     expect(await screen.findByRole("link", { name: "Nuevo barrio" })).toHaveAttribute("href", "/admin/nuevo-barrio");
     unmount();

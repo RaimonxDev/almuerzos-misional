@@ -397,6 +397,37 @@ describe("Panel: enlaces, misioneros y gestión del mes", () => {
     expect(llamadas(api, "POST", "/companerismos")[1]).toEqual({ tipo: "elderes", nombre: "Élderes Inglés" });
   });
 
+  it("una presidenta no ve la lista de administradores", async () => {
+    await abrirPanel();
+    expect(screen.queryByRole("heading", { name: "Administradores" })).not.toBeInTheDocument();
+    expect(llamadas(api, "GET", `${RUTA_BARRIO}/admins`)).toHaveLength(0);
+  });
+
+  it("el super admin ve los administradores y reenvía la invitación a quien no creó su contraseña", async () => {
+    const user = userEvent.setup();
+    api = simular({
+      "/api/admin/yo": { json: { ...YO, usuario: { ...YO.usuario, superAdmin: true } } },
+      [`${RUTA_BARRIO}/admins/u-9/invitacion`]: { json: { correoEnviado: true } },
+      [`${RUTA_BARRIO}/admins`]: {
+        json: {
+          admins: [
+            { id: "u-9", email: "rojas@ejemplo.cl", nombre: "Hna. Rojas", cargo: "Presidenta", debeCambiarPassword: true },
+            { id: "u-8", email: "soto@ejemplo.cl", nombre: "Hna. Soto", cargo: null, debeCambiarPassword: false },
+          ],
+        },
+      },
+    });
+    await abrirPanel();
+
+    const seccion = (await screen.findByRole("heading", { name: "Administradores" })).closest("section")!;
+    expect(await within(seccion).findByText("Hna. Rojas")).toBeInTheDocument();
+    expect(within(seccion).getByText("Presidenta · rojas@ejemplo.cl")).toBeInTheDocument();
+    expect(within(seccion).getAllByText("Aún no crea su contraseña")).toHaveLength(1);
+
+    await user.click(within(seccion).getByRole("button", { name: "Reenviar la invitación a Hna. Rojas" }));
+    await waitFor(() => expect(llamadas(api, "POST", `${RUTA_BARRIO}/admins/u-9/invitacion`)).toHaveLength(1));
+  });
+
   it("sin selector de barrio si administra uno solo", async () => {
     await abrirPanel();
     expect(screen.queryByRole("combobox", { name: "Barrio" })).not.toBeInTheDocument();
