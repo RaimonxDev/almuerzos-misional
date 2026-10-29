@@ -1,0 +1,5 @@
+# Los tests usan contraseñas y tokens de prueba: no son secretos.
+version: 2
+secret:
+  ignored_paths:
+    - "test/**"
