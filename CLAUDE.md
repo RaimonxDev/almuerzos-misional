@@ -124,6 +124,7 @@ Sin login. Nunca devuelve teléfono, dirección ni nota de otra persona: cada `s
 | `GET /api/barrios/:slug/misioneros/meses/:periodo` | Turnos con nombre, modalidad, nota y teléfono (solo con consentimiento). Borrador → 404 |
 | `GET/PATCH/DELETE /api/inscripciones/:id` | "Mi turno" con `Authorization: Bearer <tokenEdicion>`. 403 `TOKEN_INVALIDO`; 404 = ya no existe (el cliente puede olvidar el token). Editar/cancelar solo en mes abierto y día no pasado |
 
+- Anotarse tiene un límite por IP: binding `LIMITE_INSCRIPCIONES` de `wrangler.jsonc` (10 por minuto) con `limitarPorIp` (`src/worker/http.ts`, clave `cf-connecting-ip`; sin ese header no limita) → 429 `DEMASIADOS_INTENTOS`. Va antes de validar, así cuenta también los intentos inválidos.
 - Validación con zod; los esquemas del formulario están en `src/shared/inscripciones.ts` y los usa también el frontend. Datos inválidos → 400 `{ error: "DATOS_INVALIDOS", campos: [...] }`.
 - Un bloqueo manda sobre una inscripción existente: el turno se muestra `bloqueado` y sin nombre.
 - Tests de la API en `test/worker/` (ver **Tests**). Usan fechas en 2000 y 2099 para no depender del día.
@@ -160,6 +161,8 @@ Sin login. Nunca devuelve teléfono, dirección ni nota de otra persona: cada `s
 ## Tests
 
 **Tests primero**: cada issue trae una sección "Tests primero"; se escriben antes de implementar y el issue se cierra con todos en verde.
+
+CI: `.github/workflows/ci.yml` corre `bun run typecheck` y `bun run test` en cada PR y en cada push a `main`.
 
 `bun run test` corre dos proyectos de Vitest (`vitest.config.ts`) sobre Node; `--project worker` o `--project app` corre uno solo. Ojo: `bun test` (sin `run`) es el runner de Bun, no Vitest.
 

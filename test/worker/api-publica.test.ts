@@ -243,3 +243,30 @@ describe("/api/inscripciones/:id con token de edición", () => {
   });
 });
 
+
+describe("límite de inscripciones por IP", () => {
+  /** El mismo `limit` que el binding LIMITE_INSCRIPCIONES de wrangler.jsonc. */
+  const LIMITE = 10;
+  // El contador vive en el binding y no se reinicia entre tests: cada test usa su propia IP.
+  const desde = (ip: string, turnoId = "no-existe") =>
+    pedir(`/api/barrios/prueba/turnos/${turnoId}/inscripcion`, {
+      method: "POST",
+      json: { nombre: "Hna. Nueva" },
+      headers: { "cf-connecting-ip": ip },
+    });
+
+  it("al pasar el límite responde 429 DEMASIADOS_INTENTOS sin tocar la base", async () => {
+    for (let i = 0; i < LIMITE; i++) expect((await desde("203.0.113.1")).status).toBe(404);
+    const res = await desde("203.0.113.1", IDS.libreHermanas);
+    expect(res.status).toBe(429);
+    expect(await res.json()).toEqual({ error: "DEMASIADOS_INTENTOS" });
+    const mes = await (await pedir("/api/barrios/prueba/meses/2099-01")).json<any>();
+    expect(mes.turnos.find((t: any) => t.id === IDS.libreHermanas)).toMatchObject({ estado: "libre" });
+  });
+
+  it("cuenta cada IP por separado", async () => {
+    for (let i = 0; i <= LIMITE; i++) await desde("203.0.113.2");
+    expect((await desde("203.0.113.2")).status).toBe(429);
+    expect((await desde("203.0.113.3", IDS.libreHermanas)).status).toBe(201);
+  });
+});

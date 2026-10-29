@@ -1,4 +1,5 @@
-import type { Context, ValidationTargets } from "hono";
+import type { Context, MiddlewareHandler, ValidationTargets } from "hono";
+import { createMiddleware } from "hono/factory";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { zValidator } from "@hono/zod-validator";
 import type { ZodType } from "zod";
@@ -48,3 +49,16 @@ export function leerBearer(c: Context): string | null {
   const valor = c.req.header("Authorization");
   return valor?.startsWith("Bearer ") ? valor.slice(7).trim() || null : null;
 }
+
+/**
+ * 429 `DEMASIADOS_INTENTOS` si la IP del cliente (`cf-connecting-ip`, que pone Cloudflare) pasó el
+ * límite del binding. Sin ese header no se limita: en producción siempre viene.
+ */
+export const limitarPorIp = (limitador: (env: Env) => RateLimit): MiddlewareHandler =>
+  createMiddleware(async (c, next) => {
+    const ip = c.req.header("cf-connecting-ip");
+    if (ip && !(await limitador(c.env).limit({ key: ip })).success) {
+      return fallar(c, "DEMASIADOS_INTENTOS", 429);
+    }
+    await next();
+  });

@@ -20,6 +20,15 @@
       "migrations_dir": "migrations"
     }
   ],
+  // Anotarse desde el formulario público: 10 por minuto por IP (ver `limitarPorIp`).
+  // namespace_id es un número propio de la cuenta, cualquiera que no use otro Worker.
+  "ratelimits": [
+    {
+      "name": "LIMITE_INSCRIPCIONES",
+      "namespace_id": "1001",
+      "simple": { "limit": 10, "period": 60 }
+    }
+  ],
   "r2_buckets": [
     {
       "binding": "IMAGENES",
