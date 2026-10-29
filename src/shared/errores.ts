@@ -17,6 +17,9 @@ export const CODIGOS_ERROR = [
   "TRANSICION_INVALIDA", // 422: cambio de estado del mes no permitido
   "CREDENCIALES_INVALIDAS", // lo traduce el frontend desde el error de Better Auth
   "CUENTA_BLOQUEADA", // login de un usuario bloqueado con el plugin admin
+  "CONTRASENA_INCORRECTA", // cambiar la contraseña: la actual no es (Better Auth: INVALID_PASSWORD)
+  "CONTRASENA_CORTA", // menos de PASSWORD_MIN (Better Auth: PASSWORD_TOO_SHORT); también lo valida el cliente
+  "CONTRASENAS_DISTINTAS", // solo en el cliente: la nueva y la repetida no coinciden
   "DEMASIADOS_INTENTOS", // 429: límite de intentos del login (Better Auth) o de inscripciones por IP
   "IMAGEN_INVALIDA", // 400: tipo de imagen no permitido
   "IMAGEN_MUY_GRANDE", // 413

@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { LogOutIcon, PlusIcon } from "lucide-react";
+import { LogOutIcon, PlusIcon, UserRoundIcon } from "lucide-react";
 import { toast } from "sonner";
 import { authClient } from "@/app/auth";
 import { useYo } from "@/app/consultas";
@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 /**
  * Banda azul: nombre de la app, barrio (selector si administra más de uno), "Nuevo barrio" para el
- * super admin, idioma y salir.
+ * super admin, "Mi cuenta", idioma y salir.
  */
 export function EncabezadoAdmin({ slug }: { slug?: string }) {
   const { t } = useIdioma();
@@ -73,6 +73,13 @@ export function EncabezadoAdmin({ slug }: { slug?: string }) {
               {t.panel.nuevoBarrio}
             </Link>
           )}
+          <Link
+            to="/admin/cuenta"
+            className={cn(buttonVariants({ variant: "ghost" }), "text-white hover:bg-white/10 hover:text-white")}
+          >
+            <UserRoundIcon aria-hidden="true" />
+            {t.panel.miCuenta}
+          </Link>
           <SelectorIdioma oscuro />
           <Button variant="ghost" onClick={salir} className="text-white hover:bg-white/10 hover:text-white">
             <LogOutIcon aria-hidden="true" />

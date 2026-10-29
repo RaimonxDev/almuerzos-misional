@@ -1,4 +1,5 @@
 import type { CodigoError } from "@/shared/errores";
+import { PASSWORD_MIN } from "@/shared/cuenta";
 
 /**
  * Diccionario base. `pt.ts` y `en.ts` se tipan con `Mensajes`, así TypeScript
@@ -120,11 +121,25 @@ export const es = {
     intro: "Para la presidenta de la Sociedad de Socorro y quienes administran el barrio.",
     olvido: "¿Olvidaste tu contraseña? Pídele al administrador que te asigne una nueva.",
   },
+  cuenta: {
+    titulo: "Mi cuenta",
+    obligado: "Entraste con una contraseña temporal. Elige una nueva para seguir usando el panel.",
+    intro: "Cambia tu contraseña. Se cerrará la sesión en tus otros dispositivos.",
+    actual: "Contraseña actual",
+    nueva: "Contraseña nueva",
+    ayudaNueva: `Al menos ${PASSWORD_MIN} caracteres.`,
+    repetir: "Repite la contraseña nueva",
+    cambiar: "Cambiar contraseña",
+    cambiando: "Cambiando…",
+    cambiada: "Tu contraseña cambió. Cerramos la sesión en tus otros dispositivos.",
+    volver: "Volver al panel",
+  },
   panel: {
     antetitulo: "Administración",
     nuevoBarrio: "Nuevo barrio",
     barrio: "Barrio",
     salir: "Salir",
+    miCuenta: "Mi cuenta",
     sinBarrios: "Tu cuenta todavía no administra ningún barrio. Pide al administrador que te asigne uno.",
     meses: "Meses del barrio",
     sinMeses: "Todavía no hay meses. Crea el primero para empezar.",
@@ -299,6 +314,9 @@ export const es = {
     TRANSICION_INVALIDA: "No se puede cambiar el mes a ese estado.",
     CREDENCIALES_INVALIDAS: "El correo o la contraseña no son correctos.",
     CUENTA_BLOQUEADA: "Esta cuenta está bloqueada. Habla con quien administra la aplicación.",
+    CONTRASENA_INCORRECTA: "La contraseña actual no es correcta.",
+    CONTRASENA_CORTA: `La contraseña nueva debe tener al menos ${PASSWORD_MIN} caracteres.`,
+    CONTRASENAS_DISTINTAS: "Las contraseñas nuevas no coinciden.",
     DEMASIADOS_INTENTOS: "Demasiados intentos. Espera un minuto y vuelve a intentarlo.",
     IMAGEN_INVALIDA: "Esa imagen no se puede usar. Sube una foto JPG, PNG o WebP.",
     IMAGEN_MUY_GRANDE: "La imagen es muy pesada. El máximo es 5 MB.",

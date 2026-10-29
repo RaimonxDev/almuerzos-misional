@@ -22,6 +22,13 @@
       "when": 1793195520539,
       "tag": "0002_new_clint_barton",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1793240512707,
+      "tag": "0003_fearless_earthquake",
+      "breakpoints": true
     }
   ]
 }

@@ -16,8 +16,8 @@ export const conSesion = createMiddleware<AppEnvAdmin>(async (c, next) => {
     returnHeaders: true,
   });
   if (sesion) {
-    const { id, email, name, role } = sesion.user;
-    c.set("usuario", { id, email, name, role: role ?? null });
+    const { id, email, name, role, debeCambiarPassword } = sesion.user;
+    c.set("usuario", { id, email, name, role: role ?? null, debeCambiarPassword: debeCambiarPassword === true });
     await next();
   } else {
     c.res = fallar(c, "NO_AUTORIZADO", 401);
