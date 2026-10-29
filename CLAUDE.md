@@ -104,7 +104,7 @@ Datos de prueba: `bun run db:seed:local` (mes actual y el siguiente) o `bun run 
 - En `centro`, en el último mes sembrado, tres inscripciones: Hna. Pérez (con consentimiento; token de edición `dev-edicion-demo`), Hna. González (teléfono sin consentimiento) y Familia Muñoz (`origen = 'admin'`).
 - Fechas: `src/shared/fechas.ts` (`hoyEnZona`, `fechasDelMes`, `diaDeSemana`), compartido con el Worker.
 
-Pendiente para producción: crear la base con `bunx wrangler d1 create almuerzo-misional` y el bucket R2, y poner el `database_id` real en `wrangler.jsonc`.
+Producción: la D1 `almuerzo-misional` ya existe (`database_id` en `wrangler.jsonc`) y `BETTER_AUTH_SECRET` está cargado. Tras cada migración nueva: `bun run db:migrate:remote`. Pendiente: el bucket R2.
 
 ## Esquema
 

@@ -14,9 +14,8 @@
     {
       "binding": "DB",
       "database_name": "almuerzo-misional",
-      // Reemplazar con el id que entrega `bunx wrangler d1 create almuerzo-misional`.
-      // En local no hace falta: wrangler usa una base SQLite en .wrangler/.
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      // La base de producción. En local wrangler usa una SQLite en .wrangler/.
+      "database_id": "d3ccde12-e8e4-42d4-bbaa-81b8bf1c0b7e",
       "migrations_dir": "migrations"
     }
   ],
