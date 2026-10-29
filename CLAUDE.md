@@ -104,7 +104,13 @@ Datos de prueba: `bun run db:seed:local` (mes actual y el siguiente) o `bun run 
 - En `centro`, en el último mes sembrado, tres inscripciones: Hna. Pérez (con consentimiento; token de edición `dev-edicion-demo`), Hna. González (teléfono sin consentimiento) y Familia Muñoz (`origen = 'admin'`).
 - Fechas: `src/shared/fechas.ts` (`hoyEnZona`, `fechasDelMes`, `diaDeSemana`), compartido con el Worker.
 
-Producción: la D1 `almuerzo-misional` ya existe (`database_id` en `wrangler.jsonc`) y `BETTER_AUTH_SECRET` está cargado. Tras cada migración nueva: `bun run db:migrate:remote`. Pendiente: el bucket R2.
+## Producción
+
+- En `https://almuerzo.ramonmartinez.dev` (dominio temporal, `routes` con `custom_domain` en `wrangler.jsonc`; sin `*.workers.dev`). Al pasar al dominio definitivo, dejar el viejo con un redirect 301 que conserve la ruta: los links de `/:barrio` y `/:barrio/m/:token` circulan por WhatsApp. Lo que está en `localStorage` ("Mi turno") y la sesión de admin no se mueven de dominio.
+- Recursos: D1 `almuerzo-misional` (`database_id` en `wrangler.jsonc`), R2 `almuerzo-misional-imagenes`, rate limit `LIMITE_INSCRIPCIONES` y el secreto `BETTER_AUTH_SECRET` (`openssl rand -base64 32 | bunx wrangler secret put BETTER_AUTH_SECRET`). `BETTER_AUTH_URL` no se usa: Better Auth la deduce de la request.
+- Deploy: `bun run db:migrate:remote` si hay migraciones nuevas (antes del código que las usa) y luego `bun run deploy` (typecheck + build + `wrangler deploy`). Comprobar con `curl https://almuerzo.ramonmartinez.dev/api/salud`.
+- Primer super admin (o recuperar el acceso): `bun scripts/super-admin.ts --remote <email> "<nombre>"`, que pide la contraseña oculta y escribe directo en D1. Los demás admins se crean desde el panel.
+- El `database_id` real también define la base local (`.wrangler/state`): tras cambiarlo hay que volver a correr `db:migrate:local` y `db:seed:local`.
 
 ## Esquema
 
@@ -176,7 +182,6 @@ CI: `.github/workflows/ci.yml` corre `bun run typecheck` y `bun run test` en cad
 ## Hitos
 
 Se siguen en GitHub: un milestone por hito e issues con criterios de aceptación y tests en [RaimonxDev/almuerzos-misional](https://github.com/RaimonxDev/almuerzos-misional/milestones). Etiquetas: `api`, `frontend`, `diseño`, `infra`, `tests`. Los commits que completan un issue llevan `Closes #N`. Resumen:
-
 
 1. **Base** ✅ — scaffold, seed y API pública con tests.
 2. **Flujo público** ✅ — vista pública y formulario según las maquetas 1 y 2, con selector de idioma, "Tu turno", éxito con `.ics` y 409 amable.
