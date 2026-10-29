@@ -1,7 +1,14 @@
 import { useState, type FormEvent, type ReactNode } from "react";
+import { PlusIcon } from "lucide-react";
 import { toast } from "sonner";
 import { codigoDe } from "@/app/api";
-import { useEditarBarrio, useEditarCompanerismo, useRegenerarToken } from "@/app/consultas-admin";
+import {
+  type TipoCompanerismo,
+  useCrearCompanerismo,
+  useEditarBarrio,
+  useEditarCompanerismo,
+  useRegenerarToken,
+} from "@/app/consultas-admin";
 import { useIdioma } from "@/app/i18n";
 import { cn } from "@/app/lib/utils";
 import { AlertaError } from "@/app/components/Estado";
@@ -14,7 +21,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/app/components/ui/dialog";
+import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/app/components/ui/radio-group";
 import { DisenoCalendario } from "./DisenoCalendario";
 import { Textarea } from "@/app/components/ui/textarea";
 
@@ -214,6 +223,8 @@ function Misioneros({
         ))}
       </ul>
 
+      <AgregarCompanerismo slug={slug} />
+
       <form onSubmit={guardarNota} className="flex flex-col gap-1.5">
         <Label htmlFor="nota-para-cocinar">{t.panel.notaParaCocinar}</Label>
         <Textarea
@@ -236,5 +247,95 @@ function Misioneros({
         </Button>
       </form>
     </Seccion>
+  );
+}
+
+/**
+ * Agrega un compañerismo (no todos los barrios tienen élderes y hermanas). La API le genera los
+ * turnos en los meses borrador y abiertos vigentes. Sin nombre, se usa el del tipo.
+ */
+function AgregarCompanerismo({ slug }: { slug: string }) {
+  const { t } = useIdioma();
+  const crear = useCrearCompanerismo(slug);
+  const [abierto, setAbierto] = useState(false);
+  const [tipo, setTipo] = useState<TipoCompanerismo>("elderes");
+  const [nombre, setNombre] = useState("");
+  const etiquetaTipo = tipo === "elderes" ? t.panel.tipoElderes : t.panel.tipoHermanas;
+
+  const cerrar = () => {
+    setAbierto(false);
+    setTipo("elderes");
+    setNombre("");
+    crear.reset();
+  };
+
+  const enviar = (e: FormEvent) => {
+    e.preventDefault();
+    crear.mutate(
+      { tipo, nombre: nombre.trim() || etiquetaTipo },
+      {
+        onSuccess: ({ companerismo }) => {
+          toast.success(t.panel.companerismoAgregado(companerismo?.nombre ?? etiquetaTipo));
+          cerrar();
+        },
+      },
+    );
+  };
+
+  if (!abierto) {
+    return (
+      <Button variant="outline" onClick={() => setAbierto(true)} className="self-start rounded-[10px] font-bold">
+        <PlusIcon aria-hidden="true" />
+        {t.panel.agregarCompanerismo}
+      </Button>
+    );
+  }
+
+  return (
+    <form
+      onSubmit={enviar}
+      aria-label={t.panel.agregarCompanerismo}
+      className="flex flex-col gap-3 rounded-[10px] border bg-cielo-claro p-3"
+    >
+      <RadioGroup
+        aria-label={t.panel.tipoCompanerismo}
+        value={tipo}
+        onValueChange={(v) => setTipo(v as TipoCompanerismo)}
+        className="grid-cols-2 gap-2"
+      >
+        {(["elderes", "hermanas"] as const).map((v) => (
+          <label
+            key={v}
+            className={cn(
+              "flex min-h-11 cursor-pointer items-center gap-2 rounded-[10px] border bg-card px-3 font-bold text-azul-profundo",
+              tipo === v && "border-2 border-azul-medio",
+            )}
+          >
+            <RadioGroupItem value={v} />
+            {v === "elderes" ? t.panel.tipoElderes : t.panel.tipoHermanas}
+          </label>
+        ))}
+      </RadioGroup>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="nombre-companerismo">{t.panel.nombreCompanerismo}</Label>
+        <Input
+          id="nombre-companerismo"
+          value={nombre}
+          onChange={(e) => setNombre(e.target.value)}
+          placeholder={t.panel.nombreCompanerismoAyuda}
+          maxLength={60}
+          className="rounded-[10px] bg-card"
+        />
+      </div>
+      {crear.isError && <AlertaError>{t.errores[codigoDe(crear.error)]}</AlertaError>}
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="ghost" onClick={cerrar} className="rounded-[10px] font-bold">
+          {t.panel.cancelar}
+        </Button>
+        <Button type="submit" disabled={crear.isPending} className="rounded-[10px] font-bold">
+          {t.panel.agregar}
+        </Button>
+      </div>
+    </form>
   );
 }

@@ -1,4 +1,5 @@
 import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { Idioma } from "@/shared/idiomas";
 import type { EdicionInscripcion, NuevaInscripcionPublica } from "@/shared/inscripciones";
 import { api, datos, sinCuerpo } from "./api";
 
@@ -140,6 +141,32 @@ export const useEditarCompanerismo = (slug: string) =>
   useMutacionBarrio(slug, ({ id, activo }: { id: string; activo: boolean }) =>
     datos(barrios[":slug"].companerismos[":id"].$patch({ param: { slug, id }, json: { activo } })),
     // Reactivar genera turnos: cambian también los meses.
+    ["barrio", "meses", "mes"],
+  );
+
+export type NuevoBarrio = {
+  nombre: string;
+  slug: string;
+  idioma: Idioma;
+  zonaHoraria: string;
+  companerismos: { tipo: TipoCompanerismo; nombre: string }[];
+};
+
+/** Solo super admin. Al crear, `yo` cambia (el super admin ve todos los barrios). */
+export function useCrearBarrio() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (json: NuevoBarrio) => datos(barrios.$post({ json })),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "yo"] }),
+  });
+}
+
+export type TipoCompanerismo = "elderes" | "hermanas";
+
+export const useCrearCompanerismo = (slug: string) =>
+  useMutacionBarrio(slug, (json: { tipo: TipoCompanerismo; nombre: string }) =>
+    datos(barrios[":slug"].companerismos.$post({ param: { slug }, json })),
+    // Crear genera sus turnos en los meses vigentes.
     ["barrio", "meses", "mes"],
   );
 

@@ -379,6 +379,24 @@ describe("Panel: enlaces, misioneros y gestión del mes", () => {
     await waitFor(() => expect(llamadas(api, "PATCH", "/companerismos/c-h")).toEqual([{ activo: false }]));
   });
 
+  it("agrega un compañerismo con su tipo; sin nombre usa el del tipo", async () => {
+    const user = userEvent.setup();
+    const nuevo = { id: "c-n", tipo: "hermanas", nombre: "Hermanas", activo: true, orden: 2 };
+    api = simular({ [`${RUTA_BARRIO}/companerismos`]: { status: 201, json: { companerismo: nuevo } } });
+    await abrirPanel();
+
+    await user.click(screen.getByRole("button", { name: "Agregar compañerismo" }));
+    await user.click(screen.getByRole("radio", { name: "Hermanas" }));
+    await user.click(screen.getByRole("button", { name: "Agregar" }));
+    await waitFor(() => expect(llamadas(api, "POST", "/companerismos")).toEqual([{ tipo: "hermanas", nombre: "Hermanas" }]));
+
+    await user.click(screen.getByRole("button", { name: "Agregar compañerismo" }));
+    await user.type(screen.getByLabelText("Nombre"), "Élderes Inglés");
+    await user.click(screen.getByRole("button", { name: "Agregar" }));
+    await waitFor(() => expect(llamadas(api, "POST", "/companerismos")).toHaveLength(2));
+    expect(llamadas(api, "POST", "/companerismos")[1]).toEqual({ tipo: "elderes", nombre: "Élderes Inglés" });
+  });
+
   it("sin selector de barrio si administra uno solo", async () => {
     await abrirPanel();
     expect(screen.queryByRole("combobox", { name: "Barrio" })).not.toBeInTheDocument();

@@ -2,7 +2,8 @@ import { and, asc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { adminsBarrio, barrios, companerismos } from "@/db/schema";
-import { user } from "@/db/auth-schema";
+import { account, user } from "@/db/auth-schema";
+import { hashPassword } from "@/shared/password";
 import { IDIOMAS } from "@/shared/idiomas";
 import type { AppEnvAdmin } from "../../contexto";
 import { esViolacionUnica, fallar, validar, zonaValida } from "../../http";
@@ -15,7 +16,8 @@ const esquemaNuevoBarrio = z.object({
     .min(2)
     .max(60)
     .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/)
-    .refine((s) => s !== "admin" && s !== "api"),
+    // Reservados: chocan con rutas de la app.
+    .refine((s) => !["admin", "api", "nuevo-barrio"].includes(s)),
   nombre: z.string().trim().min(2).max(80),
   idioma: z.enum(IDIOMAS).optional(),
   zonaHoraria: z.string().refine(zonaValida).optional(),
@@ -23,7 +25,25 @@ const esquemaNuevoBarrio = z.object({
     .array(z.object({ tipo: z.enum(["elderes", "hermanas"]), nombre: z.string().trim().min(1).max(60) }))
     .min(1)
     .max(10),
+  /** Opcional: si el correo no tiene cuenta, se crea con contraseña temporal. */
+  presidenta: z
+    .object({
+      email: z.string().trim().toLowerCase().pipe(z.email()),
+      nombre: z.string().trim().min(2).max(80),
+      cargo: z.string().trim().max(80).nullish().transform((v) => v || null),
+    })
+    .optional(),
 });
+
+/** Sin caracteres que se confunden al dictarla o copiarla a mano (0/O, 1/l/I). */
+const ALFABETO = "abcdefghijkmnpqrstuvwxyz23456789";
+
+/** 3 grupos de 4, ej. `k7mp-x3qa-9tdw`: ~60 bits, fácil de mandar por WhatsApp. */
+function passwordTemporal() {
+  const bytes = crypto.getRandomValues(new Uint8Array(12));
+  const letras = [...bytes].map((b) => ALFABETO[b % ALFABETO.length]).join("");
+  return letras.match(/.{4}/g)!.join("-");
+}
 
 const esquemaNuevoAdmin = z.object({
   email: z.string().trim().toLowerCase().pipe(z.email()),
@@ -63,6 +83,27 @@ export const rutasCuenta = new Hono<AppEnvAdmin>()
 
     const barrioId = crypto.randomUUID();
     const filasCompanerismos = datos.companerismos.map((cp, orden) => ({ barrioId, tipo: cp.tipo, nombre: cp.nombre, orden }));
+
+    // La presidenta: si ya tiene cuenta solo se asigna; si no, se crea con una contraseña temporal.
+    const p = datos.presidenta;
+    const conCuenta = p && (await db.select({ id: user.id, name: user.name }).from(user).where(eq(user.email, p.email)).get());
+    const nueva = p && !conCuenta ? { id: crypto.randomUUID(), password: passwordTemporal() } : null;
+    const userId = conCuenta?.id ?? nueva?.id;
+    const cuenta = nueva
+      ? [
+          db.insert(user).values({ id: nueva.id, name: p!.nombre, email: p!.email, emailVerified: true, role: "user" }),
+          // Igual que la crea Better Auth: proveedor "credential" con el id del usuario.
+          db.insert(account).values({
+            id: crypto.randomUUID(),
+            accountId: nueva.id,
+            providerId: "credential",
+            userId: nueva.id,
+            password: await hashPassword(nueva.password),
+            updatedAt: new Date(),
+          }),
+        ]
+      : [];
+
     try {
       await db.batch([
         db.insert(barrios).values({
@@ -73,9 +114,11 @@ export const rutasCuenta = new Hono<AppEnvAdmin>()
           ...(datos.zonaHoraria && { zonaHoraria: datos.zonaHoraria }),
         }),
         db.insert(companerismos).values(filasCompanerismos),
+        ...cuenta,
+        ...(userId ? [db.insert(adminsBarrio).values({ userId, barrioId, cargo: p!.cargo })] : []),
       ]);
     } catch (err) {
-      // Carrera entre dos super admins con el mismo slug.
+      // Carrera entre dos super admins con el mismo slug (o, muy raro, el mismo correo nuevo).
       if (esViolacionUnica(err)) return fallar(c, "SLUG_EXISTENTE", 409);
       throw err;
     }
@@ -96,6 +139,14 @@ export const rutasCuenta = new Hono<AppEnvAdmin>()
           tokenMisioneros: barrio!.tokenMisioneros,
         },
         companerismos: creados,
+        // La contraseña temporal se entrega solo esta vez; en la base queda su hash.
+        presidenta: p && {
+          email: p.email,
+          nombre: conCuenta?.name ?? p.nombre,
+          cargo: p.cargo,
+          cuentaNueva: nueva !== null,
+          passwordTemporal: nueva?.password ?? null,
+        },
       },
       201,
     );

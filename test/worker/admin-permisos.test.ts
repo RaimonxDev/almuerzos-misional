@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { crearDb } from "@/db";
 import { adminsBarrio, barrios, companerismos } from "@/db/schema";
+import { user } from "@/db/auth-schema";
 import { crearAdmin, iniciarSesion, pedir, sembrar } from "./datos";
 
 beforeEach(async () => {
@@ -106,6 +107,55 @@ describe("POST /api/admin/barrios", () => {
     expect(filas).toHaveLength(2);
   });
 
+  it("con presidenta nueva: crea su cuenta con contraseña temporal y la asigna", async () => {
+    const cookie = await como("root@ejemplo.cl", { superAdmin: true });
+    const presidenta = { email: "Nueva@Ejemplo.cl", nombre: "Hna. Rojas", cargo: "Presidenta de la Sociedad de Socorro" };
+    const res = await pedir("/api/admin/barrios", { method: "POST", cookie, json: { ...BARRIO_NUEVO, presidenta } });
+    expect(res.status).toBe(201);
+    const body = await res.json<any>();
+    expect(body.presidenta).toMatchObject({ email: "nueva@ejemplo.cl", cargo: presidenta.cargo, cuentaNueva: true });
+    expect(body.presidenta.passwordTemporal).toMatch(/^.{12,}$/);
+
+    const db = crearDb(env.DB);
+    const cuenta = await db.select().from(user).where(eq(user.email, "nueva@ejemplo.cl")).get();
+    expect(cuenta).toMatchObject({ name: "Hna. Rojas", role: "user" });
+
+    // Entra con la contraseña temporal y ve solo su barrio.
+    const suya = await iniciarSesion("nueva@ejemplo.cl", body.presidenta.passwordTemporal);
+    const yo = await (await pedir("/api/admin/yo", { cookie: suya })).json<any>();
+    expect(yo.usuario.superAdmin).toBe(false);
+    expect(yo.barrios).toEqual([{ slug: "oriente", nombre: "Barrio Oriente", cargo: presidenta.cargo }]);
+  });
+
+  it("con presidenta que ya tiene cuenta: solo la asigna, sin tocar su contraseña", async () => {
+    await crearAdmin({ email: "a@ejemplo.cl", barrios: ["b1"] });
+    const cookie = await como("root@ejemplo.cl", { superAdmin: true });
+    const res = await pedir("/api/admin/barrios", {
+      method: "POST",
+      cookie,
+      json: { ...BARRIO_NUEVO, presidenta: { email: "A@ejemplo.cl", nombre: "Otro nombre" } },
+    });
+    expect(res.status).toBe(201);
+    expect((await res.json<any>()).presidenta).toEqual({ email: "a@ejemplo.cl", nombre: "a", cargo: null, cuentaNueva: false, passwordTemporal: null });
+
+    const db = crearDb(env.DB);
+    expect(await db.select().from(user).where(eq(user.email, "a@ejemplo.cl"))).toHaveLength(1);
+    const yo = await (await pedir("/api/admin/yo", { cookie: await iniciarSesion("a@ejemplo.cl") })).json<any>();
+    expect(yo.barrios.map((b: any) => b.slug)).toContain("oriente");
+  });
+
+  it("presidenta con email inválido → 400 sin crear el barrio", async () => {
+    const cookie = await como("root@ejemplo.cl", { superAdmin: true });
+    const res = await pedir("/api/admin/barrios", {
+      method: "POST",
+      cookie,
+      json: { ...BARRIO_NUEVO, presidenta: { email: "no-es-email", nombre: "Hna. Rojas" } },
+    });
+    expect(res.status).toBe(400);
+    expect((await res.json<any>()).campos).toEqual(["presidenta"]);
+    expect(await crearDb(env.DB).select().from(barrios).where(eq(barrios.slug, "oriente"))).toHaveLength(0);
+  });
+
   it("idioma y zona por defecto cuando no se mandan", async () => {
     const cookie = await como("root@ejemplo.cl", { superAdmin: true });
     const body = await (await pedir("/api/admin/barrios", { method: "POST", cookie, json: BARRIO_NUEVO })).json<any>();
@@ -120,7 +170,7 @@ describe("POST /api/admin/barrios", () => {
     expect(await crearDb(env.DB).select().from(barrios)).toHaveLength(2);
   });
 
-  it.each([["Mayúsculas"], ["con espacio"], ["admin"], ["api"], ["-guion"], ["x"]])("slug inválido %s → 400", async (slug) => {
+  it.each([["Mayúsculas"], ["con espacio"], ["admin"], ["api"], ["nuevo-barrio"], ["-guion"], ["x"]])("slug inválido %s → 400", async (slug) => {
     const cookie = await como("root@ejemplo.cl", { superAdmin: true });
     const res = await pedir("/api/admin/barrios", { method: "POST", cookie, json: { ...BARRIO_NUEVO, slug } });
     expect(res.status).toBe(400);
