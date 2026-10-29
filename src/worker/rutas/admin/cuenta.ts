@@ -1,14 +1,17 @@
 import { and, asc, eq } from "drizzle-orm";
+import type { Db } from "@/db";
 import { Hono } from "hono";
 import { z } from "zod";
 import { adminsBarrio, barrios, companerismos } from "@/db/schema";
-import { account, user } from "@/db/auth-schema";
+import { account, session, user } from "@/db/auth-schema";
 import { hashPassword } from "@/shared/password";
 import { IDIOMAS } from "@/shared/idiomas";
 import type { AppEnvAdmin } from "../../contexto";
 import { esViolacionUnica, fallar, validar, zonaValida } from "../../http";
 import { paramsBarrio } from "../../params";
 import { esSuperAdmin } from "../../permisos";
+import { borrarEnlacesRestablecer } from "../../auth";
+import { avisarAdmin } from "../../invitaciones";
 
 const esquemaNuevoBarrio = z.object({
   slug: z
@@ -25,7 +28,10 @@ const esquemaNuevoBarrio = z.object({
     .array(z.object({ tipo: z.enum(["elderes", "hermanas"]), nombre: z.string().trim().min(1).max(60) }))
     .min(1)
     .max(10),
-  /** Opcional: si el correo no tiene cuenta, se crea con contraseña temporal. */
+  /**
+   * Opcional: si el correo no tiene cuenta, se crea con contraseña temporal y le llega la bienvenida
+   * con un enlace para crear la suya; si ya tiene, le llega el aviso de asignación.
+   */
   presidenta: z
     .object({
       email: z.string().trim().toLowerCase().pipe(z.email()),
@@ -45,10 +51,40 @@ function passwordTemporal() {
   return letras.match(/.{4}/g)!.join("-");
 }
 
+const paramsInvitacion = paramsBarrio.extend({ userId: z.string().min(1).max(100) });
+
+/** Origen por el que entró la request: los enlaces de los correos sirven en local y en cada dominio. */
+const origenDe = (url: string) => new URL(url).origin;
+
 const esquemaNuevoAdmin = z.object({
   email: z.string().trim().toLowerCase().pipe(z.email()),
   cargo: z.string().trim().max(80).nullish().transform((v) => v || null),
 });
+
+const barrioPorSlug = (db: Db, slug: string) =>
+  db
+    .select({ id: barrios.id, slug: barrios.slug, nombre: barrios.nombre, idioma: barrios.idioma })
+    .from(barrios)
+    .where(eq(barrios.slug, slug))
+    .get();
+
+const columnasInvitado = {
+  id: user.id,
+  email: user.email,
+  name: user.name,
+  debeCambiarPassword: user.debeCambiarPassword,
+};
+
+/** Una persona que administra ese barrio (si no, `undefined`: un id de otro barrio da 404). */
+const adminDelBarrio = (db: Db, barrioId: string, userId: string) =>
+  db
+    .select(columnasInvitado)
+    .from(adminsBarrio)
+    .innerJoin(user, eq(user.id, adminsBarrio.userId))
+    .where(and(eq(adminsBarrio.barrioId, barrioId), eq(adminsBarrio.userId, userId)))
+    .get();
+
+const esquemaCorregirCorreo = z.object({ email: z.string().trim().toLowerCase().pipe(z.email()) });
 
 /** Cuenta del admin y gestión de barrios/admins (solo super admin). */
 export const rutasCuenta = new Hono<AppEnvAdmin>()
@@ -68,7 +104,13 @@ export const rutasCuenta = new Hono<AppEnvAdmin>()
           .where(eq(adminsBarrio.userId, usuario.id))
           .orderBy(asc(barrios.nombre));
     return c.json({
-      usuario: { id: usuario.id, email: usuario.email, nombre: usuario.name, superAdmin },
+      usuario: {
+        id: usuario.id,
+        email: usuario.email,
+        nombre: usuario.name,
+        superAdmin,
+        debeCambiarPassword: usuario.debeCambiarPassword,
+      },
       barrios: lista,
     });
   })
@@ -86,12 +128,26 @@ export const rutasCuenta = new Hono<AppEnvAdmin>()
 
     // La presidenta: si ya tiene cuenta solo se asigna; si no, se crea con una contraseña temporal.
     const p = datos.presidenta;
-    const conCuenta = p && (await db.select({ id: user.id, name: user.name }).from(user).where(eq(user.email, p.email)).get());
+    const conCuenta =
+      p &&
+      (await db
+        .select({ id: user.id, name: user.name, debeCambiarPassword: user.debeCambiarPassword })
+        .from(user)
+        .where(eq(user.email, p.email))
+        .get());
     const nueva = p && !conCuenta ? { id: crypto.randomUUID(), password: passwordTemporal() } : null;
     const userId = conCuenta?.id ?? nueva?.id;
     const cuenta = nueva
       ? [
-          db.insert(user).values({ id: nueva.id, name: p!.nombre, email: p!.email, emailVerified: true, role: "user" }),
+          // Con la contraseña temporal entra una vez: el panel la lleva a elegir la suya (`/admin/cuenta`).
+          db.insert(user).values({
+            id: nueva.id,
+            name: p!.nombre,
+            email: p!.email,
+            emailVerified: true,
+            role: "user",
+            debeCambiarPassword: true,
+          }),
           // Igual que la crea Better Auth: proveedor "credential" con el id del usuario.
           db.insert(account).values({
             id: crypto.randomUUID(),
@@ -124,6 +180,18 @@ export const rutasCuenta = new Hono<AppEnvAdmin>()
     }
 
     const barrio = await db.query.barrios.findFirst({ where: eq(barrios.id, barrioId) });
+
+    // Después del batch: si el correo falla, el barrio ya está creado. Se espera el resultado
+    // (no va en segundo plano) para decirle al super admin si salió.
+    const correoEnviado =
+      p && userId
+        ? await avisarAdmin(
+            c.env,
+            origenDe(c.req.url),
+            { id: userId, email: p.email, name: conCuenta?.name ?? p.nombre, debeCambiarPassword: conCuenta ? conCuenta.debeCambiarPassword : true },
+            barrio!,
+          )
+        : false;
     const creados = await db
       .select({ id: companerismos.id, tipo: companerismos.tipo, nombre: companerismos.nombre, activo: companerismos.activo, orden: companerismos.orden })
       .from(companerismos)
@@ -139,13 +207,15 @@ export const rutasCuenta = new Hono<AppEnvAdmin>()
           tokenMisioneros: barrio!.tokenMisioneros,
         },
         companerismos: creados,
-        // La contraseña temporal se entrega solo esta vez; en la base queda su hash.
+        // La contraseña temporal se entrega solo esta vez (en la base queda su hash) y solo si el
+        // correo no salió: es el respaldo de "Copiar datos". Si salió, entra con el enlace.
         presidenta: p && {
           email: p.email,
           nombre: conCuenta?.name ?? p.nombre,
           cargo: p.cargo,
           cuentaNueva: nueva !== null,
-          passwordTemporal: nueva?.password ?? null,
+          correoEnviado,
+          passwordTemporal: nueva && !correoEnviado ? nueva.password : null,
         },
       },
       201,
@@ -158,16 +228,114 @@ export const rutasCuenta = new Hono<AppEnvAdmin>()
     const { slug } = c.req.valid("param");
     const { email, cargo } = c.req.valid("json");
 
-    const barrio = await db.select({ id: barrios.id }).from(barrios).where(eq(barrios.slug, slug)).get();
-    const persona = await db.select({ id: user.id, email: user.email }).from(user).where(eq(user.email, email)).get();
+    const barrio = await barrioPorSlug(db, slug);
+    const persona = await db.select(columnasInvitado).from(user).where(eq(user.email, email)).get();
     if (!barrio || !persona) return fallar(c, "NO_ENCONTRADO", 404);
 
-    // Idempotente: si ya estaba asignado no se toca (ni el cargo).
-    await db.insert(adminsBarrio).values({ userId: persona.id, barrioId: barrio.id, cargo }).onConflictDoNothing();
+    // Idempotente: si ya estaba asignado no se toca (ni el cargo) ni se le vuelve a avisar.
+    const insertadas = await db
+      .insert(adminsBarrio)
+      .values({ userId: persona.id, barrioId: barrio.id, cargo })
+      .onConflictDoNothing()
+      .returning({ userId: adminsBarrio.userId });
     const fila = await db
       .select({ cargo: adminsBarrio.cargo })
       .from(adminsBarrio)
       .where(and(eq(adminsBarrio.userId, persona.id), eq(adminsBarrio.barrioId, barrio.id)))
       .get();
-    return c.json({ admin: { email: persona.email, cargo: fila?.cargo ?? null } });
+    const correoEnviado = insertadas.length > 0 && (await avisarAdmin(c.env, origenDe(c.req.url), persona, barrio));
+    return c.json({ admin: { email: persona.email, cargo: fila?.cargo ?? null }, correoEnviado });
+  })
+
+  /** Admins del barrio, para reenviarles la invitación (solo super admin). */
+  .get("/barrios/:slug/admins", validar("param", paramsBarrio), async (c) => {
+    if (!esSuperAdmin(c.var.usuario)) return fallar(c, "SIN_PERMISO", 403);
+    const { db } = c.var;
+    const barrio = await barrioPorSlug(db, c.req.valid("param").slug);
+    if (!barrio) return fallar(c, "NO_ENCONTRADO", 404);
+    const admins = await db
+      .select({
+        id: user.id,
+        email: user.email,
+        nombre: user.name,
+        cargo: adminsBarrio.cargo,
+        debeCambiarPassword: user.debeCambiarPassword,
+      })
+      .from(adminsBarrio)
+      .innerJoin(user, eq(user.id, adminsBarrio.userId))
+      .where(eq(adminsBarrio.barrioId, barrio.id))
+      .orderBy(asc(user.name));
+    return c.json({ admins: admins.map((a) => ({ ...a, debeCambiarPassword: a.debeCambiarPassword ?? false })) });
+  })
+
+  /**
+   * "No le llegó": reenvía la bienvenida con un enlace nuevo de 7 días si aún no eligió su
+   * contraseña, o el aviso de asignación si ya la tiene. Los enlaces anteriores siguen hasta vencer
+   * o hasta que elija su contraseña.
+   */
+  .post("/barrios/:slug/admins/:userId/invitacion", validar("param", paramsInvitacion), async (c) => {
+    if (!esSuperAdmin(c.var.usuario)) return fallar(c, "SIN_PERMISO", 403);
+    const { db } = c.var;
+    const { slug, userId } = c.req.valid("param");
+    const barrio = await barrioPorSlug(db, slug);
+    const persona = barrio && (await adminDelBarrio(db, barrio.id, userId));
+    if (!barrio || !persona) return fallar(c, "NO_ENCONTRADO", 404);
+    return c.json({ correoEnviado: await avisarAdmin(c.env, origenDe(c.req.url), persona, barrio) });
+  })
+
+  /**
+   * Corregir el correo de quien todavía no entra (se escribió mal al crearla): invalida los enlaces
+   * mandados a la dirección equivocada y le manda la bienvenida a la nueva. Si ya eligió su
+   * contraseña, la cuenta es suya y no se toca (422 `CUENTA_EN_USO`).
+   */
+  .patch(
+    "/barrios/:slug/admins/:userId",
+    validar("param", paramsInvitacion),
+    validar("json", esquemaCorregirCorreo),
+    async (c) => {
+      if (!esSuperAdmin(c.var.usuario)) return fallar(c, "SIN_PERMISO", 403);
+      const { db } = c.var;
+      const { slug, userId } = c.req.valid("param");
+      const { email } = c.req.valid("json");
+      const barrio = await barrioPorSlug(db, slug);
+      const persona = barrio && (await adminDelBarrio(db, barrio.id, userId));
+      if (!barrio || !persona) return fallar(c, "NO_ENCONTRADO", 404);
+      if (!persona.debeCambiarPassword) return fallar(c, "CUENTA_EN_USO", 422);
+
+      try {
+        await db.batch([
+          db.update(user).set({ email, updatedAt: new Date() }).where(eq(user.id, userId)),
+          borrarEnlacesRestablecer(db, userId),
+        ]);
+      } catch (err) {
+        if (esViolacionUnica(err)) return fallar(c, "CORREO_EXISTENTE", 409);
+        throw err;
+      }
+      const correoEnviado = await avisarAdmin(c.env, origenDe(c.req.url), { ...persona, email }, barrio);
+      return c.json({ admin: { id: userId, email }, correoEnviado });
+    },
+  )
+
+  /**
+   * Otra contraseña temporal para quien todavía no entra (el correo no le llega): reemplaza la
+   * anterior, cierra sus sesiones y se devuelve una sola vez para mandarla por WhatsApp.
+   */
+  .post("/barrios/:slug/admins/:userId/password-temporal", validar("param", paramsInvitacion), async (c) => {
+    if (!esSuperAdmin(c.var.usuario)) return fallar(c, "SIN_PERMISO", 403);
+    const { db } = c.var;
+    const { slug, userId } = c.req.valid("param");
+    const barrio = await barrioPorSlug(db, slug);
+    const persona = barrio && (await adminDelBarrio(db, barrio.id, userId));
+    if (!barrio || !persona) return fallar(c, "NO_ENCONTRADO", 404);
+    if (!persona.debeCambiarPassword) return fallar(c, "CUENTA_EN_USO", 422);
+
+    const password = passwordTemporal();
+    await db.batch([
+      db
+        .update(account)
+        .set({ password: await hashPassword(password), updatedAt: new Date() })
+        .where(and(eq(account.userId, userId), eq(account.providerId, "credential"))),
+      db.delete(session).where(eq(session.userId, userId)),
+    ]);
+    return c.json({ email: persona.email, passwordTemporal: password });
   });

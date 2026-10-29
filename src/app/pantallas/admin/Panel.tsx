@@ -61,6 +61,7 @@ function PanelBarrio({ slug }: { slug: string }) {
   const barrio = useBarrioAdmin(slug);
   const meses = useMesesAdmin(slug);
   const crear = useCrearMes(slug);
+  const { superAdmin } = useYo().data!.usuario;
   const datosBarrio = barrio.data?.barrio;
   const hoy = datosBarrio ? hoyEnZona(datosBarrio.zonaHoraria) : "";
   const lista = meses.data?.meses ?? [];
@@ -146,6 +147,7 @@ function PanelBarrio({ slug }: { slug: string }) {
           barrio={barrio.data.barrio}
           companerismos={barrio.data.companerismos}
           periodo={periodo ? textoPeriodo(periodo) : null}
+          superAdmin={superAdmin}
         />
       </div>
     </>

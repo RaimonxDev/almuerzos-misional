@@ -7,12 +7,14 @@
  *
  * La contraseña se pide oculta en la terminal (o se lee de stdin si no es una terminal), así no
  * queda en el historial. Si el correo ya existe sirve para recuperar el acceso: le da el rol `admin`,
- * actualiza el nombre, lo desbloquea, le cambia la contraseña y cierra sus sesiones abiertas.
+ * actualiza el nombre, lo desbloquea, le cambia la contraseña (la elige quien corre el script, así que no
+ * se le pide cambiarla al entrar), cierra sus sesiones abiertas y anula sus enlaces de restablecer.
  */
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { PASSWORD_MIN } from "../src/shared/cuenta.ts";
 import { hashPassword } from "../src/shared/password.ts";
 
 const [destino, email, nombre] = process.argv.slice(2);
@@ -53,9 +55,9 @@ async function leerOculto(pregunta: string): Promise<string> {
   });
 }
 
-const password = await leerOculto("Contraseña (mín. 8): ");
-if (password.length < 8) {
-  console.error("La contraseña debe tener al menos 8 caracteres.");
+const password = await leerOculto(`Contraseña (mín. ${PASSWORD_MIN}): `);
+if (password.length < PASSWORD_MIN) {
+  console.error(`La contraseña debe tener al menos ${PASSWORD_MIN} caracteres.`);
   process.exit(1);
 }
 if (process.stdin.isTTY && (await leerOculto("Repítela: ")) !== password) {
@@ -71,10 +73,12 @@ const ahora = Date.now(); // timestamp_ms, como Better Auth
 // Si el correo ya existe, el INSERT actualiza esa fila y lo demás usa el id que ya tenía.
 const usuario = `(SELECT id FROM user WHERE email = ${v(correo)})`;
 const sql = `
-INSERT INTO user (id, name, email, email_verified, role) VALUES (${v(id)}, ${v(nombre)}, ${v(correo)}, 1, 'admin')
+INSERT INTO user (id, name, email, email_verified, role, debe_cambiar_password)
+  VALUES (${v(id)}, ${v(nombre)}, ${v(correo)}, 1, 'admin', 0)
   ON CONFLICT (email) DO UPDATE SET name = excluded.name, role = 'admin', banned = 0, ban_reason = NULL,
-    ban_expires = NULL, updated_at = ${ahora};
+    ban_expires = NULL, debe_cambiar_password = 0, updated_at = ${ahora};
 DELETE FROM session WHERE user_id = ${usuario};
+DELETE FROM verification WHERE value = ${usuario} AND identifier LIKE 'reset-password:%';
 DELETE FROM account WHERE provider_id = 'credential' AND user_id = ${usuario};
 INSERT INTO account (id, account_id, provider_id, user_id, password, updated_at)
   SELECT id || '-credencial', id, 'credential', id, ${v(await hashPassword(password))}, ${ahora} FROM user WHERE email = ${v(correo)};

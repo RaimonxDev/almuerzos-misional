@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Navigate, useNavigate } from "react-router";
+import { Link, Navigate, useNavigate } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { authClient } from "@/app/auth";
 import { useYo } from "@/app/consultas";
@@ -8,7 +8,8 @@ import { useTitulo } from "@/app/hooks";
 import type { CodigoError } from "@/shared/errores";
 import { Encabezado } from "@/app/components/Encabezado";
 import { AlertaError } from "@/app/components/Estado";
-import { Button } from "@/app/components/ui/button";
+import { Button, buttonVariants } from "@/app/components/ui/button";
+import { cn } from "@/app/lib/utils";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 
@@ -75,7 +76,9 @@ export function Login() {
           <Button type="submit" variant="accion" size="lg" disabled={enviando}>
             {enviando ? t.login.entrando : t.login.entrar}
           </Button>
-          <p className="text-[13px] leading-normal text-muted-foreground">{t.login.olvido}</p>
+          <Link to="/admin/olvide" className={cn(buttonVariants({ variant: "link" }), "self-center text-azul-medio")}>
+            {t.login.olvido}
+          </Link>
         </form>
       </main>
     </>

@@ -1,0 +1,1 @@
+ALTER TABLE `user` ADD `debe_cambiar_password` integer DEFAULT false;

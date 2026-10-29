@@ -136,7 +136,7 @@ describe("POST /api/admin/barrios", () => {
       json: { ...BARRIO_NUEVO, presidenta: { email: "A@ejemplo.cl", nombre: "Otro nombre" } },
     });
     expect(res.status).toBe(201);
-    expect((await res.json<any>()).presidenta).toEqual({ email: "a@ejemplo.cl", nombre: "a", cargo: null, cuentaNueva: false, passwordTemporal: null });
+    expect((await res.json<any>()).presidenta).toEqual({ email: "a@ejemplo.cl", nombre: "a", cargo: null, cuentaNueva: false, correoEnviado: false, passwordTemporal: null });
 
     const db = crearDb(env.DB);
     expect(await db.select().from(user).where(eq(user.email, "a@ejemplo.cl"))).toHaveLength(1);

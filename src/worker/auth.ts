@@ -1,31 +1,153 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { createAuthMiddleware, isAPIError } from "better-auth/api";
 import { admin } from "better-auth/plugins";
-import { crearDb } from "@/db";
+import { waitUntil } from "cloudflare:workers";
+import { and, asc, count, eq, gt, like, ne } from "drizzle-orm";
+import { crearDb, type Db } from "@/db";
 import * as authSchema from "@/db/auth-schema";
+import { adminsBarrio, barrios } from "@/db/schema";
+import { PASSWORD_MAX, PASSWORD_MIN } from "@/shared/cuenta";
+import type { Idioma } from "@/shared/idiomas";
 import { hashPassword, verificarPassword } from "@/shared/password";
+import { enviarCorreo } from "./correo";
+import { armarCorreo } from "./correos";
 
-const crearAuth = (env: Env) =>
-  betterAuth({
+/** Vencimiento del enlace de "¿Olvidaste tu contraseña?". */
+export const MINUTOS_RESTABLECER = 60;
+
+/**
+ * Enlace a la pantalla de restablecer (`/admin/restablecer?token=…`) con el origen por el que
+ * entró la request, así funciona igual en local, en el dominio temporal y en el definitivo.
+ */
+export const enlaceRestablecer = (origen: string, token: string) =>
+  `${origen}/admin/restablecer?token=${encodeURIComponent(token)}`;
+
+/** Los usuarios no tienen idioma propio: el del primer barrio que administran, o español. */
+export async function idiomaDelUsuario(db: Db, userId: string): Promise<Idioma> {
+  const [fila] = await db
+    .select({ idioma: barrios.idioma })
+    .from(adminsBarrio)
+    .innerJoin(barrios, eq(barrios.id, adminsBarrio.barrioId))
+    .where(eq(adminsBarrio.userId, userId))
+    .orderBy(asc(adminsBarrio.creadoEn))
+    .limit(1);
+  return fila?.idioma ?? "es";
+}
+
+/** Correos de restablecer por persona y por hora; los que pasen no se mandan (cuidan el cupo de Resend). */
+export const MAX_RESTABLECER_POR_HORA = 3;
+
+/** Tokens de restablecer de una persona (los de "¿Olvidaste…?" y los de la bienvenida). */
+const enlacesDe = (userId: string) =>
+  and(eq(authSchema.verification.value, userId), like(authSchema.verification.identifier, "reset-password:%"));
+
+/**
+ * Invalida los enlaces de restablecer pendientes de una persona: Better Auth solo consume el que
+ * se usó, y los de otros correos (reenvíos de la bienvenida, pedidos repetidos) seguirían sirviendo.
+ */
+export const borrarEnlacesRestablecer = (db: Db, userId: string) =>
+  db.delete(authSchema.verification).where(enlacesDe(userId));
+
+/**
+ * La persona eligió su propia contraseña: apaga "debe cambiar la contraseña" (la prende
+ * `POST /api/admin/barrios` al crear una cuenta con contraseña temporal) y borra los enlaces
+ * de restablecer que le queden.
+ */
+export const contrasenaElegida = (db: Db, userId: string) =>
+  db.batch([
+    db.update(authSchema.user).set({ debeCambiarPassword: false }).where(eq(authSchema.user.id, userId)),
+    borrarEnlacesRestablecer(db, userId),
+  ]);
+
+/** Cuántos enlaces de restablecer recibió la persona en la última hora, sin contar `token`. */
+async function enlacesRecientes(db: Db, userId: string, token: string) {
+  const [fila] = await db
+    .select({ n: count() })
+    .from(authSchema.verification)
+    .where(
+      and(
+        enlacesDe(userId),
+        ne(authSchema.verification.identifier, `reset-password:${token}`),
+        gt(authSchema.verification.createdAt, new Date(Date.now() - 3_600_000)),
+      ),
+    );
+  return fila?.n ?? 0;
+}
+
+const crearAuth = (env: Env) => {
+  const db = crearDb(env.DB);
+  return betterAuth({
     basePath: "/api/auth",
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
-    database: drizzleAdapter(crearDb(env.DB), { provider: "sqlite", schema: authSchema }),
+    database: drizzleAdapter(db, { provider: "sqlite", schema: authSchema }),
+    user: {
+      additionalFields: {
+        // `input: false`: nadie la prende ni la apaga desde los endpoints de Better Auth (update-user…).
+        debeCambiarPassword: { type: "boolean", required: false, defaultValue: false, input: false },
+      },
+    },
     emailAndPassword: {
       enabled: true,
       disableSignUp: true,
+      minPasswordLength: PASSWORD_MIN,
+      maxPasswordLength: PASSWORD_MAX,
       password: { hash: hashPassword, verify: verificarPassword },
+      resetPasswordTokenExpiresIn: MINUTOS_RESTABLECER * 60,
+      // Quien tenga la contraseña vieja (o una sesión robada) queda fuera.
+      revokeSessionsOnPasswordReset: true,
+      // `url` apunta a la API de Better Auth; el enlace va directo a la pantalla con el token.
+      // Corre en segundo plano (`backgroundTasks`): la respuesta no espera a Resend, así tarda
+      // lo mismo exista o no el correo.
+      // Pasado el máximo por hora no se manda (la respuesta es la misma): el límite por IP no
+      // alcanza para que nadie llene la bandeja de alguien ni gaste el cupo diario de Resend.
+      sendResetPassword: async ({ user, url, token }, request) => {
+        if ((await enlacesRecientes(db, user.id, token)) >= MAX_RESTABLECER_POR_HORA) {
+          console.warn("[correo] Restablecer: máximo por hora alcanzado, no se manda", user.id);
+          return;
+        }
+        const origen = new URL(request?.url ?? url).origin;
+        const correo = armarCorreo(await idiomaDelUsuario(db, user.id), "restablecerPassword", {
+          nombre: user.name,
+          enlace: enlaceRestablecer(origen, token),
+          minutos: MINUTOS_RESTABLECER,
+        });
+        await enviarCorreo(env, { para: user.email, ...correo });
+      },
+      // Restablecer por correo también es elegir la contraseña propia.
+      onPasswordReset: async ({ user }) => {
+        await contrasenaElegida(db, user.id);
+      },
+    },
+    hooks: {
+      // Solo si el cambio salió bien: un error (contraseña actual incorrecta, muy corta) es un APIError.
+      after: createAuthMiddleware(async (ctx) => {
+        if (ctx.path !== "/change-password") return;
+        const respuesta = ctx.context.returned as { user?: { id: string } } | undefined;
+        if (!respuesta || isAPIError(respuesta) || !respuesta.user) return;
+        await contrasenaElegida(db, respuesta.user.id);
+      }),
     },
     // En la base y no en memoria: en Workers cada isolate tendría su propio contador.
     rateLimit: {
       enabled: true,
       storage: "database",
-      customRules: { "/sign-in/email": { window: 60, max: 5 } },
+      customRules: {
+        "/sign-in/email": { window: 60, max: 5 },
+        // Cada pedido manda un correo: más estricto que el login.
+        "/request-password-reset": { window: 60, max: 3 },
+      },
     },
-    // Cloudflare pone la IP real del cliente en este header.
-    advanced: { ipAddress: { ipAddressHeaders: ["cf-connecting-ip"] } },
+    advanced: {
+      // Cloudflare pone la IP real del cliente en este header.
+      ipAddress: { ipAddressHeaders: ["cf-connecting-ip"] },
+      // `waitUntil` de la request en curso: el Worker no se corta antes de terminar el envío.
+      backgroundTasks: { handler: waitUntil },
+    },
     plugins: [admin()],
   });
+};
 
 export type Auth = ReturnType<typeof crearAuth>;
 

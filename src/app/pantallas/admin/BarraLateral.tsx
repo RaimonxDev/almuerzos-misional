@@ -6,8 +6,12 @@ import {
   type TipoCompanerismo,
   useCrearCompanerismo,
   useEditarBarrio,
+  useAdminsBarrio,
   useEditarCompanerismo,
   useRegenerarToken,
+  useCorregirCorreoAdmin,
+  useNuevaPasswordTemporal,
+  useReenviarInvitacion,
 } from "@/app/consultas-admin";
 import { useIdioma } from "@/app/i18n";
 import { cn } from "@/app/lib/utils";
@@ -24,17 +28,19 @@ import {
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/app/components/ui/radio-group";
+import { DatosCuenta } from "./DatosCuenta";
 import { DisenoCalendario } from "./DisenoCalendario";
 import { Textarea } from "@/app/components/ui/textarea";
 
 type Companerismo = { id: string; nombre: string; activo: boolean };
 
-/** Columna derecha del panel: enlaces del barrio, compañerismos y nota para cocinar. */
+/** Columna derecha del panel: enlaces del barrio, compañerismos, nota para cocinar y (super admin) administradores. */
 export function BarraLateral({
   slug,
   barrio,
   companerismos,
   periodo,
+  superAdmin = false,
 }: {
   slug: string;
   barrio: {
@@ -47,12 +53,15 @@ export function BarraLateral({
   companerismos: Companerismo[];
   /** Mes visible (`2026-11`); sin él no hay sección de diseño. */
   periodo: string | null;
+  /** Solo el super admin ve la lista de administradores y reenvía invitaciones. */
+  superAdmin?: boolean;
 }) {
   return (
     <aside className="flex min-w-0 flex-[1_1_320px] flex-col gap-4">
       <Enlaces slug={slug} token={barrio.tokenMisioneros} />
       {periodo && <DisenoCalendario slug={slug} periodo={periodo} barrio={barrio} />}
       <Misioneros slug={slug} companerismos={companerismos} notaParaCocinar={barrio.notaParaCocinar} />
+      {superAdmin && <Administradores slug={slug} />}
     </aside>
   );
 }
@@ -334,6 +343,167 @@ function AgregarCompanerismo({ slug }: { slug: string }) {
         </Button>
         <Button type="submit" disabled={crear.isPending} className="rounded-[10px] font-bold">
           {t.panel.agregar}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+/**
+ * Administradores del barrio (solo super admin) con "Reenviar invitación" si no les llegó el correo:
+ * la bienvenida con un enlace nuevo si aún no crean su contraseña, o el aviso de asignación. A quien
+ * aún no la crea también se le puede corregir el correo o dar otra contraseña temporal.
+ */
+function Administradores({ slug }: { slug: string }) {
+  const { t } = useIdioma();
+  const admins = useAdminsBarrio(slug);
+  const reenviar = useReenviarInvitacion(slug);
+  const temporal = useNuevaPasswordTemporal(slug);
+  const [corrigiendo, setCorrigiendo] = useState<string | null>(null);
+  const [datos, setDatos] = useState<{ email: string; passwordTemporal: string } | null>(null);
+
+  const accion = "self-start px-0 text-[13px] font-bold text-azul-medio hover:bg-transparent hover:underline";
+
+  return (
+    <Seccion titulo={t.panel.administradores}>
+      {admins.isError && <AlertaError>{t.errores[codigoDe(admins.error)]}</AlertaError>}
+      {admins.data && admins.data.admins.length === 0 && (
+        <p className="text-sm text-muted-foreground">{t.panel.sinAdministradores}</p>
+      )}
+      {admins.data && admins.data.admins.length > 0 && (
+        <ul className="flex flex-col">
+          {admins.data.admins.map((a) => (
+            <li key={a.id} className="flex flex-col gap-1 border-t border-[#EEF2F6] py-2 first:border-t-0">
+              <span className="font-bold">{a.nombre}</span>
+              <span className="text-[13px] break-all text-muted-foreground">
+                {[a.cargo, a.email].filter(Boolean).join(" · ")}
+              </span>
+              {a.debeCambiarPassword && (
+                <span className="self-start rounded-full bg-aviso-suave px-2.5 py-0.5 text-xs font-extrabold text-aviso-texto">
+                  {t.panel.faltaContrasena}
+                </span>
+              )}
+              {corrigiendo === a.id ? (
+                <CorregirCorreo slug={slug} admin={a} alTerminar={() => setCorrigiendo(null)} />
+              ) : (
+                <div className="flex flex-wrap gap-x-4">
+                  <Button
+                    variant="ghost"
+                    aria-label={t.panel.reenviarInvitacionA(a.nombre)}
+                    disabled={reenviar.isPending}
+                    onClick={() =>
+                      reenviar.mutate(a.id, {
+                        onSuccess: ({ correoEnviado }) =>
+                          correoEnviado
+                            ? toast.success(t.panel.invitacionReenviada(a.email))
+                            : toast.error(t.panel.invitacionNoSalio),
+                        onError: (e) => toast.error(t.errores[codigoDe(e)]),
+                      })
+                    }
+                    className={accion}
+                  >
+                    {t.panel.reenviarInvitacion}
+                  </Button>
+                  {a.debeCambiarPassword && (
+                    <>
+                      <Button
+                        variant="ghost"
+                        aria-label={t.panel.corregirCorreoA(a.nombre)}
+                        onClick={() => setCorrigiendo(a.id)}
+                        className={accion}
+                      >
+                        {t.panel.corregirCorreo}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        aria-label={t.panel.nuevaTemporalA(a.nombre)}
+                        disabled={temporal.isPending}
+                        onClick={() =>
+                          temporal.mutate(a.id, {
+                            onSuccess: setDatos,
+                            onError: (e) => toast.error(t.errores[codigoDe(e)]),
+                          })
+                        }
+                        className={accion}
+                      >
+                        {t.panel.nuevaTemporal}
+                      </Button>
+                    </>
+                  )}
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {datos && (
+        <DatosCuenta
+          email={datos.email}
+          password={datos.passwordTemporal}
+          titulo={t.panel.nuevaTemporalTitulo}
+          texto={t.panel.nuevaTemporalTexto}
+          textoCerrar={t.panel.listo}
+          alCerrar={() => setDatos(null)}
+        />
+      )}
+    </Seccion>
+  );
+}
+
+/** Formulario en la fila: el correo bien escrito; al guardar se le manda la invitación ahí. */
+function CorregirCorreo({
+  slug,
+  admin,
+  alTerminar,
+}: {
+  slug: string;
+  admin: { id: string; nombre: string; email: string };
+  alTerminar: () => void;
+}) {
+  const { t } = useIdioma();
+  const corregir = useCorregirCorreoAdmin(slug);
+  const [email, setEmail] = useState(admin.email);
+  const id = `correo-admin-${admin.id}`;
+
+  const enviar = (e: FormEvent) => {
+    e.preventDefault();
+    corregir.mutate(
+      { userId: admin.id, email: email.trim() },
+      {
+        onSuccess: ({ admin: corregido, correoEnviado }) => {
+          if (correoEnviado) toast.success(t.panel.correoCorregido(corregido.email));
+          else toast.warning(t.panel.correoCorregidoSinEnvio);
+          alTerminar();
+        },
+      },
+    );
+  };
+
+  return (
+    <form
+      onSubmit={enviar}
+      aria-label={t.panel.corregirCorreoA(admin.nombre)}
+      className="flex flex-col gap-3 rounded-[10px] border bg-cielo-claro p-3"
+    >
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor={id}>{t.panel.correoCorrecto}</Label>
+        <Input
+          id={id}
+          type="email"
+          autoComplete="off"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          className="rounded-[10px] bg-card"
+        />
+      </div>
+      {corregir.isError && <AlertaError>{t.errores[codigoDe(corregir.error)]}</AlertaError>}
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="ghost" onClick={alTerminar} className="rounded-[10px] font-bold">
+          {t.panel.cancelar}
+        </Button>
+        <Button type="submit" disabled={corregir.isPending} className="rounded-[10px] font-bold">
+          {t.panel.guardar}
         </Button>
       </div>
     </form>

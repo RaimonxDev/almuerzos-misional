@@ -14,7 +14,19 @@ const panel = () => import("./pantallas/admin/Panel").then((m) => ({ Component: 
 export const rutas: RouteObject[] = [
   { path: "/", element: <Inicio /> },
   { path: "/admin/login", lazy: () => import("./pantallas/Login").then((m) => ({ Component: m.Login })) },
+  {
+    path: "/admin/olvide",
+    lazy: () => import("./pantallas/admin/Olvide").then((m) => ({ Component: m.Olvide })),
+  },
+  {
+    path: "/admin/restablecer",
+    lazy: () => import("./pantallas/admin/Restablecer").then((m) => ({ Component: m.Restablecer })),
+  },
   { path: "/admin", lazy: panel },
+  {
+    path: "/admin/cuenta",
+    lazy: () => import("./pantallas/admin/Cuenta").then((m) => ({ Component: m.CuentaRuta })),
+  },
   {
     path: "/admin/nuevo-barrio",
     lazy: () => import("./pantallas/admin/NuevoBarrio").then((m) => ({ Component: m.NuevoBarrioRuta })),
