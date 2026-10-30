@@ -9,16 +9,10 @@ export const pt: Mensajes = {
     reintentar: "Tentar de novo",
     opcional: "(opcional)",
   },
-  inicio: {
-    texto: "Peça à presidente da Sociedade de Socorro o link da sua ala para se inscrever.",
-    quieresUsar: "Quer usar o Almoço Missionário na sua ala?",
-    solicitar: "Solicitar acesso",
-  },
   informacion: {
     pie: "Ferramenta não oficial · Informações",
     antetitulo: "Informações",
     titulo: "Informações e aviso legal",
-    queEsTitulo: "O que é",
     queEs:
       "O Almoço Missionário é uma ferramenta gratuita para que as irmãs de uma ala se inscrevam para oferecer almoço aos missionários. Assim, a presidente da Sociedade de Socorro não precisa coordenar tudo à mão por mensagens.",
     noOficialTitulo: "Não é uma ferramenta oficial",
@@ -44,10 +38,9 @@ export const pt: Mensajes = {
     iglesiaSitio: "churchofjesuschrist.org",
     iglesiaMisioneros: "Vinde a Cristo: conheça os missionários",
     contactoTitulo: "Contato",
-    contactoTexto: "Quer usar o aplicativo em outra ala ou relatar um problema? Escreva para nós pela solicitação de acesso.",
+    contactoTexto: "Quer usar o aplicativo na sua ala? Peça pela solicitação de acesso. Para relatar um problema ou qualquer outra dúvida, escreva para",
     contactoEnlace: "Solicitar acesso",
     datosEnlace: "Como cuidamos dos seus dados",
-    volver: "Voltar ao início",
   },
   publico: {
     intro: "Escolha um horário livre e inscreva-se. Nesta página aparece apenas o seu nome.",

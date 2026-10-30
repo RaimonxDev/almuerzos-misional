@@ -13,16 +13,10 @@ export const es = {
     reintentar: "Reintentar",
     opcional: "(opcional)",
   },
-  inicio: {
-    texto: "Pide a la presidenta de la Sociedad de Socorro el enlace de tu barrio para anotarte.",
-    quieresUsar: "¿Quieres usar Almuerzo Misional en tu barrio?",
-    solicitar: "Solicitar acceso",
-  },
   informacion: {
     pie: "Herramienta no oficial · Información",
     antetitulo: "Información",
     titulo: "Información y aviso legal",
-    queEsTitulo: "Qué es",
     queEs:
       "Almuerzo Misional es una herramienta gratuita para que las hermanas de un barrio se anoten a dar almuerzo a los misioneros. Así la presidenta de la Sociedad de Socorro no tiene que coordinarlo a mano por mensajes.",
     noOficialTitulo: "No es una herramienta oficial",
@@ -48,10 +42,9 @@ export const es = {
     iglesiaSitio: "churchofjesuschrist.org",
     iglesiaMisioneros: "Ven a Cristo: conoce a los misioneros",
     contactoTitulo: "Contacto",
-    contactoTexto: "¿Quieres usar la app en otro barrio o reportar un problema? Escríbenos desde la solicitud de acceso.",
+    contactoTexto: "¿Quieres usar la app en tu barrio? Pídela con la solicitud de acceso. Para reportar un problema o cualquier otra consulta, escríbenos a",
     contactoEnlace: "Solicitar acceso",
     datosEnlace: "Cómo cuidamos tus datos",
-    volver: "Volver al inicio",
   },
   publico: {
     intro: "Elige un turno libre y anótate. En esta página solo se muestra tu nombre.",

@@ -1,0 +1,105 @@
+/*
+ * Piezas de papelería de la portada, las preguntas y la información: pestañas de carpeta,
+ * el borde dentado del comprobante, los festones del pie y la entrada de cada sección.
+ * Lo demás va con utilidades de Tailwind.
+ */
+
+/* Pestaña trapezoidal de una carpeta. */
+.carpeta-pestana {
+  clip-path: polygon(16px 0, calc(100% - 16px) 0, 100% 100%, 0 100%);
+}
+
+/* Relleno de puntos entre lo que pasa y quién lo hace, como en un comprobante. */
+.puntos-guia {
+  border-bottom: 4px dotted color-mix(in srgb, var(--azul-profundo) 45%, transparent);
+}
+
+/* Chevron de dos trazos de 2px para el acordeón. */
+.chevron {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  flex: none;
+  transition: transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.chevron::before,
+.chevron::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  width: 9px;
+  height: 2px;
+  background: currentColor;
+}
+.chevron::before {
+  left: 0;
+  transform: rotate(45deg);
+}
+.chevron::after {
+  right: 0;
+  transform: rotate(-45deg);
+}
+details[open] > summary .chevron {
+  transform: rotate(180deg);
+}
+summary::-webkit-details-marker {
+  display: none;
+}
+
+/* La foto alta de las preguntas se mueve muy despacio. */
+@keyframes deriva {
+  from {
+    transform: scale(1.04) translate3d(0, 0, 0);
+  }
+  to {
+    transform: scale(1.12) translate3d(-2%, -1.5%, 0);
+  }
+}
+.deriva {
+  animation: deriva 24s ease-in-out infinite alternate;
+}
+
+/*
+ * Entrada de las partes de cada sección: título, texto y figura, escalonados con `--retraso`.
+ * Solo se esconden cuando el script ya marcó la página (`.con-movimiento`): sin script se ve todo.
+ */
+.con-movimiento [data-aparecer] {
+  opacity: 0;
+  transform: translate3d(0, 24px, 0);
+  transition:
+    opacity 640ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 640ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition-delay: var(--retraso, 0ms);
+}
+.con-movimiento [data-aparecer][data-visible] {
+  opacity: 1;
+  transform: none;
+}
+
+/* Tarjeta de respuesta inclinada: se endereza un poco al pasar el puntero. */
+.tarjeta-respuesta {
+  transform: rotate(2deg);
+  transition: transform 400ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.tarjeta-respuesta:hover {
+  transform: rotate(0.5deg) translate3d(0, -6px, 0);
+}
+@media (max-width: 767px) {
+  .tarjeta-respuesta {
+    transform: rotate(1deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .con-movimiento [data-aparecer] {
+    transform: none;
+    transition: opacity 200ms linear;
+  }
+  .deriva {
+    animation: none;
+  }
+  .tarjeta-respuesta,
+  .tarjeta-respuesta:hover {
+    transition: none;
+  }
+}

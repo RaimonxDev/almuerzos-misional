@@ -92,7 +92,7 @@ describe("Solicitar acceso", () => {
 
   it("la portada enlaza a /solicitar y la ruta carga la pantalla", async () => {
     renderizarApp("/");
-    const enlace = await screen.findByRole("link", { name: "Solicitar acceso" });
+    const enlace = await screen.findByRole("link", { name: "Solicitar para mi barrio" });
     expect(enlace).toHaveAttribute("href", "/solicitar");
     await userEvent.setup().click(enlace);
     expect(await screen.findByLabelText("Tu nombre")).toBeInTheDocument();

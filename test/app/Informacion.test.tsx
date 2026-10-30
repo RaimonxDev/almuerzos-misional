@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
@@ -26,7 +26,8 @@ describe("/informacion", () => {
     renderizarApp("/informacion");
     expect(await screen.findByRole("heading", { name: /no es una herramienta oficial/i })).toBeInTheDocument();
     expect(screen.getByText(/no está afiliada, patrocinada ni aprobada/i)).toBeInTheDocument();
-    expect(screen.getByText(/Intellectual Reserve, Inc\./)).toBeInTheDocument();
+    // El pie también nombra a Intellectual Reserve en el crédito de las fotos: se busca en el aviso.
+    expect(within(document.getElementById("no-oficial")!).getByText(/Intellectual Reserve, Inc\./)).toBeInTheDocument();
     expect(document.getElementById("tus-datos")).not.toBeNull();
   });
 
@@ -59,17 +60,21 @@ describe("/informacion", () => {
     revisar("eng");
   });
 
-  it("enlaza a /solicitar para pedir la app", async () => {
+  it("enlaza a /solicitar para pedir la app y da el correo de contacto", async () => {
     renderizarApp("/informacion");
     await screen.findByRole("heading", { name: /no es una herramienta oficial/i });
     expect(screen.getByRole("link", { name: "Solicitar acceso" })).toHaveAttribute("href", "/solicitar");
+    // Contacto (en la sección y en el pie) por correo.
+    const correos = screen.getAllByRole("link", { name: "hi@ramonmartinez.dev" });
+    expect(correos).toHaveLength(2);
+    for (const c of correos) expect(c).toHaveAttribute("href", "mailto:hi@ramonmartinez.dev");
   });
 });
 
 describe("pie de página con enlace a /informacion", () => {
   it("la portada enlaza a /informacion", async () => {
     renderizarApp("/");
-    const pie = await screen.findByRole("link", { name: /Herramienta no oficial/ });
+    const pie = await screen.findByRole("link", { name: "Información y aviso legal" });
     expect(pie).toHaveAttribute("href", "/informacion");
   });
 
