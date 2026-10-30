@@ -79,7 +79,7 @@ export const en: MensajesCorreo = {
       `${nombre} (${email}) asked to delete ${barrio} from Missionary Lunch. The ward keeps working until you delete it.`,
       ...(motivo ? [`They wrote: ${motivo}`] : []),
     ],
-    boton: { texto: "Open the ward", enlace },
+    boton: { texto: "View requests", enlace },
   }),
   barrioEliminado: ({ nombre, barrio, cuentaBorrada }) => ({
     asunto: `We deleted ${barrio}`,

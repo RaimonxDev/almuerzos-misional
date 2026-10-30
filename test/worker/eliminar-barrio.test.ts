@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { crearDb } from "@/db";
 import { account, session, user, verification } from "@/db/auth-schema";
 import { adminsBarrio, barrios, companerismos, inscripciones, meses, solicitudes, turnos } from "@/db/schema";
+import { borrarImagenes } from "@/worker/eliminar-barrio";
 import { capturarCorreos, crearAdmin, iniciarSesion, pedir, sembrar } from "./datos";
 
 const RUTA = "/api/admin/barrios/prueba";
@@ -31,8 +32,8 @@ const comoPresidenta = async () => {
 
 const leerBarrio = () => crearDb(env.DB).select().from(barrios).where(eq(barrios.id, "b1")).get();
 
-const eliminar = (cookie: string, confirmacion = "Barrio Prueba", ruta = RUTA) =>
-  pedir(ruta, { method: "DELETE", cookie, json: { confirmacion } });
+const eliminar = (cookie: string, confirmacion = "Barrio Prueba", ruta = RUTA, pedidoVisto: string | null = null) =>
+  pedir(ruta, { method: "DELETE", cookie, json: { confirmacion, pedidoVisto } });
 
 describe("POST /solicitud-eliminacion", () => {
   it("la presidenta la pide con motivo: queda guardada y se avisa al super admin", async () => {
@@ -45,10 +46,12 @@ describe("POST /solicitud-eliminacion", () => {
     const b = await leerBarrio();
     expect(b?.eliminacionSolicitadaEn).toBeInstanceOf(Date);
     expect(b?.motivoEliminacion).toBe("Ya no la usamos");
+    await vi.waitFor(() => expect(correos().some((c) => c.para === "root@ejemplo.cl")).toBe(true));
     const aviso = correos().find((c) => c.para === "root@ejemplo.cl");
     expect(aviso?.texto).toContain("Barrio Prueba");
     expect(aviso?.texto).toContain("Ya no la usamos");
-    expect(aviso?.texto).toContain("/admin/prueba");
+    // A la lista: el enlace del barrio puede cambiar antes de que se lea el correo.
+    expect(aviso?.texto).toContain("/admin/solicitudes");
   });
 
   it("el barrio sigue funcionando mientras se resuelve", async () => {
@@ -66,6 +69,8 @@ describe("POST /solicitud-eliminacion", () => {
 
     expect(res.status).toBe(200);
     expect((await leerBarrio())?.motivoEliminacion).toBe("Primero");
+    await vi.waitFor(() => expect(correos().filter((c) => c.para === "root@ejemplo.cl")).toHaveLength(1));
+    await new Promise((r) => setTimeout(r, 50));
     expect(correos().filter((c) => c.para === "root@ejemplo.cl")).toHaveLength(1);
   });
 
@@ -198,18 +203,44 @@ describe("DELETE /api/admin/barrios/:slug", () => {
 
     await eliminar(cookie);
 
-    const { objects } = await env.IMAGENES.list({ prefix: "meses/" });
-    const claves = objects.map((o) => o.key).sort();
-    await Promise.all(claves.map((k) => env.IMAGENES.delete(k)));
-    expect(claves).toEqual(["meses/b10/2099-01/d.png", "meses/b2/2099-01/c.png"]);
+    const claves = async () => (await env.IMAGENES.list({ prefix: "meses/" })).objects.map((o) => o.key).sort();
+    await vi.waitFor(async () => expect(await claves()).toEqual(["meses/b10/2099-01/d.png", "meses/b2/2099-01/c.png"]));
+    await Promise.all((await claves()).map((k) => env.IMAGENES.delete(k)));
   });
 
-  it("si R2 falla, el barrio igual queda borrado", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.spyOn(env.IMAGENES, "list").mockRejectedValue(new Error("R2 caído"));
+  it("con otro nombre en NFD también sirve si se ve igual", async () => {
+    await crearDb(env.DB).update(barrios).set({ nombre: "Barrio Peñalolén".normalize("NFD") }).where(eq(barrios.id, "b1"));
     const cookie = await comoSuperAdmin();
-    expect((await eliminar(cookie)).status).toBe(200);
-    expect(await leerBarrio()).toBeUndefined();
+    expect((await eliminar(cookie, "Barrio Peñalolén".normalize("NFC"))).status).toBe(200);
+  });
+
+  it("si el pedido se retiró desde que se abrió el panel, no borra", async () => {
+    const pres = await comoPresidenta();
+    await pedir(SOLICITUD_ELIMINACION, { method: "POST", cookie: pres, json: {} });
+    const visto = (await leerBarrio())!.eliminacionSolicitadaEn!.toISOString();
+    await pedir(SOLICITUD_ELIMINACION, { method: "DELETE", cookie: pres });
+    const cookie = await comoSuperAdmin();
+
+    const res = await eliminar(cookie, "Barrio Prueba", RUTA, visto);
+
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: "PEDIDO_CAMBIO" });
+    expect(await leerBarrio()).toBeDefined();
+  });
+
+  it("si llegó un pedido que el panel no mostraba, tampoco borra", async () => {
+    const pres = await comoPresidenta();
+    await pedir(SOLICITUD_ELIMINACION, { method: "POST", cookie: pres, json: {} });
+    const cookie = await comoSuperAdmin();
+    expect((await eliminar(cookie)).status).toBe(409);
+  });
+
+  it("con el pedido que mostraba el panel, borra", async () => {
+    const pres = await comoPresidenta();
+    await pedir(SOLICITUD_ELIMINACION, { method: "POST", cookie: pres, json: {} });
+    const visto = (await leerBarrio())!.eliminacionSolicitadaEn!.toISOString();
+    const cookie = await comoSuperAdmin();
+    expect((await eliminar(cookie, "Barrio Prueba", RUTA, visto)).status).toBe(200);
   });
 
   it("borra la solicitud de acceso con la que se creó", async () => {
@@ -233,6 +264,32 @@ describe("DELETE /api/admin/barrios/:slug", () => {
     await eliminar(cookie);
 
     expect((await db.select().from(solicitudes)).map((s) => s.id)).toEqual(["s-2"]);
+  });
+
+  it("borra las solicitudes resueltas de quien pierde su cuenta, no una pendiente ni las de otros", async () => {
+    const db = crearDb(env.DB);
+    await crearAdmin({ email: "pres@ejemplo.cl", barrios: ["b1"] });
+    const comun = {
+      nombre: "Hna. Soto",
+      telefono: "+56 9 5555 4444",
+      barrio: "Barrio Prueba",
+      ciudad: "Santiago",
+      pais: "Chile",
+      idioma: "es" as const,
+      zonaHoraria: "America/Santiago",
+      tieneElderes: true,
+      tieneHermanas: true,
+    };
+    await db.insert(solicitudes).values([
+      { ...comun, id: "s-rechazada", email: "pres@ejemplo.cl", estado: "rechazada" },
+      { ...comun, id: "s-pendiente", email: "pres@ejemplo.cl", estado: "pendiente" },
+      { ...comun, id: "s-ajena", email: "otra@ejemplo.cl", estado: "rechazada" },
+    ]);
+    const cookie = await comoSuperAdmin();
+
+    await eliminar(cookie);
+
+    expect((await db.select().from(solicitudes)).map((s) => s.id).sort()).toEqual(["s-ajena", "s-pendiente"]);
   });
 
   it("borra la cuenta de quien solo administraba ese barrio, con sus sesiones y enlaces", async () => {
@@ -282,10 +339,47 @@ describe("DELETE /api/admin/barrios/:slug", () => {
 
     await eliminar(cookie);
 
+    await vi.waitFor(() => expect(correos().filter((c) => c.asunto.includes("Barrio Prueba"))).toHaveLength(2));
     const de = (para: string) => correos().find((c) => c.para === para);
     expect(de("pres@ejemplo.cl")?.texto).toContain("Barrio Prueba");
     expect(de("pres@ejemplo.cl")?.texto).toContain("también borramos tu cuenta");
     expect(de("doble@ejemplo.cl")?.texto).toContain("Barrio Prueba");
     expect(de("doble@ejemplo.cl")?.texto).not.toContain("también borramos tu cuenta");
+  });
+});
+
+describe("borrarImagenes", () => {
+  const r2 = (paginas: { keys: string[]; cursor?: string }[]) => {
+    const list = vi.fn(async ({ cursor }: { cursor?: string }) => {
+      const i = cursor ? Number(cursor) : 0;
+      const pagina = paginas[i];
+      return { objects: pagina.keys.map((key) => ({ key })), truncated: pagina.cursor !== undefined, cursor: pagina.cursor };
+    });
+    const borrar = vi.fn(async () => {});
+    return { IMAGENES: { list, delete: borrar } as unknown as R2Bucket, list, borrar };
+  };
+
+  it("recorre todas las páginas con el cursor", async () => {
+    const env = r2([{ keys: ["a", "b"], cursor: "1" }, { keys: ["c"] }]);
+    await borrarImagenes(env, "b1");
+    expect(env.list).toHaveBeenCalledTimes(2);
+    expect(env.list).toHaveBeenNthCalledWith(1, { prefix: "meses/b1/", cursor: undefined });
+    expect(env.list).toHaveBeenNthCalledWith(2, { prefix: "meses/b1/", cursor: "1" });
+    expect(env.borrar).toHaveBeenCalledWith(["a", "b"]);
+    expect(env.borrar).toHaveBeenCalledWith(["c"]);
+  });
+
+  it("sin imágenes no borra nada", async () => {
+    const env = r2([{ keys: [] }]);
+    await borrarImagenes(env, "b1");
+    expect(env.borrar).not.toHaveBeenCalled();
+  });
+
+  it("si R2 falla, registra el error y no lanza", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const env = r2([]);
+    env.list.mockRejectedValue(new Error("R2 caído"));
+    await expect(borrarImagenes(env, "b1")).resolves.toBeUndefined();
+    expect(error).toHaveBeenCalled();
   });
 });

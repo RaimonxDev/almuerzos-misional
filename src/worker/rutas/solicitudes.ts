@@ -4,7 +4,7 @@ import { solicitudes } from "@/db/schema";
 import { esquemaNuevaSolicitud } from "@/shared/solicitudes";
 import { avisarSolicitudNueva } from "../avisos-solicitudes";
 import type { AppEnv } from "../contexto";
-import { esViolacionUnica, fallar, limitarPorIp, validar } from "../http";
+import { esViolacionUnica, fallar, limitarPorIp, origenDe, validar } from "../http";
 import { verificarTurnstile } from "../turnstile";
 
 /** Pedir acceso para un barrio: público, con Turnstile y límite por IP. */
@@ -45,7 +45,7 @@ export const rutasSolicitudes = new Hono<AppEnv>().post(
     }
 
     // En segundo plano: el correo no demora la respuesta ni la afecta si falla.
-    c.executionCtx.waitUntil(avisarSolicitudNueva(db, c.env, new URL(c.req.url).origin, solicitud));
+    c.executionCtx.waitUntil(avisarSolicitudNueva(db, c.env, origenDe(c.req.url), solicitud));
     return c.json({ id: solicitud.id }, 201);
   },
 );

@@ -1,7 +1,7 @@
 import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Idioma } from "@/shared/idiomas";
 import type { EdicionInscripcion, NuevaInscripcionPublica } from "@/shared/inscripciones";
-import { api, datos, sinCuerpo } from "./api";
+import { api, codigoDe, datos, sinCuerpo } from "./api";
 
 /**
  * Consultas del panel de la presidenta. Viven aparte de `consultas.ts` para que solo las cargue
@@ -295,17 +295,25 @@ export const useResumenEliminacion = (slug: string) =>
 
 /**
  * Borra el barrio. Lo saca de `yo` antes de que quien la llama navegue a `/admin`, que lleva al
- * primero de la lista; las consultas del barrio no se refrescan porque ya darían 404.
+ * primero de la lista; las consultas del barrio no se refrescan porque ya darían 404. Un 404 también
+ * lo saca: el borrado anterior llegó aunque se perdiera la respuesta, o cambió de enlace (`yo` se
+ * vuelve a pedir). `PEDIDO_CAMBIO` trae el pedido vigente al panel.
  */
 export function useEliminarBarrio(slug: string) {
   const queryClient = useQueryClient();
+  const sacarDeLaLista = () => {
+    queryClient.setQueryData(["admin", "yo"], (yo: { barrios: { slug: string }[] } | undefined) =>
+      yo && { ...yo, barrios: yo.barrios.filter((b) => b.slug !== slug) },
+    );
+    queryClient.invalidateQueries({ queryKey: ["admin", "solicitudes"] });
+  };
   return useMutation({
-    mutationFn: (confirmacion: string) => datos(barrios[":slug"].$delete({ param: { slug }, json: { confirmacion } })),
-    onSuccess: () => {
-      queryClient.setQueryData(["admin", "yo"], (yo: { barrios: { slug: string }[] } | undefined) =>
-        yo && { ...yo, barrios: yo.barrios.filter((b) => b.slug !== slug) },
-      );
-      queryClient.invalidateQueries({ queryKey: ["admin", "solicitudes"] });
+    mutationFn: (json: { confirmacion: string; pedidoVisto: string | null }) =>
+      datos(barrios[":slug"].$delete({ param: { slug }, json })),
+    onSuccess: sacarDeLaLista,
+    onError: (error) => {
+      if (codigoDe(error) === "NO_ENCONTRADO") sacarDeLaLista();
+      if (codigoDe(error) === "PEDIDO_CAMBIO") invalidar(queryClient, slug, ["barrio"]);
     },
   });
 }

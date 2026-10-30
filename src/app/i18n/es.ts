@@ -299,6 +299,7 @@ export const es = {
     escribeNombreBarrio: (barrio: string) => `Para confirmar, escribe ${barrio}`,
     confirmarEliminarBarrio: "Eliminar para siempre",
     barrioEliminado: (barrio: string) => `${barrio} se eliminó.`,
+    barrioYaNoEsta: "Ese barrio ya no existe o cambió de enlace.",
     cambiarCodigoTitulo: "¿Cambiar el código de los misioneros?",
     cambiarCodigoTexto:
       "El código actual dejará de funcionar, también en los teléfonos donde ya lo escribieron. Tendrás que darles el nuevo a los misioneros.",
@@ -562,6 +563,7 @@ export const es = {
     SOLICITUD_RESUELTA: "Esta solicitud ya fue resuelta.",
     VERIFICACION_FALLIDA: "No pudimos verificar que no eres un robot. Vuelve a intentarlo.",
     CONFIRMACION_INCORRECTA: "El nombre no coincide. Escríbelo tal como aparece.",
+    PEDIDO_CAMBIO: "El pedido de eliminación cambió. Revísalo y vuelve a intentarlo.",
     ERROR_INTERNO: "Algo salió mal o no hay conexión. Inténtalo de nuevo en un momento.",
   } satisfies Record<CodigoError, string>,
 };

@@ -51,11 +51,11 @@ export async function avisarEliminacionSolicitada(
   db: Db,
   env: Env,
   origen: string,
-  datos: { nombre: string; email: string; barrio: string; slug: string; motivo: string | null },
+  datos: { nombre: string; email: string; barrio: string; motivo: string | null },
 ) {
   try {
-    const { slug, ...resto } = datos;
-    const aviso = armarCorreo("es", "eliminacionSolicitada", { ...resto, enlace: `${origen}/admin/${slug}` });
+    // A la lista y no al panel: el enlace del barrio puede cambiar antes de que se lea el correo.
+    const aviso = armarCorreo("es", "eliminacionSolicitada", { ...datos, enlace: `${origen}/admin/solicitudes` });
     const destinatarios = await correosDelSuperAdmin(db, env);
     await Promise.all(destinatarios.map((para) => enviarCorreo(env, { para, ...aviso })));
   } catch (e) {

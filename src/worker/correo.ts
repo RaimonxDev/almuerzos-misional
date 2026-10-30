@@ -21,6 +21,8 @@ export type EnvCorreo = Partial<Pick<Env, "RESEND_API_KEY" | "CORREO_REMITENTE">
 const URL_RESEND = "https://api.resend.com/emails";
 /** Sin dominio verificado, Resend solo deja mandar desde aquí (y solo al correo de la cuenta). */
 const REMITENTE_POR_DEFECTO = "Almuerzo Misional <onboarding@resend.dev>";
+/** Si Resend no responde, se abandona: un aviso no puede retener una request. */
+const ESPERA_MAXIMA_MS = 10_000;
 
 export async function enviarCorreo(env: EnvCorreo, correo: Correo): Promise<ResultadoCorreo> {
   const remitente = env.CORREO_REMITENTE || REMITENTE_POR_DEFECTO;
@@ -42,6 +44,7 @@ export async function enviarCorreo(env: EnvCorreo, correo: Correo): Promise<Resu
   try {
     const respuesta = await fetch(URL_RESEND, {
       method: "POST",
+      signal: AbortSignal.timeout(ESPERA_MAXIMA_MS),
       headers: {
         Authorization: `Bearer ${env.RESEND_API_KEY}`,
         "Content-Type": "application/json",

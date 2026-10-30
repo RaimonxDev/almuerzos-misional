@@ -6,13 +6,13 @@ import { type Barrio, barrios, companerismos, meses } from "@/db/schema";
 import { nuevoCodigo } from "@/shared/codigo-misioneros";
 import { hoyEnZona } from "@/shared/fechas";
 import { IDIOMAS } from "@/shared/idiomas";
-import { esquemaSolicitudEliminacion } from "@/shared/solicitudes";
+import { esquemaSolicitudEliminacion, nombreConfirmado } from "@/shared/solicitudes";
 import { avisarBarrioEliminado, avisarEliminacionSolicitada } from "../../avisos-solicitudes";
 import { enlaceConCodigo, esquemaNuevoBarrio } from "../../barrios";
 import type { AppEnvBarrioAdmin } from "../../contexto";
 import { insertsDeTurnos } from "../../consultas";
 import { adminsDelBarrio, borrarBarrio, borrarImagenes, resumenEliminacion } from "../../eliminar-barrio";
-import { esViolacionUnica, fallar, validar, zonaValida } from "../../http";
+import { esViolacionUnica, fallar, origenDe, validar, zonaValida } from "../../http";
 import { paramsBarrio } from "../../params";
 import { esSuperAdmin } from "../../permisos";
 
@@ -38,6 +38,8 @@ const esquemaEditarCompanerismo = z.object({
   activo: z.boolean().optional(),
   orden: z.number().int().min(0).max(1000).optional(),
 });
+
+const esquemaEliminarBarrio = z.object({ confirmacion: z.string().max(200), pedidoVisto: z.string().max(40).nullable() });
 
 const paramsCompanerismo = paramsBarrio.extend({ id: z.string().min(1).max(100) });
 
@@ -105,16 +107,21 @@ export const rutasBarrio = new Hono<AppEnvBarrioAdmin>()
     return c.json({ barrio: datosBarrio(actual!) });
   })
 
-  /** Solo el super admin. El nombre escrito se revisa aquí: protege también de un panel desactualizado. */
-  .delete("/", validar("json", z.object({ confirmacion: z.string().max(200) })), async (c) => {
+  /**
+   * Solo el super admin. El nombre escrito y `pedidoVisto` (el pedido que mostraba el panel) se
+   * revisan aquí: no se borra por un panel desactualizado un barrio que retiró su pedido.
+   */
+  .delete("/", validar("json", esquemaEliminarBarrio), async (c) => {
     const { db, barrio, usuario } = c.var;
     if (!esSuperAdmin(usuario)) return fallar(c, "SIN_PERMISO", 403);
-    if (c.req.valid("json").confirmacion.trim() !== barrio.nombre) return fallar(c, "CONFIRMACION_INCORRECTA", 422);
+    const { confirmacion, pedidoVisto } = c.req.valid("json");
+    if (!nombreConfirmado(confirmacion, barrio.nombre)) return fallar(c, "CONFIRMACION_INCORRECTA", 422);
+    if (pedidoVisto !== (barrio.eliminacionSolicitadaEn?.toISOString() ?? null)) return fallar(c, "PEDIDO_CAMBIO", 409);
 
     const admins = await adminsDelBarrio(db, barrio.id);
-    await borrarBarrio(db, barrio.id, admins.filter((a) => a.cuentaSeBorra).map((a) => a.id));
-    await borrarImagenes(c.env, barrio.id);
-    await avisarBarrioEliminado(c.env, barrio, admins);
+    await borrarBarrio(db, barrio.id, admins.filter((a) => a.cuentaSeBorra));
+    // En segundo plano: el barrio ya no existe y una conexión cortada no debe dejar esto a medias.
+    c.executionCtx.waitUntil(Promise.all([borrarImagenes(c.env, barrio.id), avisarBarrioEliminado(c.env, barrio, admins)]));
     return c.json({ eliminado: true });
   })
 
@@ -137,13 +144,14 @@ export const rutasBarrio = new Hono<AppEnvBarrioAdmin>()
       .where(and(eq(barrios.id, barrio.id), isNull(barrios.eliminacionSolicitadaEn)))
       .returning({ id: barrios.id });
     if (nueva.length > 0) {
-      await avisarEliminacionSolicitada(db, c.env, new URL(c.req.url).origin, {
-        nombre: usuario.name,
-        email: usuario.email,
-        barrio: barrio.nombre,
-        slug: barrio.slug,
-        motivo,
-      });
+      c.executionCtx.waitUntil(
+        avisarEliminacionSolicitada(db, c.env, origenDe(c.req.url), {
+          nombre: usuario.name,
+          email: usuario.email,
+          barrio: barrio.nombre,
+          motivo,
+        }),
+      );
     }
     return c.json({ solicitada: true });
   })

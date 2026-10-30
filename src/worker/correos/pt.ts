@@ -79,7 +79,7 @@ export const pt: MensajesCorreo = {
       `${nombre} (${email}) pediu para excluir ${barrio} do Almoço Missionário. A ala continua funcionando até você apagá-la.`,
       ...(motivo ? [`Escreveu: ${motivo}`] : []),
     ],
-    boton: { texto: "Abrir a ala", enlace },
+    boton: { texto: "Ver os pedidos", enlace },
   }),
   barrioEliminado: ({ nombre, barrio, cuentaBorrada }) => ({
     asunto: `Excluímos ${barrio}`,

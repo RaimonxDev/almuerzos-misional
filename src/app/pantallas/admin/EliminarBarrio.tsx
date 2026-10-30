@@ -9,8 +9,7 @@ import {
   useSolicitarEliminacion,
 } from "@/app/consultas-admin";
 import { useIdioma } from "@/app/i18n";
-import { hoyEnZona, zonaDelNavegador } from "@/shared/fechas";
-import { MOTIVO_ELIMINACION_MAX } from "@/shared/solicitudes";
+import { MOTIVO_ELIMINACION_MAX, nombreConfirmado } from "@/shared/solicitudes";
 import { AlertaError, AvisoDestructivo, Cargando } from "@/app/components/Estado";
 import { Button } from "@/app/components/ui/button";
 import {
@@ -24,6 +23,7 @@ import {
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { Textarea } from "@/app/components/ui/textarea";
+import { diaLocal, ESTILO_ACCION_PELIGROSA, FECHA_LARGA } from "./comunes";
 
 /**
  * Final de la barra lateral. La presidenta pide eliminar el barrio y puede retirar el pedido; solo
@@ -51,9 +51,7 @@ export function EliminacionBarrio({
       {solicitadaEn ? (
         <div className="flex flex-col gap-2">
           <p className="text-sm font-bold">
-            {t.panel.eliminacionPedida(
-              formatearFecha(hoyEnZona(zonaDelNavegador(), new Date(solicitadaEn)), { day: "numeric", month: "long", year: "numeric" }),
-            )}
+            {t.panel.eliminacionPedida(formatearFecha(diaLocal(solicitadaEn), FECHA_LARGA))}
           </p>
           {motivo && <p className="text-sm whitespace-pre-wrap text-muted-foreground">{motivo}</p>}
           {!superAdmin && <p className="text-sm text-muted-foreground">{t.panel.eliminacionPedidaTexto}</p>}
@@ -75,7 +73,7 @@ export function EliminacionBarrio({
         <Button
           variant="ghost"
           onClick={() => setDialogo(true)}
-          className="h-11 self-start px-0 text-[13px] font-bold whitespace-normal text-destructive hover:bg-transparent hover:text-destructive hover:underline"
+          className={ESTILO_ACCION_PELIGROSA}
         >
           {superAdmin ? t.panel.eliminarBarrio : t.panel.solicitarEliminacion}
         </Button>
@@ -83,7 +81,7 @@ export function EliminacionBarrio({
 
       {dialogo &&
         (superAdmin ? (
-          <DialogoEliminar slug={slug} nombre={nombre} alCerrar={() => setDialogo(false)} />
+          <DialogoEliminar slug={slug} nombre={nombre} pedidoVisto={solicitadaEn} alCerrar={() => setDialogo(false)} />
         ) : (
           <DialogoSolicitar slug={slug} nombre={nombre} alCerrar={() => setDialogo(false)} />
         ))}
@@ -138,24 +136,42 @@ function DialogoSolicitar({ slug, nombre, alCerrar }: { slug: string; nombre: st
 }
 
 /** Hay que escribir el nombre tal cual: evita borrar el barrio equivocado. La API lo revisa de nuevo. */
-function DialogoEliminar({ slug, nombre, alCerrar }: { slug: string; nombre: string; alCerrar: () => void }) {
+function DialogoEliminar({
+  slug,
+  nombre,
+  pedidoVisto,
+  alCerrar,
+}: {
+  slug: string;
+  nombre: string;
+  pedidoVisto: string | null;
+  alCerrar: () => void;
+}) {
   const { t } = useIdioma();
   const id = useId();
   const navigate = useNavigate();
   const resumen = useResumenEliminacion(slug);
   const eliminar = useEliminarBarrio(slug);
   const [confirmacion, setConfirmacion] = useState("");
-  const coincide = confirmacion.trim() === nombre;
+  const coincide = nombreConfirmado(confirmacion, nombre);
 
   const enviar = (e: FormEvent) => {
     e.preventDefault();
     if (!coincide) return;
-    eliminar.mutate(confirmacion, {
-      onSuccess: () => {
-        toast.success(t.panel.barrioEliminado(nombre));
-        navigate("/admin", { replace: true });
+    eliminar.mutate(
+      { confirmacion, pedidoVisto },
+      {
+        onSuccess: () => {
+          toast.success(t.panel.barrioEliminado(nombre));
+          navigate("/admin", { replace: true });
+        },
+        onError: (error) => {
+          if (codigoDe(error) !== "NO_ENCONTRADO") return;
+          toast.warning(t.panel.barrioYaNoEsta);
+          navigate("/admin", { replace: true });
+        },
       },
-    });
+    );
   };
 
   return (

@@ -37,6 +37,7 @@ import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/app/components/ui/radio-group";
 import { CampoZona, SelectIdiomaBarrio, useErroresCampos } from "./campos-barrio";
+import { ESTILO_ACCION_PELIGROSA } from "./comunes";
 import { DatosCuenta } from "./DatosCuenta";
 import { DisenoCalendario } from "./DisenoCalendario";
 import { EliminacionBarrio } from "./EliminarBarrio";
@@ -219,9 +220,6 @@ function Enlaces({ slug, nombre, idioma, codigo }: { slug: string; nombre: strin
     </Seccion>
   );
 }
-
-const ESTILO_ACCION_PELIGROSA =
-  "h-11 self-start px-0 text-[13px] font-bold whitespace-normal text-destructive hover:bg-transparent hover:text-destructive hover:underline";
 
 /** Cambia el enlace público por uno con código al azar: cierra uno fácil de adivinar o que circuló de más. */
 function CambiarEnlace({ slug, nombre }: { slug: string; nombre: string }) {

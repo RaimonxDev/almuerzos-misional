@@ -110,9 +110,63 @@ describe("super admin", () => {
     await userEvent.type(campo, "Barrio Centro");
     await userEvent.click(confirmar);
 
-    await waitFor(() => expect(llamadas(api, "DELETE", RUTA)).toEqual([{ confirmacion: "Barrio Centro" }]));
+    await waitFor(() =>
+      expect(llamadas(api, "DELETE", RUTA)).toEqual([{ confirmacion: "Barrio Centro", pedidoVisto: null }]),
+    );
     // Sale del barrio borrado: /admin ya no lo tiene en la lista.
     expect(await screen.findByText(/todavía no administra ningún barrio/i)).toBeInTheDocument();
+  });
+
+  it("manda el pedido que está viendo", async () => {
+    const api = simular(true, barrio(PEDIDA));
+    const dialogo = await abrirDialogo();
+    await within(dialogo).findByText("5 inscripciones (2 de hoy en adelante)");
+    await userEvent.type(within(dialogo).getByLabelText("Para confirmar, escribe Barrio Centro"), "Barrio Centro");
+    await userEvent.click(within(dialogo).getByRole("button", { name: "Eliminar para siempre" }));
+
+    await waitFor(() =>
+      expect(llamadas(api, "DELETE", RUTA)).toEqual([
+        { confirmacion: "Barrio Centro", pedidoVisto: PEDIDA.eliminacionSolicitadaEn },
+      ]),
+    );
+  });
+
+  it("si el barrio ya no está (se perdió la respuesta del borrado), vuelve a la lista", async () => {
+    const api = simular(true);
+    const base = api.getMockImplementation()!;
+    let yaNoEsta = false;
+    api.mockImplementation(async (entrada, init) => {
+      const ruta = String(entrada);
+      if (init?.method === "DELETE" && ruta.endsWith(RUTA)) {
+        yaNoEsta = true;
+        return Response.json({ error: "NO_ENCONTRADO" }, { status: 404 });
+      }
+      if (yaNoEsta && ruta.endsWith("/api/admin/yo")) return Response.json({ ...usuario(true), barrios: [] });
+      return base(entrada, init);
+    });
+    const dialogo = await abrirDialogo();
+    await within(dialogo).findByText("5 inscripciones (2 de hoy en adelante)");
+    await userEvent.type(within(dialogo).getByLabelText("Para confirmar, escribe Barrio Centro"), "Barrio Centro");
+    await userEvent.click(within(dialogo).getByRole("button", { name: "Eliminar para siempre" }));
+
+    expect(await screen.findByText(/todavía no administra ningún barrio/i)).toBeInTheDocument();
+  });
+
+  it("si el pedido cambió, avisa y no sale del panel", async () => {
+    const api = simular(true);
+    const base = api.getMockImplementation()!;
+    api.mockImplementation(async (entrada, init) => {
+      if (init?.method === "DELETE" && String(entrada).endsWith(RUTA)) {
+        return Response.json({ error: "PEDIDO_CAMBIO" }, { status: 409 });
+      }
+      return base(entrada, init);
+    });
+    const dialogo = await abrirDialogo();
+    await within(dialogo).findByText("5 inscripciones (2 de hoy en adelante)");
+    await userEvent.type(within(dialogo).getByLabelText("Para confirmar, escribe Barrio Centro"), "Barrio Centro");
+    await userEvent.click(within(dialogo).getByRole("button", { name: "Eliminar para siempre" }));
+
+    expect(await within(dialogo).findByText(/El pedido de eliminación cambió/)).toBeInTheDocument();
   });
 
   it("ve el motivo de un pedido", async () => {

@@ -290,6 +290,7 @@ export const en: Mensajes = {
     escribeNombreBarrio: (barrio: string) => `To confirm, type ${barrio}`,
     confirmarEliminarBarrio: "Delete forever",
     barrioEliminado: (barrio: string) => `${barrio} was deleted.`,
+    barrioYaNoEsta: "That ward no longer exists or its link changed.",
     cambiarCodigoTitulo: "Change the missionaries' code?",
     cambiarCodigoTexto:
       "The current code will stop working, including on phones where it was already entered. You'll need to give the new one to the missionaries.",
@@ -553,6 +554,7 @@ export const en: Mensajes = {
     SOLICITUD_RESUELTA: "This request has already been resolved.",
     VERIFICACION_FALLIDA: "We couldn't verify that you're not a robot. Please try again.",
     CONFIRMACION_INCORRECTA: "The name doesn't match. Type it exactly as shown.",
+    PEDIDO_CAMBIO: "The deletion request changed. Check it and try again.",
     ERROR_INTERNO: "Something went wrong or you're offline. Please try again in a moment.",
   },
 };

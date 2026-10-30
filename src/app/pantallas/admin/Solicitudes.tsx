@@ -8,7 +8,6 @@ import { type EstadoSolicitud, useRechazarSolicitud, useSolicitudes } from "@/ap
 import { useTitulo } from "@/app/hooks";
 import { useIdioma } from "@/app/i18n";
 import { cn } from "@/app/lib/utils";
-import { hoyEnZona, zonaDelNavegador } from "@/shared/fechas";
 import { enlaceWhatsApp } from "@/shared/telefonos";
 import { MOTIVO_RECHAZO_MAX } from "@/shared/solicitudes";
 import { RutaAdmin } from "@/app/components/RutaAdmin";
@@ -25,6 +24,7 @@ import {
 import { Label } from "@/app/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
 import { Textarea } from "@/app/components/ui/textarea";
+import { diaLocal, FECHA_LARGA } from "./comunes";
 import { EncabezadoAdmin } from "./EncabezadoAdmin";
 
 const ESTADOS: EstadoSolicitud[] = ["pendiente", "aprobada", "rechazada"];
@@ -114,9 +114,6 @@ function Pantalla() {
 type Respuesta = NonNullable<ReturnType<typeof useSolicitudes>["data"]>;
 type Solicitud = Respuesta["solicitudes"][number];
 
-/** Día en que llegó, en la zona de quien mira (no en UTC: de noche en América sería el día siguiente). */
-const fechaIso = (v: string | number) => hoyEnZona(zonaDelNavegador(), new Date(v));
-
 /** Barrios cuya presidenta pidió eliminarlos: se resuelven desde el panel de cada uno. */
 function ListaEliminaciones({ eliminaciones }: { eliminaciones: Respuesta["eliminaciones"] }) {
   const { t, formatearFecha } = useIdioma();
@@ -129,9 +126,7 @@ function ListaEliminaciones({ eliminaciones }: { eliminaciones: Respuesta["elimi
           <li key={e.slug} className="flex flex-col gap-1 rounded-[14px] border bg-card p-4">
             <h3 className="font-serif text-xl font-semibold text-azul-profundo">{e.nombre}</h3>
             {e.solicitadaEn && (
-              <p className="text-sm text-muted-foreground">
-                {s.solicitadaEl(formatearFecha(fechaIso(e.solicitadaEn), { day: "numeric", month: "long", year: "numeric" }))}
-              </p>
+              <p className="text-sm text-muted-foreground">{s.solicitadaEl(formatearFecha(diaLocal(e.solicitadaEn), FECHA_LARGA))}</p>
             )}
             {e.motivo && <p className="whitespace-pre-wrap">{e.motivo}</p>}
             <Link
@@ -162,7 +157,7 @@ function TarjetaSolicitud({ solicitud: sol, alRechazar }: { solicitud: Solicitud
           {[sol.estaca ? s.estaca(sol.estaca) : null, s.ubicacion(sol.ciudad, sol.pais)].filter(Boolean).join(" · ")}
         </p>
         <p className="text-sm text-muted-foreground">
-          {s.solicitadaEl(formatearFecha(fechaIso(sol.creadoEn), { day: "numeric", month: "long", year: "numeric" }))}
+          {s.solicitadaEl(formatearFecha(diaLocal(sol.creadoEn), FECHA_LARGA))}
         </p>
       </div>
 

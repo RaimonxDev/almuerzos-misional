@@ -40,7 +40,7 @@ export interface DatosCorreo {
   solicitudRecibida: { nombre: string; barrio: string };
   /** A quien pidió acceso: no se aprobó; `motivo` si el super admin lo escribió. */
   solicitudRechazada: { nombre: string; barrio: string; motivo: string | null };
-  /** Al super admin: una presidenta pidió eliminar su barrio. `enlace` lleva a su panel. */
+  /** Al super admin: una presidenta pidió eliminar su barrio. `enlace` lleva a `/admin/solicitudes`. */
   eliminacionSolicitada: { nombre: string; email: string; barrio: string; motivo: string | null; enlace: string };
   /** A cada admin de un barrio borrado; `cuentaBorrada` si no le queda otro barrio. */
   barrioEliminado: { nombre: string; barrio: string; cuentaBorrada: boolean };
@@ -136,7 +136,7 @@ export const es: MensajesCorreo = {
       `${nombre} (${email}) pidió eliminar ${barrio} de Almuerzo Misional. El barrio sigue funcionando hasta que lo borres.`,
       ...(motivo ? [`Escribió: ${motivo}`] : []),
     ],
-    boton: { texto: "Abrir el barrio", enlace },
+    boton: { texto: "Ver los pedidos", enlace },
   }),
   barrioEliminado: ({ nombre, barrio, cuentaBorrada }) => ({
     asunto: `Eliminamos ${barrio}`,

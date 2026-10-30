@@ -44,3 +44,7 @@ export const esquemaRechazoSolicitud = z.object({ motivo: textoOpcional(MOTIVO_R
 
 export const MOTIVO_ELIMINACION_MAX = 500;
 export const esquemaSolicitudEliminacion = z.object({ motivo: textoOpcional(MOTIVO_ELIMINACION_MAX) });
+
+/** Compara en NFC: un nombre pegado (NFD) y uno escrito en el teclado (NFC) se ven iguales. */
+export const nombreConfirmado = (escrito: string, nombre: string) =>
+  escrito.trim().normalize("NFC") === nombre.normalize("NFC");

@@ -30,6 +30,7 @@ export const CODIGOS_ERROR = [
   "SOLICITUD_RESUELTA", // 409: aprobar o rechazar una solicitud que ya estaba aprobada o rechazada
   "VERIFICACION_FALLIDA", // 400: Turnstile no validó (o falta su token)
   "CONFIRMACION_INCORRECTA", // 422: borrar un barrio sin escribir su nombre tal cual
+  "PEDIDO_CAMBIO", // 409: el pedido de eliminación cambió desde que se abrió el panel
   "ERROR_INTERNO",
 ] as const;
 

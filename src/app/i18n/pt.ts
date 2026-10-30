@@ -293,6 +293,7 @@ export const pt: Mensajes = {
     escribeNombreBarrio: (barrio: string) => `Para confirmar, escreva ${barrio}`,
     confirmarEliminarBarrio: "Excluir para sempre",
     barrioEliminado: (barrio: string) => `${barrio} foi excluída.`,
+    barrioYaNoEsta: "Essa ala não existe mais ou mudou de link.",
     cambiarCodigoTitulo: "Trocar o código dos missionários?",
     cambiarCodigoTexto:
       "O código atual deixará de funcionar, inclusive nos celulares onde já foi digitado. Você terá que passar o novo aos missionários.",
@@ -556,6 +557,7 @@ export const pt: Mensajes = {
     SOLICITUD_RESUELTA: "Esta solicitação já foi resolvida.",
     VERIFICACION_FALLIDA: "Não conseguimos verificar que você não é um robô. Tente novamente.",
     CONFIRMACION_INCORRECTA: "O nome não confere. Escreva exatamente como aparece.",
+    PEDIDO_CAMBIO: "O pedido de exclusão mudou. Confira e tente de novo.",
     ERROR_INTERNO: "Algo deu errado ou não há conexão. Tente novamente em instantes.",
   },
 };
