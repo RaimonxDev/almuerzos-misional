@@ -2,7 +2,7 @@ import type { RouteObject } from "react-router";
 import { VistaPublica } from "./pantallas/VistaPublica";
 import { Anotarse } from "./pantallas/Anotarse";
 import { MiTurnoRuta } from "./pantallas/MiTurno";
-import { VistaMisioneros } from "./pantallas/VistaMisioneros";
+import { EnlaceViejoMisioneros, VistaMisioneros } from "./pantallas/VistaMisioneros";
 
 /**
  * Lo de admin se carga aparte (`lazy`): las hermanas y los misioneros no descargan el panel
@@ -57,5 +57,7 @@ export const rutas: RouteObject[] = [
   { path: "/:barrio", element: <VistaPublica /> },
   { path: "/:barrio/anotarse/:turnoId", element: <Anotarse /> },
   { path: "/:barrio/mi-turno/:inscripcionId", element: <MiTurnoRuta /> },
-  { path: "/:barrio/m/:token", element: <VistaMisioneros /> },
+  { path: "/:barrio/m", element: <VistaMisioneros /> },
+  // Los enlaces con token de antes del código: llevan a la pantalla del código (el token ya no sirve).
+  { path: "/:barrio/m/:token", element: <EnlaceViejoMisioneros /> },
 ];

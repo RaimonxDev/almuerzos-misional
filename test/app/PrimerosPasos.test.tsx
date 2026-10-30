@@ -17,7 +17,7 @@ const barrio = (notaParaCocinar: string | null) => ({
     nombre: "Barrio Centro",
     idioma: "es",
     zonaHoraria: "America/Santiago",
-    tokenMisioneros: "tok",
+    codigoMisioneros: "K7PM2X",
     notaParaCocinar,
     contactoNombre: null,
     contactoTelefono: null,

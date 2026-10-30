@@ -2,6 +2,11 @@
 interface Env {
   /** Secreto de Better Auth: `.dev.vars` en local, `bunx wrangler secret put BETTER_AUTH_SECRET` en producción. */
   BETTER_AUTH_SECRET: string;
+  /**
+   * Firma los tokens de los misioneros (HMAC del barrio y su código). Aparte de Better Auth: rotarlo
+   * saca a todos los misioneros sin tocar las sesiones de los admins. `bunx wrangler secret put SECRETO_MISIONEROS`.
+   */
+  SECRETO_MISIONEROS: string;
   /** URL pública del sitio (opcional: sin ella Better Auth la deduce de la request). */
   BETTER_AUTH_URL?: string;
   /** API key de Resend (opcional: sin ella `enviarCorreo` escribe el correo en la consola). */

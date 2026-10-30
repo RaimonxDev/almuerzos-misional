@@ -1,58 +1,186 @@
-import { useMemo, useState } from "react";
-import { useParams } from "react-router";
+import { useEffect, useId, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { Navigate, useParams } from "react-router";
 import { HandPlatterIcon, HouseIcon, MapPinIcon, MessageCircleIcon } from "lucide-react";
+import { useTokenMisioneros } from "@/app/acceso-misioneros";
 import { codigoDe } from "@/app/api";
-import { useMesMisioneros, useMisioneros } from "@/app/consultas";
+import { useEntrarMisioneros, useMesMisioneros, useMisioneros } from "@/app/consultas";
 import { useIdioma } from "@/app/i18n";
-import { useIdiomaDelBarrio, usePeriodoDeLaUrl, useTitulo } from "@/app/hooks";
+import { useBarrioConIdioma, useIdiomaDelBarrio, usePeriodoDeLaUrl, useTitulo } from "@/app/hooks";
 import { agruparPorDia, diasVisibles } from "@/app/dias";
 import { textoPeriodo } from "@/app/periodos";
 import { enlaceWhatsApp } from "@/shared/telefonos";
 import { Encabezado } from "@/app/components/Encabezado";
 import { PiePagina } from "@/app/components/PiePagina";
-import { Aviso, Cargando, ErrorCarga } from "@/app/components/Estado";
+import { AlertaError, Aviso, AvisoAmbar, Cargando, ErrorCarga } from "@/app/components/Estado";
 import { GrupoPildoras } from "@/app/components/GrupoPildoras";
 import { SelectorMes } from "@/app/components/SelectorMes";
 import { BotonDiasAnteriores, FilaTurno, TarjetaDia } from "@/app/components/TarjetaDia";
 import { cn } from "@/app/lib/utils";
-import { buttonVariants } from "@/app/components/ui/button";
+import { Button, buttonVariants } from "@/app/components/ui/button";
+import { Input } from "@/app/components/ui/input";
+import { Label } from "@/app/components/ui/label";
 
 /**
- * Token regenerado o equivocado. Se revisa antes que los datos: si regeneran el enlace con la
- * página abierta, React Query conserva lo último que trajo y hay que dejar de mostrarlo.
+ * Código cambiado (o token de otro barrio). Se revisa antes que los datos: si cambian el código con
+ * la página abierta, React Query conserva lo último que trajo y hay que dejar de mostrarlo.
  */
-const enlaceInvalido = (consulta: { isError: boolean; error: unknown }) =>
+const tokenRechazado = (consulta: { isError: boolean; error: unknown }) =>
   consulta.isError && codigoDe(consulta.error) === "TOKEN_INVALIDO";
 
+/** Avisa una sola vez que la API rechazó el token. */
+function useAlRechazar(consulta: { isError: boolean; error: unknown }, alRechazar: () => void) {
+  const rechazado = tokenRechazado(consulta);
+  useEffect(() => {
+    if (rechazado) alRechazar();
+    // Solo importa el paso a rechazado: `alRechazar` cambia en cada render.
+  }, [rechazado]);
+  return rechazado;
+}
+
 /**
- * `/:barrio/m/:token` — calendario para los misioneros (y la presidenta): quién da el almuerzo,
+ * `/:barrio/m` — calendario para los misioneros (y la presidenta): quién da el almuerzo,
  * cómo y dónde, con WhatsApp solo si la persona compartió su teléfono.
- * El token no se muestra ni va al título de la pestaña: solo viaja en el header a la API.
+ * Se entra una vez con el código del barrio; el token queda en este teléfono y solo viaja en el
+ * header a la API (nunca en la URL ni en el título de la pestaña).
  */
 export function VistaMisioneros() {
-  const { barrio: slug = "", token = "" } = useParams();
+  const { barrio: slug = "" } = useParams();
+  return <Misioneros key={slug} slug={slug} />;
+}
+
+/** `/:barrio/m/:token`: los enlaces de antes del código. El token se descarta y no viaja a ninguna parte. */
+export function EnlaceViejoMisioneros() {
+  const { barrio = "" } = useParams();
+  return <Navigate to={`/${barrio}/m`} replace />;
+}
+
+function Misioneros({ slug }: { slug: string }) {
+  const { token, guardar, olvidar } = useTokenMisioneros(slug);
+  const [codigoCambio, setCodigoCambio] = useState(false);
+
+  if (!token) {
+    return (
+      <IngresarCodigo
+        slug={slug}
+        codigoCambio={codigoCambio}
+        alEntrar={(nuevo) => {
+          setCodigoCambio(false);
+          guardar(nuevo);
+        }}
+      />
+    );
+  }
+  return (
+    <Calendario
+      slug={slug}
+      token={token}
+      alRechazar={() => {
+        olvidar();
+        setCodigoCambio(true);
+      }}
+      alSalir={olvidar}
+    />
+  );
+}
+
+function IngresarCodigo({
+  slug,
+  codigoCambio,
+  alEntrar,
+}: {
+  slug: string;
+  /** La API rechazó el token guardado: la presidenta cambió el código. */
+  codigoCambio: boolean;
+  alEntrar: (token: string) => void;
+}) {
+  const { t } = useIdioma();
+  const id = useId();
+  const barrio = useBarrioConIdioma(slug);
+  const entrar = useEntrarMisioneros(slug);
+  const [codigo, setCodigo] = useState("");
+  useTitulo(barrio.data?.barrio.nombre);
+
+  if (!barrio.data) {
+    return (
+      <>
+        <Encabezado titulo="" />
+        {barrio.isError ? <ErrorCarga error={barrio.error} reintentar={barrio.refetch} /> : <Cargando />}
+      </>
+    );
+  }
+
+  const enviar = (e: FormEvent) => {
+    e.preventDefault();
+    entrar.mutate(codigo, { onSuccess: ({ token }) => alEntrar(token) });
+  };
+
+  return (
+    <>
+      <Encabezado antetitulo={t.misioneros.antetitulo} titulo={barrio.data.barrio.nombre} />
+      <main className="mx-auto flex max-w-sm flex-col gap-4 px-4 py-8">
+        {codigoCambio && <AvisoAmbar>{t.misioneros.codigoCambio}</AvisoAmbar>}
+        <form onSubmit={enviar} className="flex flex-col gap-3">
+          <Label htmlFor={id}>{t.misioneros.codigo}</Label>
+          <Input
+            id={id}
+            value={codigo}
+            onChange={(e) => setCodigo(e.target.value)}
+            maxLength={20}
+            autoComplete="off"
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+            aria-describedby={`${id}-ayuda`}
+            className="h-14 rounded-[10px] text-center font-mono text-2xl tracking-[0.2em] uppercase"
+          />
+          <p id={`${id}-ayuda`} className="text-sm leading-snug text-muted-foreground">
+            {t.misioneros.codigoAyuda}
+          </p>
+          {entrar.isError && <AlertaError>{t.errores[codigoDe(entrar.error)]}</AlertaError>}
+          <Button type="submit" variant="accion" disabled={entrar.isPending || !codigo.trim()}>
+            {entrar.isPending ? t.misioneros.entrando : t.misioneros.entrar}
+          </Button>
+        </form>
+      </main>
+      <PiePagina />
+    </>
+  );
+}
+
+function Calendario({
+  slug,
+  token,
+  alRechazar,
+  alSalir,
+}: {
+  slug: string;
+  token: string;
+  alRechazar: () => void;
+  alSalir: () => void;
+}) {
   const { t } = useIdioma();
   const consulta = useMisioneros(slug, token);
+  const rechazado = useAlRechazar(consulta, alRechazar);
   const barrio = consulta.data?.barrio;
   const meses = consulta.data?.meses ?? [];
   const [periodo, ir] = usePeriodoDeLaUrl(meses, consulta.data?.hoy ?? "");
   useIdiomaDelBarrio(barrio?.idioma);
   useTitulo(barrio?.nombre);
 
-  if (!barrio || enlaceInvalido(consulta)) {
+  if (!barrio || rechazado) {
     return (
       <>
         <Encabezado titulo="" />
-        {enlaceInvalido(consulta) ? (
-          <Aviso>{t.misioneros.enlaceInvalido}</Aviso>
-        ) : consulta.isError ? (
-          <ErrorCarga error={consulta.error} reintentar={consulta.refetch} />
-        ) : (
-          <Cargando />
-        )}
+        {consulta.isError && !rechazado ? <ErrorCarga error={consulta.error} reintentar={consulta.refetch} /> : <Cargando />}
       </>
     );
   }
+
+  const salir = (
+    <Button variant="ghost" className="mx-auto mb-2 flex font-bold text-azul-medio" onClick={alSalir}>
+      {t.misioneros.salir}
+    </Button>
+  );
 
   return (
     <>
@@ -60,10 +188,18 @@ export function VistaMisioneros() {
         {periodo && <SelectorMes periodo={periodo} meses={meses} onCambiar={ir} />}
       </Encabezado>
       {periodo ? (
-        <TurnosDelMes slug={slug} token={token} periodo={textoPeriodo(periodo)} zonaHoraria={barrio.zonaHoraria} />
+        <TurnosDelMes
+          slug={slug}
+          token={token}
+          periodo={textoPeriodo(periodo)}
+          zonaHoraria={barrio.zonaHoraria}
+          alRechazar={alRechazar}
+          salir={salir}
+        />
       ) : (
         <>
           <Aviso>{t.misioneros.sinMeses}</Aviso>
+          {salir}
           <PiePagina />
         </>
       )}
@@ -76,14 +212,20 @@ function TurnosDelMes({
   token,
   periodo,
   zonaHoraria,
+  alRechazar,
+  salir,
 }: {
   slug: string;
   token: string;
   periodo: string;
   zonaHoraria: string;
+  alRechazar: () => void;
+  /** El botón "Salir", al final de la lista. */
+  salir: ReactNode;
 }) {
   const { t } = useIdioma();
   const consulta = useMesMisioneros(slug, token, periodo);
+  const rechazado = useAlRechazar(consulta, alRechazar);
   const [filtro, setFiltro] = useState<string | null>(null);
   const [verAnteriores, setVerAnteriores] = useState(false);
 
@@ -97,7 +239,7 @@ function TurnosDelMes({
     );
   }, [consulta.data]);
 
-  if (enlaceInvalido(consulta)) return <Aviso>{t.misioneros.enlaceInvalido}</Aviso>;
+  if (rechazado) return <Cargando />;
   if (!consulta.data) {
     return consulta.isError ? <ErrorCarga error={consulta.error} reintentar={consulta.refetch} /> : <Cargando />;
   }
@@ -177,6 +319,7 @@ function TurnosDelMes({
           </TarjetaDia>
         ))}
       </div>
+      {salir}
       <PiePagina />
     </main>
   );
@@ -209,7 +352,7 @@ function Telefono({
     <div className="mt-0.5 flex items-center justify-between gap-2.5">
       <span className="text-sm font-semibold">{telefono}</span>
       {enlace && (
-        // noreferrer: la URL de esta página lleva el token y no debe llegar a WhatsApp.
+        // noreferrer: lo que diga la URL de esta página no tiene por qué llegar a WhatsApp.
         <a
           href={enlace}
           target="_blank"

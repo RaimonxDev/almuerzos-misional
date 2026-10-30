@@ -15,20 +15,9 @@ import { Label } from "@/app/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
 import { DatosCuenta } from "./DatosCuenta";
 import { EncabezadoAdmin } from "./EncabezadoAdmin";
+import { enlaceValido, LARGO_ENLACE, sugerirSlug, vistaPreviaEnlace } from "./enlace";
 
-/** Mismas reglas que la API (`rutas/admin/cuenta.ts`). */
-const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const TIPOS: TipoCompanerismo[] = ["elderes", "hermanas"];
-
-/** "Barrio Ñuñoa 2" → "barrio-nunoa-2" */
-export const sugerirSlug = (nombre: string) =>
-  nombre
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 60);
 
 type Campo = "nombre" | "slug" | "zonaHoraria" | "companerismos" | "presidenta";
 
@@ -112,7 +101,7 @@ export function FormularioBarrio({
     e.preventDefault();
     const malos: Campo[] = [];
     if (nombre.trim().length < 2) malos.push("nombre");
-    if (slug.length < 2 || !SLUG.test(slug)) malos.push("slug");
+    if (!enlaceValido(slug)) malos.push("slug");
     if (!zonaValida(zonaHoraria.trim())) malos.push("zonaHoraria");
     if (tipos.length === 0) malos.push("companerismos");
     const correo = correoPresidenta.trim();
@@ -193,7 +182,7 @@ export function FormularioBarrio({
               id={`${id}-slug`}
               value={slug}
               onChange={(e) => setSlugEscrito(e.target.value.toLowerCase())}
-              maxLength={60}
+              maxLength={LARGO_ENLACE}
               autoComplete="off"
               autoCapitalize="none"
               spellCheck={false}
@@ -201,7 +190,7 @@ export function FormularioBarrio({
               {...invalido("slug")}
             />
             {errorDe("slug", nb.errorEnlace)}
-            <p className="text-sm text-muted-foreground">{nb.ayudaEnlace(`${location.host}/${slug || "…"}`)}</p>
+            <p className="text-sm text-muted-foreground">{nb.ayudaEnlace(vistaPreviaEnlace(slug))}</p>
           </div>
 
           <div className="flex flex-col gap-1.5">

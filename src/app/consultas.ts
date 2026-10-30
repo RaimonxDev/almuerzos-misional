@@ -40,7 +40,13 @@ export const useTurno = (slug: string, turnoId: string) =>
     queryFn: () => datos(barrios[":slug"].turnos[":turnoId"].$get({ param: { slug, turnoId } })),
   });
 
-/** Calendario de misioneros: el token del enlace va en el header, no en la URL de la API. */
+/** Código de misioneros → token para este teléfono (`acceso-misioneros.ts` lo guarda). */
+export const useEntrarMisioneros = (slug: string) =>
+  useMutation({
+    mutationFn: (codigo: string) => datos(barrios[":slug"].misioneros.acceso.$post({ param: { slug }, json: { codigo } })),
+  });
+
+/** Calendario de misioneros: el token va en el header, no en la URL de la API. */
 export const useMisioneros = (slug: string, token: string) =>
   useQuery({
     queryKey: ["misioneros", slug, token],

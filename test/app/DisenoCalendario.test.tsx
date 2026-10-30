@@ -28,7 +28,7 @@ function simular(extra: Parameters<typeof simularApi>[0] = {}) {
     },
     [RUTA]: {
       json: {
-        barrio: { slug: "centro", nombre: "Barrio Centro", idioma: "es", zonaHoraria: "America/Santiago", tokenMisioneros: "t", notaParaCocinar: null, contactoNombre: null, contactoTelefono: null },
+        barrio: { slug: "centro", nombre: "Barrio Centro", idioma: "es", zonaHoraria: "America/Santiago", codigoMisioneros: "K7PM2X", notaParaCocinar: null, contactoNombre: null, contactoTelefono: null },
         companerismos: COMPANERISMOS,
       },
     },

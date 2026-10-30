@@ -1,0 +1,5 @@
+# Las pantallas de los barrios no se bloquean aquí: llevan `X-Robots-Tag: noindex`, y un
+# buscador que no puede entrar no ve ese aviso y podría listar la URL igual.
+User-agent: *
+Disallow: /api/
+Disallow: /admin

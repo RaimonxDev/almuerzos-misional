@@ -33,7 +33,7 @@ function simular() {
     },
     "/api/admin/barrios/centro": {
       json: {
-        barrio: { slug: "centro", nombre: "Barrio Centro", idioma: "es", zonaHoraria: "America/Santiago", tokenMisioneros: "t", notaParaCocinar: null, contactoNombre: "Presidenta Ana", contactoTelefono: "+56 9 1111 2222" },
+        barrio: { slug: "centro", nombre: "Barrio Centro", idioma: "es", zonaHoraria: "America/Santiago", codigoMisioneros: "K7PM2X", notaParaCocinar: null, contactoNombre: "Presidenta Ana", contactoTelefono: "+56 9 1111 2222" },
         companerismos: COMPANERISMOS,
       },
     },

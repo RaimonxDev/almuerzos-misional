@@ -25,7 +25,7 @@ export const en: MensajesCorreo = {
     parrafos: [
       `Missionary Lunch is a page where the sisters of the ward sign up to give lunch to the missionaries, without coordinating it by hand on WhatsApp. ${barrio} was created and you are its administrator.`,
       "From the dashboard you can open months, see who signed up, block days and share the calendar. To sign in, first create your password with the button.",
-      "First steps: create next month, open it when it's ready and share the ward link on WhatsApp with the sisters. The link for the missionaries is in the dashboard sidebar.",
+      "First steps: create next month, open it when it's ready and share the ward link on WhatsApp with the sisters. The link and code for the missionaries are in the dashboard sidebar.",
       `After that, your dashboard is at ${panel}`,
     ],
     boton: { texto: "Create my password", enlace },

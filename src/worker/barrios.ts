@@ -9,18 +9,17 @@ import { hashPassword } from "@/shared/password";
 import { avisarAdmin } from "./invitaciones";
 import { esViolacionUnica, zonaValida } from "./http";
 
-/** Enlaces que ya usa la app: un barrio con uno de ellos quedaría sin vista pública o sin panel. */
-const SLUGS_RESERVADOS = ["admin", "api", "solicitar", "informacion", "preguntas", "nuevo-barrio", "solicitudes", "cuenta", "login", "olvide", "restablecer"];
+const LARGO_CODIGO_ENLACE = 5;
 
 /** Los datos de un barrio nuevo: los mismos al crearlo a mano y al aprobar una solicitud. */
 export const esquemaNuevoBarrio = z.object({
+  /** La parte legible del enlace: `crearBarrio` le agrega un código al azar (`centro` → `centro-k7m2x`). */
   slug: z
     .string()
     .min(2)
-    .max(60)
-    .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/)
-    // Reservados: chocan con rutas de la app (`/:barrio` y `/admin/:barrio`).
-    .refine((s) => !SLUGS_RESERVADOS.includes(s)),
+    .max(60 - LARGO_CODIGO_ENLACE - 1)
+    // Sin reservados: con el código al final ningún enlace choca con una ruta de la app (`admin-k7m2x`).
+    .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/),
   nombre: z.string().trim().min(2).max(80),
   idioma: z.enum(IDIOMAS).optional(),
   zonaHoraria: z.string().refine(zonaValida).optional(),
@@ -46,17 +45,24 @@ export type DatosNuevoBarrio = z.output<typeof esquemaNuevoBarrio>;
 /** Sin caracteres que se confunden al dictarla o copiarla a mano (0/O, 1/l/I). */
 const ALFABETO = "abcdefghijkmnpqrstuvwxyz23456789";
 
+const alAzar = (largo: number) =>
+  [...crypto.getRandomValues(new Uint8Array(largo))].map((b) => ALFABETO[b % ALFABETO.length]).join("");
+
 /** 3 grupos de 4, ej. `k7mp-x3qa-9tdw`: ~60 bits, fácil de mandar por WhatsApp. */
 export function passwordTemporal() {
-  const bytes = crypto.getRandomValues(new Uint8Array(12));
-  const letras = [...bytes].map((b) => ALFABETO[b % ALFABETO.length]).join("");
-  return letras.match(/.{4}/g)!.join("-");
+  return alAzar(12).match(/.{4}/g)!.join("-");
 }
+
+/**
+ * El enlace de un barrio lleva un código al azar (32^5 ≈ 33 millones): conocer el nombre no
+ * basta para entrar, hay que recibir el enlace, y el mismo nombre en otra estaca o país no choca.
+ */
+export const enlaceConCodigo = (base: string) => `${base}-${alAzar(LARGO_CODIGO_ENLACE)}`;
 
 /**
  * Crea el barrio, sus compañerismos y a la presidenta en un batch, y le manda la bienvenida.
  * `extra` son sentencias que van en el mismo batch (ej. marcar la solicitud como aprobada).
- * `null` = el slug ya existe. Es lo que usan `POST /barrios` y aprobar una solicitud.
+ * `null` = el enlace ya existe (el código al azar repetido: casi imposible). Es lo que usan `POST /barrios` y aprobar una solicitud.
  */
 export async function crearBarrio(
   db: Db,
@@ -65,8 +71,7 @@ export async function crearBarrio(
   datos: DatosNuevoBarrio,
   extra: (barrioId: string) => BatchItem<"sqlite">[] = () => [],
 ) {
-  const existente = await db.select({ id: barrios.id }).from(barrios).where(eq(barrios.slug, datos.slug)).get();
-  if (existente) return null;
+  const slug = enlaceConCodigo(datos.slug);
 
   const barrioId = crypto.randomUUID();
   const filasCompanerismos = datos.companerismos.map((cp, orden) => ({ barrioId, tipo: cp.tipo, nombre: cp.nombre, orden }));
@@ -109,7 +114,7 @@ export async function crearBarrio(
     await db.batch([
       db.insert(barrios).values({
         id: barrioId,
-        slug: datos.slug,
+        slug,
         nombre: datos.nombre,
         ...(datos.idioma && { idioma: datos.idioma }),
         ...(datos.zonaHoraria && { zonaHoraria: datos.zonaHoraria }),
@@ -120,7 +125,7 @@ export async function crearBarrio(
       ...extra(barrioId),
     ]);
   } catch (err) {
-    // Carrera entre dos super admins con el mismo slug (o, muy raro, el mismo correo nuevo).
+    // Carrera entre dos super admins con el mismo correo nuevo (o, casi imposible, el mismo código de enlace).
     if (esViolacionUnica(err)) return null;
     throw err;
   }
@@ -149,7 +154,7 @@ export async function crearBarrio(
       nombre: barrio!.nombre,
       idioma: barrio!.idioma,
       zonaHoraria: barrio!.zonaHoraria,
-      tokenMisioneros: barrio!.tokenMisioneros,
+      codigoMisioneros: barrio!.codigoMisioneros,
     },
     companerismos: creados,
     // La contraseña temporal se entrega solo esta vez (en la base queda su hash) y solo si el

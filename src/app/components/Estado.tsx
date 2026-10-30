@@ -1,4 +1,4 @@
-import { InfoIcon, LoaderCircleIcon } from "lucide-react";
+import { InfoIcon, LoaderCircleIcon, TriangleAlertIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { codigoDe } from "@/app/api";
 import { useIdioma } from "@/app/i18n";
@@ -49,6 +49,19 @@ export function AvisoAmbar({ children }: { children: ReactNode }) {
     <div className="flex gap-2.5 rounded-xl border border-aviso-borde bg-aviso-suave px-3.5 py-3">
       <InfoIcon className="mt-px size-5 shrink-0 text-aviso" aria-hidden="true" />
       <p className="text-[13px] leading-snug text-aviso-texto">{children}</p>
+    </div>
+  );
+}
+
+/** Advertencia antes de una acción que no se puede deshacer (ej. dentro de un diálogo de confirmación). */
+export function AvisoDestructivo({ titulo, children }: { titulo: string; children: ReactNode }) {
+  return (
+    <div className="flex gap-2.5 rounded-xl border border-destructive/30 bg-destructive/10 px-3.5 py-3">
+      <TriangleAlertIcon className="mt-px size-5 shrink-0 text-destructive" aria-hidden="true" />
+      <div className="flex flex-col gap-1">
+        <p className="text-sm font-bold text-destructive">{titulo}</p>
+        {children}
+      </div>
     </div>
   );
 }

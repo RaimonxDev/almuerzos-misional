@@ -14,8 +14,9 @@ import { diaDeSemana, fechasDelMes, hoyEnZona } from "../src/shared/fechas.ts";
 import { hashPassword } from "../src/shared/password.ts";
 
 /** Tokens fijos para poder abrir las URLs de prueba sin consultar la base. */
-const TOKEN_MISIONEROS_CENTRO = "dev-misioneros-centro";
-const TOKEN_MISIONEROS_JARDIM = "dev-misioneros-jardim";
+/** Códigos de misioneros fijos para desarrollo (mismo alfabeto que `src/shared/codigo-misioneros.ts`). */
+const CODIGO_MISIONEROS_CENTRO = "CENT23";
+const CODIGO_MISIONEROS_JARDIM = "JARD23";
 /** Token de edición de la inscripción de ejemplo (en localStorage iría este valor). */
 const TOKEN_EDICION_DEMO = "dev-edicion-demo";
 
@@ -44,7 +45,7 @@ type Barrio = {
   nombre: string;
   idioma: "es" | "pt" | "en";
   zonaHoraria: string;
-  token: string;
+  codigo: string;
   contactoNombre: string;
   contactoTelefono: string;
   notaParaCocinar: string | null;
@@ -57,7 +58,7 @@ const BARRIOS: Barrio[] = [
     nombre: "Barrio Centro",
     idioma: "es",
     zonaHoraria: "America/Santiago",
-    token: TOKEN_MISIONEROS_CENTRO,
+    codigo: CODIGO_MISIONEROS_CENTRO,
     contactoNombre: "Hna. Rojas",
     contactoTelefono: "+56 9 1234 5678",
     notaParaCocinar: "El élder Soto es alérgico al maní.",
@@ -72,7 +73,7 @@ const BARRIOS: Barrio[] = [
     nombre: "Ala Jardim",
     idioma: "pt",
     zonaHoraria: "America/Sao_Paulo",
-    token: TOKEN_MISIONEROS_JARDIM,
+    codigo: CODIGO_MISIONEROS_JARDIM,
     contactoNombre: "Irmã Souza",
     contactoTelefono: "+55 11 91234 5678",
     notaParaCocinar: null,
@@ -128,7 +129,9 @@ for (const b of BARRIOS) {
       nombre: b.nombre,
       idioma: b.idioma,
       zona_horaria: b.zonaHoraria,
-      token_misioneros: b.token,
+      codigo_misioneros: b.codigo,
+      // Columna obsoleta (NOT NULL y única) hasta que la borre la próxima migración.
+      token_misioneros: crypto.randomUUID(),
       nota_para_cocinar: b.notaParaCocinar,
       contacto_nombre: b.contactoNombre,
       contacto_telefono: b.contactoTelefono,
@@ -216,7 +219,7 @@ for (const b of BARRIOS) {
     console.log(`✓ ${b.slug}: ${anio}-${String(mes).padStart(2, "0")} abierto, ${fechas.length * companerismoIds.length} turnos, bloqueado ${fechaBloqueada}`);
   }
   console.log(`  público:    /${b.slug}`);
-  console.log(`  misioneros: /${b.slug}/m/${b.token}`);
+  console.log(`  misioneros: /${b.slug}/m con el código ${b.codigo}`);
 }
 
 for (const a of ADMINS) console.log(`  admin: ${a.email} / ${a.password}${a.barrio ? ` (barrio ${a.barrio})` : " (super admin)"}`);

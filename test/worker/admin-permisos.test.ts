@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { crearDb } from "@/db";
 import { adminsBarrio, barrios, companerismos } from "@/db/schema";
 import { user } from "@/db/auth-schema";
-import { crearAdmin, iniciarSesion, pedir, sembrar } from "./datos";
+import { crearAdmin, enlaceConCodigo, iniciarSesion, pedir, sembrar } from "./datos";
 
 beforeEach(async () => {
   await sembrar();
@@ -94,15 +94,16 @@ describe("POST /api/admin/barrios", () => {
     const res = await pedir("/api/admin/barrios", { method: "POST", cookie, json: { ...BARRIO_NUEVO, idioma: "pt", zonaHoraria: "America/Sao_Paulo" } });
     expect(res.status).toBe(201);
     const body = await res.json<any>();
-    expect(body.barrio).toMatchObject({ slug: "oriente", nombre: "Barrio Oriente", idioma: "pt", zonaHoraria: "America/Sao_Paulo" });
-    expect(body.barrio.tokenMisioneros).toHaveLength(64);
+    expect(body.barrio).toMatchObject({ nombre: "Barrio Oriente", idioma: "pt", zonaHoraria: "America/Sao_Paulo" });
+    expect(body.barrio.slug).toMatch(enlaceConCodigo("oriente"));
+    expect(body.barrio.codigoMisioneros).toMatch(/^[A-HJKMNP-Z2-9]{6}$/);
     expect(body.companerismos.map((c: any) => [c.nombre, c.orden, c.activo])).toEqual([
       ["Élderes", 0, true],
       ["Hermanas misioneras", 1, true],
     ]);
 
     const db = crearDb(env.DB);
-    const barrio = await db.query.barrios.findFirst({ where: eq(barrios.slug, "oriente") });
+    const barrio = await db.query.barrios.findFirst({ where: eq(barrios.slug, body.barrio.slug) });
     const filas = await db.select().from(companerismos).where(eq(companerismos.barrioId, barrio!.id));
     expect(filas).toHaveLength(2);
   });
@@ -124,7 +125,7 @@ describe("POST /api/admin/barrios", () => {
     const suya = await iniciarSesion("nueva@ejemplo.cl", body.presidenta.passwordTemporal);
     const yo = await (await pedir("/api/admin/yo", { cookie: suya })).json<any>();
     expect(yo.usuario.superAdmin).toBe(false);
-    expect(yo.barrios).toEqual([{ slug: "oriente", nombre: "Barrio Oriente", cargo: presidenta.cargo }]);
+    expect(yo.barrios).toEqual([{ slug: body.barrio.slug, nombre: "Barrio Oriente", cargo: presidenta.cargo }]);
   });
 
   it("con presidenta que ya tiene cuenta: solo la asigna, sin tocar su contraseña", async () => {
@@ -136,12 +137,13 @@ describe("POST /api/admin/barrios", () => {
       json: { ...BARRIO_NUEVO, presidenta: { email: "A@ejemplo.cl", nombre: "Otro nombre" } },
     });
     expect(res.status).toBe(201);
-    expect((await res.json<any>()).presidenta).toEqual({ email: "a@ejemplo.cl", nombre: "a", cargo: null, cuentaNueva: false, correoEnviado: false, passwordTemporal: null });
+    const body = await res.json<any>();
+    expect(body.presidenta).toEqual({ email: "a@ejemplo.cl", nombre: "a", cargo: null, cuentaNueva: false, correoEnviado: false, passwordTemporal: null });
 
     const db = crearDb(env.DB);
     expect(await db.select().from(user).where(eq(user.email, "a@ejemplo.cl"))).toHaveLength(1);
     const yo = await (await pedir("/api/admin/yo", { cookie: await iniciarSesion("a@ejemplo.cl") })).json<any>();
-    expect(yo.barrios.map((b: any) => b.slug)).toContain("oriente");
+    expect(yo.barrios.map((b: any) => b.slug)).toContain(body.barrio.slug);
   });
 
   it("presidenta con email inválido → 400 sin crear el barrio", async () => {
@@ -153,7 +155,7 @@ describe("POST /api/admin/barrios", () => {
     });
     expect(res.status).toBe(400);
     expect((await res.json<any>()).campos).toEqual(["presidenta"]);
-    expect(await crearDb(env.DB).select().from(barrios).where(eq(barrios.slug, "oriente"))).toHaveLength(0);
+    expect(await crearDb(env.DB).select().from(barrios).where(eq(barrios.nombre, "Barrio Oriente"))).toHaveLength(0);
   });
 
   it("idioma y zona por defecto cuando no se mandan", async () => {
@@ -162,15 +164,23 @@ describe("POST /api/admin/barrios", () => {
     expect(body.barrio).toMatchObject({ idioma: "es", zonaHoraria: "America/Santiago" });
   });
 
-  it("slug duplicado → 409 SLUG_EXISTENTE y no crea nada", async () => {
+  it("el enlace lleva un código al azar: el mismo nombre en otra estaca o país no choca", async () => {
     const cookie = await como("root@ejemplo.cl", { superAdmin: true });
-    const res = await pedir("/api/admin/barrios", { method: "POST", cookie, json: { ...BARRIO_NUEVO, slug: "prueba" } });
-    expect(res.status).toBe(409);
-    expect(await res.json()).toEqual({ error: "SLUG_EXISTENTE" });
-    expect(await crearDb(env.DB).select().from(barrios)).toHaveLength(2);
+    const crear = async () => {
+      const res = await pedir("/api/admin/barrios", { method: "POST", cookie, json: { ...BARRIO_NUEVO, slug: "prueba" } });
+      expect(res.status).toBe(201);
+      return (await res.json<any>()).barrio.slug as string;
+    };
+    const [uno, otro] = [await crear(), await crear()];
+    expect(uno).toMatch(enlaceConCodigo("prueba"));
+    expect(otro).toMatch(enlaceConCodigo("prueba"));
+    expect(uno).not.toBe(otro);
+    // Lo escrito solo no lleva a ningún barrio nuevo.
+    expect(await crearDb(env.DB).select().from(barrios)).toHaveLength(4);
+    expect((await pedir(`/api/barrios/${uno}`)).status).toBe(200);
   });
 
-  it.each([["Mayúsculas"], ["con espacio"], ["admin"], ["api"], ["nuevo-barrio"], ["solicitudes"], ["solicitar"], ["informacion"], ["preguntas"], ["-guion"], ["x"]])("slug inválido %s → 400", async (slug) => {
+  it.each([["Mayúsculas"], ["con espacio"], ["-guion"], ["x"], ["a".repeat(55)]])("slug inválido %s → 400", async (slug) => {
     const cookie = await como("root@ejemplo.cl", { superAdmin: true });
     const res = await pedir("/api/admin/barrios", { method: "POST", cookie, json: { ...BARRIO_NUEVO, slug } });
     expect(res.status).toBe(400);

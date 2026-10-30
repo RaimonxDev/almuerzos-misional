@@ -24,6 +24,9 @@ export const IDS = {
   otroBarrio: "t-otro-barrio",
 } as const;
 
+/** Códigos de acceso de misioneros de los barrios sembrados. */
+export const CODIGOS = { prueba: "K7PM2X", otro: "Q4WN8R" };
+
 export const TELEFONO_PRIVADO = "+56 9 1111 2222";
 export const NOTA_PRIVADA = "Calle Secreta 123";
 export const TOKEN_TOMADO = "token-de-la-hna-tomado";
@@ -36,8 +39,8 @@ export async function sembrar() {
   await db.delete(verification); // tokens de restablecer contraseña
 
   await db.insert(barrios).values([
-    { id: "b1", slug: "prueba", nombre: "Barrio Prueba", tokenMisioneros: "tm-1" },
-    { id: "b2", slug: "otro", nombre: "Otro Barrio", tokenMisioneros: "tm-2" },
+    { id: "b1", slug: "prueba", nombre: "Barrio Prueba", codigoMisioneros: CODIGOS.prueba },
+    { id: "b2", slug: "otro", nombre: "Otro Barrio", codigoMisioneros: CODIGOS.otro },
   ]);
   await db.insert(companerismos).values([
     { id: "c-e", barrioId: "b1", tipo: "elderes", nombre: "Élderes", orden: 0 },
@@ -113,6 +116,23 @@ export function pedir(ruta: string, init?: RequestInit & { json?: unknown; token
     }),
   );
 }
+
+/** Pide la entrada de misioneros con un código, como la pantalla `/:barrio/m`. */
+export const entrarComoMisioneros = (codigo: string, slug = "prueba", ip?: string) =>
+  pedir(`/api/barrios/${slug}/misioneros/acceso`, {
+    method: "POST",
+    json: { codigo },
+    headers: ip ? { "cf-connecting-ip": ip } : undefined,
+  });
+
+/** El token que la pantalla guarda tras entrar con el código del barrio. */
+export async function tokenMisioneros(slug: keyof typeof CODIGOS = "prueba") {
+  const res = await entrarComoMisioneros(CODIGOS[slug], slug);
+  return (await res.json<{ token: string }>()).token;
+}
+
+/** El enlace de un barrio recién creado: lo escrito más un código al azar (`oriente-k7m2x`). */
+export const enlaceConCodigo = (base: string) => new RegExp(`^${base}-[a-km-np-z2-9]{5}$`);
 
 /** Contraseña de todos los admins de prueba creados con `crearAdmin`. */
 export const PASSWORD_PRUEBA = "clave-de-prueba-123";

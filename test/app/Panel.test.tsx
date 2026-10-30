@@ -16,13 +16,13 @@ const COMPANERISMOS = [
   { id: "c-h", tipo: "hermanas", nombre: "Hermanas", activo: true, orden: 1 },
 ];
 
-const barrio = (tokenMisioneros = "tok-viejo") => ({
+const barrio = (codigoMisioneros = "K7PM2X") => ({
   barrio: {
     slug: "centro",
     nombre: "Barrio Centro",
     idioma: "es",
     zonaHoraria: "America/Santiago",
-    tokenMisioneros,
+    codigoMisioneros,
     notaParaCocinar: "Élder Soto es alérgico al maní",
     contactoNombre: null,
     contactoTelefono: null,
@@ -276,37 +276,85 @@ describe("Panel: tabla del mes", () => {
 });
 
 describe("Panel: enlaces, misioneros y gestión del mes", () => {
-  it("muestra los enlaces del barrio", async () => {
+  it("muestra los enlaces del barrio y el código de los misioneros, sin token en ninguna URL", async () => {
     await abrirPanel();
     expect(screen.getByText(`${location.origin}/centro`)).toBeInTheDocument();
-    expect(screen.getByText(`${location.origin}/centro/m/tok-viejo`)).toBeInTheDocument();
+    expect(screen.getByText(`${location.origin}/centro/m`)).toBeInTheDocument();
+    expect(screen.getByText("K7P-M2X")).toBeInTheDocument();
   });
 
-  it("copia el enlace de los misioneros", async () => {
+  it("copia el enlace y el código de los misioneros", async () => {
     const user = userEvent.setup();
     await abrirPanel();
     await user.click(screen.getByRole("button", { name: "Copiar el enlace para los misioneros" }));
-    expect(await navigator.clipboard.readText()).toBe(`${location.origin}/centro/m/tok-viejo`);
+    expect(await navigator.clipboard.readText()).toBe(`${location.origin}/centro/m`);
+    await user.click(screen.getByRole("button", { name: "Copiar el código de los misioneros" }));
+    expect(await navigator.clipboard.readText()).toBe("K7P-M2X");
   });
 
-  it("regenerar el enlace pide confirmación", async () => {
+  it("cambiar el código de los misioneros pide confirmación y muestra el nuevo", async () => {
     const user = userEvent.setup();
-    api = simular({ [`${RUTA_BARRIO}/token-misioneros`]: { json: { tokenMisioneros: "tok-nuevo" } } });
+    api = simular({ [`${RUTA_BARRIO}/codigo-misioneros`]: { json: { codigoMisioneros: "Q4WN8R" } } });
     await abrirPanel();
 
-    await user.click(screen.getByRole("button", { name: /Regenerar enlace/ }));
+    await user.click(screen.getByRole("button", { name: /Cambiar código/ }));
     const dialogo = await screen.findByRole("dialog");
-    expect(within(dialogo).getByText("¿Regenerar el enlace de los misioneros?")).toBeInTheDocument();
-    expect(llamadas(api, "POST", "/token-misioneros")).toHaveLength(0);
+    expect(within(dialogo).getByText("¿Cambiar el código de los misioneros?")).toBeInTheDocument();
+    expect(within(dialogo).getByText("Esta acción no se puede deshacer.")).toBeInTheDocument();
+    expect(llamadas(api, "POST", "/codigo-misioneros")).toHaveLength(0);
 
     await user.click(within(dialogo).getByRole("button", { name: "No, mantenerlo" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    expect(llamadas(api, "POST", "/token-misioneros")).toHaveLength(0);
+    expect(llamadas(api, "POST", "/codigo-misioneros")).toHaveLength(0);
 
-    await user.click(screen.getByRole("button", { name: /Regenerar enlace/ }));
-    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Sí, regenerar" }));
-    expect(await screen.findByText(`${location.origin}/centro/m/tok-nuevo`)).toBeInTheDocument();
-    expect(llamadas(api, "POST", "/token-misioneros")).toHaveLength(1);
+    await user.click(screen.getByRole("button", { name: /Cambiar código/ }));
+    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Sí, cambiar" }));
+    expect(await screen.findByText("Q4W-N8R")).toBeInTheDocument();
+    expect(llamadas(api, "POST", "/codigo-misioneros")).toHaveLength(1);
+  });
+
+  it("cambiar el enlace del barrio pide confirmación y lleva al panel con el enlace nuevo", async () => {
+    const user = userEvent.setup();
+    // Después del cambio, el enlace viejo ya no existe (como la API real): el panel no debe trabarse ahí.
+    let cambiado = false;
+    const nuevo = "/api/admin/barrios/centro-k7m2x";
+    api = simular({
+      "/api/admin/yo": () => ({ json: cambiado ? { ...YO, barrios: [{ ...YO.barrios[0], slug: "centro-k7m2x" }] } : YO }),
+      [RUTA_BARRIO]: () => (cambiado ? { status: 403, json: { error: "SIN_PERMISO" } } : { json: barrio() }),
+      [`${RUTA_BARRIO}/enlace`]: () => ((cambiado = true), { json: { slug: "centro-k7m2x" } }),
+      [nuevo]: { json: barrio() },
+      [`${nuevo}/meses`]: { json: { meses: [resumen("2099-03", "cerrado"), resumen("2099-04", "abierto")] } },
+      [`${nuevo}/meses/2099-04`]: { json: mes("2099-04", "abierto") },
+      [`${nuevo}/meses/2099-03`]: { json: mes("2099-03", "cerrado", COMPANERISMOS.slice(0, 1), []) },
+    });
+    await abrirPanel();
+
+    await user.click(screen.getByRole("button", { name: /Cambiar enlace/ }));
+    const dialogo = await screen.findByRole("dialog");
+    expect(within(dialogo).getByText("¿Cambiar el enlace del barrio?")).toBeInTheDocument();
+    expect(within(dialogo).getByText("Esta acción no se puede deshacer.")).toBeInTheDocument();
+    // La consecuencia sigue siendo la descripción accesible del diálogo.
+    expect(dialogo).toHaveAccessibleDescription(/dejarán de funcionar/);
+    // Se sugiere desde el nombre; el código al azar lo agrega el servidor.
+    expect(within(dialogo).getByLabelText("Enlace")).toHaveValue("barrio-centro");
+    expect(within(dialogo).getByText(/\/barrio-centro-•••••/)).toBeInTheDocument();
+
+    await user.click(within(dialogo).getByRole("button", { name: "No, mantenerlo" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(llamadas(api, "POST", "/enlace")).toHaveLength(0);
+
+    await user.click(screen.getByRole("button", { name: /Cambiar enlace/ }));
+    const otro = await screen.findByRole("dialog");
+    await user.clear(within(otro).getByLabelText("Enlace"));
+    await user.type(within(otro).getByLabelText("Enlace"), "Mal Enlace");
+    await user.click(within(otro).getByRole("button", { name: "Sí, cambiar" }));
+    expect(llamadas(api, "POST", "/enlace")).toHaveLength(0);
+
+    await user.clear(within(otro).getByLabelText("Enlace"));
+    await user.type(within(otro).getByLabelText("Enlace"), "centro");
+    await user.click(within(otro).getByRole("button", { name: "Sí, cambiar" }));
+    expect(await screen.findByText(`${location.origin}/centro-k7m2x`)).toBeInTheDocument();
+    expect(llamadas(api, "POST", "/enlace")).toEqual([{ slug: "centro" }]);
   });
 
   it("el cambio de estado refleja el nuevo estado", async () => {

@@ -11,6 +11,18 @@ import { rutasSolicitudes } from "./rutas/solicitudes";
 
 const app = new Hono<AppEnv>().basePath("/api");
 
+// Que ningún buscador guarde lo que devuelve la API (nombres de quienes se anotan). Las pantallas, en `public/_headers`.
+app.use(async (c, next) => {
+  await next();
+  try {
+    c.res.headers.set("X-Robots-Tag", "noindex");
+  } catch {
+    // Headers inmutables (ej. `Response.redirect` de Better Auth): se copia la respuesta.
+    const res = new Response(c.res.body, c.res);
+    res.headers.set("X-Robots-Tag", "noindex");
+    c.res = res;
+  }
+});
 app.use(conDb);
 
 // Better Auth: login/logout/sesión y el plugin `admin` (sin registro público). Va fuera del tipo RPC.

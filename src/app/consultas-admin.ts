@@ -120,14 +120,27 @@ export const useEditarInscripcionAdmin = (slug: string) =>
 export const useQuitarInscripcion = (slug: string) =>
   useMutacionBarrio(slug, (id: string) => sinCuerpo(barrios[":slug"].inscripciones[":id"].$delete({ param: { slug, id } })));
 
-export function useRegenerarToken(slug: string) {
+export function useCambiarCodigoMisioneros(slug: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => datos(barrios[":slug"]["token-misioneros"].$post({ param: { slug } })),
-    onSuccess: ({ tokenMisioneros }) =>
+    mutationFn: () => datos(barrios[":slug"]["codigo-misioneros"].$post({ param: { slug } })),
+    onSuccess: ({ codigoMisioneros }) =>
       queryClient.setQueryData(claves.barrio(slug), (actual: { barrio: object } | undefined) =>
-        actual && { ...actual, barrio: { ...actual.barrio, tokenMisioneros } },
+        actual && { ...actual, barrio: { ...actual.barrio, codigoMisioneros } },
       ),
+  });
+}
+
+/**
+ * Cambia el enlace público por uno con código; quien la llama lleva al panel con el nuevo. Lo
+ * guardado con el enlace viejo no se borra aquí: el panel lo sigue mostrando hasta navegar (si no,
+ * se desmontaría antes) y después la caché lo descarta sola.
+ */
+export function useCambiarEnlace(slug: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (base: string) => datos(barrios[":slug"].enlace.$post({ param: { slug }, json: { slug: base } })),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["admin", "yo"] }),
   });
 }
 

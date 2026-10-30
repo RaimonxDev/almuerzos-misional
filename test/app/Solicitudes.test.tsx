@@ -67,7 +67,7 @@ describe("Solicitudes", () => {
       "/api/admin/solicitudes/s-1/aprobar": {
         status: 201,
         json: {
-          barrio: { slug: "barrio-nunoa-norte", nombre: "Barrio Ñuñoa Norte", idioma: "pt", zonaHoraria: "America/Santiago", tokenMisioneros: "t" },
+          barrio: { slug: "barrio-nunoa-norte", nombre: "Barrio Ñuñoa Norte", idioma: "pt", zonaHoraria: "America/Santiago", codigoMisioneros: "K7PM2X" },
           companerismos: [],
           presidenta: { email: "ana@ejemplo.cl", nombre: "Ana Rojas", cargo: null, cuentaNueva: true, correoEnviado: true, passwordTemporal: null },
           solicitud: { id: "s-1", estado: "aprobada" },
@@ -77,7 +77,7 @@ describe("Solicitudes", () => {
       "/api/admin/barrios/barrio-nunoa-norte/admins": { json: { admins: [] } },
       "/api/admin/barrios/barrio-nunoa-norte": {
         json: {
-          barrio: { slug: "barrio-nunoa-norte", nombre: "Barrio Ñuñoa Norte", idioma: "pt", zonaHoraria: "America/Santiago", tokenMisioneros: "t", notaParaCocinar: null, contactoNombre: null, contactoTelefono: null },
+          barrio: { slug: "barrio-nunoa-norte", nombre: "Barrio Ñuñoa Norte", idioma: "pt", zonaHoraria: "America/Santiago", codigoMisioneros: "K7PM2X", notaParaCocinar: null, contactoNombre: null, contactoTelefono: null },
           companerismos: [],
         },
       },
