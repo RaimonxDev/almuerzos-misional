@@ -8,6 +8,7 @@ import { useBarrioConIdioma, useTitulo } from "@/app/hooks";
 import { useMisInscripciones } from "@/app/mis-inscripciones";
 import { rutaCalendario } from "@/app/rutas";
 import { Encabezado, LinkVolver } from "@/app/components/Encabezado";
+import { PiePagina } from "@/app/components/PiePagina";
 import { AlertaError, Aviso, AvisoAmbar, Cargando, ErrorCarga } from "@/app/components/Estado";
 import { FormularioInscripcion } from "@/app/components/FormularioInscripcion";
 import { Button, buttonVariants } from "@/app/components/ui/button";
@@ -173,6 +174,7 @@ function MiTurno({ slug, inscripcionId }: { slug: string; inscripcionId: string 
           )}
         </main>
       )}
+      <PiePagina />
 
       <Dialog open={confirmando} onOpenChange={(abierto) => !cancelar.isPending && setConfirmando(abierto)}>
         <DialogContent showCloseButton={false} className="rounded-2xl">

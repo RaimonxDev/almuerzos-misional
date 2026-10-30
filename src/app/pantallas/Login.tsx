@@ -7,6 +7,7 @@ import { useIdioma } from "@/app/i18n";
 import { useTitulo } from "@/app/hooks";
 import type { CodigoError } from "@/shared/errores";
 import { Encabezado } from "@/app/components/Encabezado";
+import { PiePagina } from "@/app/components/PiePagina";
 import { AlertaError } from "@/app/components/Estado";
 import { Button, buttonVariants } from "@/app/components/ui/button";
 import { cn } from "@/app/lib/utils";
@@ -81,6 +82,7 @@ export function Login() {
           </Link>
         </form>
       </main>
+      <PiePagina />
     </>
   );
 }

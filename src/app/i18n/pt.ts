@@ -14,6 +14,41 @@ export const pt: Mensajes = {
     quieresUsar: "Quer usar o Almoço Missionário na sua ala?",
     solicitar: "Solicitar acesso",
   },
+  informacion: {
+    pie: "Ferramenta não oficial · Informações",
+    antetitulo: "Informações",
+    titulo: "Informações e aviso legal",
+    queEsTitulo: "O que é",
+    queEs:
+      "O Almoço Missionário é uma ferramenta gratuita para que as irmãs de uma ala se inscrevam para oferecer almoço aos missionários. Assim, a presidente da Sociedade de Socorro não precisa coordenar tudo à mão por mensagens.",
+    noOficialTitulo: "Não é uma ferramenta oficial",
+    noOficial:
+      "Este é um projeto pessoal para apoiar a obra missionária nas alas. Não é afiliada, patrocinada nem aprovada pela A Igreja de Jesus Cristo dos Santos dos Últimos Dias; cada ala a usa por decisão própria. Os nomes e as marcas da Igreja pertencem à Intellectual Reserve, Inc. Este aplicativo não usa o logotipo da Igreja.",
+    datosTitulo: "Seus dados",
+    datosIntro: "Ao se inscrever, estes dados são guardados:",
+    datosLista: [
+      "Seu nome.",
+      "Seu telefone.",
+      "O endereço onde o almoço é entregue, se você informar.",
+      "Uma observação, se você escrever (por exemplo, alergias ou como chegar).",
+    ],
+    datosPublico: "A página pública da ala mostra somente o seu nome.",
+    datosTelefono:
+      "Seu telefone só é visto pelos missionários e pela presidente, e somente se você marcar a caixa de consentimento ao se inscrever.",
+    datosToken:
+      "Para que você possa ver, alterar ou cancelar o seu horário, um código fica guardado neste telefone. Não é uma conta nem uma senha.",
+    datosBorrar:
+      "Para apagar o que é seu, cancele o seu horário em “Ver meu horário” ou peça à presidente da sua ala.",
+    iglesiaTitulo: "Site oficial da Igreja",
+    iglesiaTexto: "Para informações oficiais sobre a Igreja e os missionários, visite:",
+    iglesiaSitio: "churchofjesuschrist.org",
+    iglesiaMisioneros: "Vinde a Cristo: conheça os missionários",
+    contactoTitulo: "Contato",
+    contactoTexto: "Quer usar o aplicativo em outra ala ou relatar um problema? Escreva para nós pela solicitação de acesso.",
+    contactoEnlace: "Solicitar acesso",
+    datosEnlace: "Como cuidamos dos seus dados",
+    volver: "Voltar ao início",
+  },
   publico: {
     intro: "Escolha um horário livre e inscreva-se. Nesta página aparece apenas o seu nome.",
     todos: "Todos",
