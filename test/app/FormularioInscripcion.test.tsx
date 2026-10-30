@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 import { ErrorApi } from "@/app/api";
 import { useIdioma } from "@/app/i18n";
@@ -15,6 +16,7 @@ function APortugues() {
 function renderizar(props: Partial<Parameters<typeof FormularioInscripcion>[0]> = {}) {
   const onEnviar = vi.fn();
   const utils = render(
+    <MemoryRouter>
     <Proveedores>
       <APortugues />
       <FormularioInscripcion
@@ -25,7 +27,8 @@ function renderizar(props: Partial<Parameters<typeof FormularioInscripcion>[0]> 
         onEnviar={onEnviar}
         {...props}
       />
-    </Proveedores>,
+    </Proveedores>
+    </MemoryRouter>,
   );
   return { ...utils, onEnviar, user: userEvent.setup() };
 }

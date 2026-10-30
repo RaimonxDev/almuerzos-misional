@@ -6,6 +6,7 @@ import { useSolicitarAcceso } from "@/app/consultas";
 import { useTitulo } from "@/app/hooks";
 import { IDIOMAS, NOMBRES_IDIOMA, useIdioma } from "@/app/i18n";
 import { Encabezado } from "@/app/components/Encabezado";
+import { PiePagina } from "@/app/components/PiePagina";
 import { AlertaError } from "@/app/components/Estado";
 import { GrupoPildoras } from "@/app/components/GrupoPildoras";
 import { Turnstile } from "@/app/components/Turnstile";
@@ -318,6 +319,7 @@ export function Solicitar() {
           </Button>
         </form>
       </main>
+      <PiePagina />
     </>
   );
 }

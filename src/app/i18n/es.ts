@@ -18,6 +18,41 @@ export const es = {
     quieresUsar: "¿Quieres usar Almuerzo Misional en tu barrio?",
     solicitar: "Solicitar acceso",
   },
+  informacion: {
+    pie: "Herramienta no oficial · Información",
+    antetitulo: "Información",
+    titulo: "Información y aviso legal",
+    queEsTitulo: "Qué es",
+    queEs:
+      "Almuerzo Misional es una herramienta gratuita para que las hermanas de un barrio se anoten a dar almuerzo a los misioneros. Así la presidenta de la Sociedad de Socorro no tiene que coordinarlo a mano por mensajes.",
+    noOficialTitulo: "No es una herramienta oficial",
+    noOficial:
+      "Este es un proyecto personal para apoyar la obra misional en los barrios. No está afiliada, patrocinada ni aprobada por La Iglesia de Jesucristo de los Santos de los Últimos Días; cada barrio la usa por decisión propia. Los nombres y las marcas de la Iglesia pertenecen a Intellectual Reserve, Inc. Esta app no usa el logo de la Iglesia.",
+    datosTitulo: "Tus datos",
+    datosIntro: "Al anotarte se guardan estos datos:",
+    datosLista: [
+      "Tu nombre.",
+      "Tu teléfono.",
+      "La dirección donde se entrega el almuerzo, si la escribes.",
+      "Una nota, si la escribes (por ejemplo, alergias o cómo llegar).",
+    ],
+    datosPublico: "La página pública del barrio solo muestra tu nombre.",
+    datosTelefono:
+      "Tu teléfono solo lo ven los misioneros y la presidenta, y solo si marcas la casilla de consentimiento al anotarte.",
+    datosToken:
+      "Para que puedas ver, cambiar o cancelar tu turno, un código queda guardado en este teléfono. No es una cuenta ni una contraseña.",
+    datosBorrar:
+      "Para borrar lo tuyo, cancela tu turno desde “Ver mi turno” o pídeselo a la presidenta de tu barrio.",
+    iglesiaTitulo: "Sitio oficial de la Iglesia",
+    iglesiaTexto: "Para información oficial sobre la Iglesia y los misioneros, visita:",
+    iglesiaSitio: "churchofjesuschrist.org",
+    iglesiaMisioneros: "Ven a Cristo: conoce a los misioneros",
+    contactoTitulo: "Contacto",
+    contactoTexto: "¿Quieres usar la app en otro barrio o reportar un problema? Escríbenos desde la solicitud de acceso.",
+    contactoEnlace: "Solicitar acceso",
+    datosEnlace: "Cómo cuidamos tus datos",
+    volver: "Volver al inicio",
+  },
   publico: {
     intro: "Elige un turno libre y anótate. En esta página solo se muestra tu nombre.",
     todos: "Todos",

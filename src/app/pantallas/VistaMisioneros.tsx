@@ -9,6 +9,7 @@ import { agruparPorDia, diasVisibles } from "@/app/dias";
 import { textoPeriodo } from "@/app/periodos";
 import { enlaceWhatsApp } from "@/shared/telefonos";
 import { Encabezado } from "@/app/components/Encabezado";
+import { PiePagina } from "@/app/components/PiePagina";
 import { Aviso, Cargando, ErrorCarga } from "@/app/components/Estado";
 import { GrupoPildoras } from "@/app/components/GrupoPildoras";
 import { SelectorMes } from "@/app/components/SelectorMes";
@@ -61,7 +62,10 @@ export function VistaMisioneros() {
       {periodo ? (
         <TurnosDelMes slug={slug} token={token} periodo={textoPeriodo(periodo)} zonaHoraria={barrio.zonaHoraria} />
       ) : (
-        <Aviso>{t.misioneros.sinMeses}</Aviso>
+        <>
+          <Aviso>{t.misioneros.sinMeses}</Aviso>
+          <PiePagina />
+        </>
       )}
     </>
   );
@@ -173,6 +177,7 @@ function TurnosDelMes({
           </TarjetaDia>
         ))}
       </div>
+      <PiePagina />
     </main>
   );
 }

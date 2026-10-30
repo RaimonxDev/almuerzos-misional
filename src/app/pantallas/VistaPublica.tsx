@@ -9,6 +9,7 @@ import { textoPeriodo } from "@/app/periodos";
 import { agruparPorDia, diasVisibles } from "@/app/dias";
 import { rutaAnotarse, rutaMiTurno } from "@/app/rutas";
 import { Encabezado } from "@/app/components/Encabezado";
+import { PiePagina } from "@/app/components/PiePagina";
 import { Aviso, Cargando, ErrorCarga } from "@/app/components/Estado";
 import { SelectorMes } from "@/app/components/SelectorMes";
 import { BotonDiasAnteriores, FilaTurno, TarjetaDia } from "@/app/components/TarjetaDia";
@@ -174,6 +175,7 @@ function TurnosDelMes({ slug, periodo }: { slug: string; periodo: string }) {
           <p className="mx-1 mt-2 text-center text-[13px] leading-snug text-muted-foreground">{t.publico.cambiarDia}</p>
         ) : null}
       </div>
+      <PiePagina />
     </main>
   );
 }

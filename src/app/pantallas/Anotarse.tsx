@@ -9,6 +9,7 @@ import { abrirIcs } from "@/app/ics";
 import { crearIcs } from "@/shared/ics";
 import { useMisInscripciones } from "@/app/mis-inscripciones";
 import { Encabezado, LinkVolver } from "@/app/components/Encabezado";
+import { PiePagina } from "@/app/components/PiePagina";
 import { Aviso, Cargando, ErrorCarga } from "@/app/components/Estado";
 import { FormularioInscripcion } from "@/app/components/FormularioInscripcion";
 import { cn } from "@/app/lib/utils";
@@ -102,6 +103,7 @@ export function Anotarse() {
           onEnviar={(json) => anotarse.mutate(json)}
         />
       </main>
+      <PiePagina />
     </>
   );
 }

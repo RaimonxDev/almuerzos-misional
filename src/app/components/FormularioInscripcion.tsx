@@ -1,4 +1,5 @@
 import { useEffect, useId, useState, type FormEvent, type ReactNode } from "react";
+import { Link } from "react-router";
 import { codigoDe, ErrorApi } from "@/app/api";
 import { useIdioma } from "@/app/i18n";
 import { cn } from "@/app/lib/utils";
@@ -190,6 +191,14 @@ export function FormularioInscripcion({
             />
             {t.formulario.consentimiento}
           </Label>
+          <Link
+            to="/informacion#tus-datos"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex min-h-11 items-center self-start text-[13px] font-semibold text-azul-medio underline underline-offset-2"
+          >
+            {t.informacion.datosEnlace}
+          </Link>
           {errores.consentimientoTelefono && <Ayuda error={errores.consentimientoTelefono} />}
           {consentimientoBloqueado && <Ayuda>{t.panel.consentimientoSoloPersona}</Ayuda>}
         </div>

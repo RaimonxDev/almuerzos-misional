@@ -3,6 +3,7 @@ import { buttonVariants } from "@/app/components/ui/button";
 import { useIdioma } from "@/app/i18n";
 import { useTitulo } from "@/app/hooks";
 import { Encabezado } from "@/app/components/Encabezado";
+import { PiePagina } from "@/app/components/PiePagina";
 import { Aviso } from "@/app/components/Estado";
 
 /** La raíz no lista barrios a propósito: cada barrio comparte su propio enlace. */
@@ -21,6 +22,7 @@ export function Inicio() {
           </Link>
         </div>
       </main>
+      <PiePagina />
     </>
   );
 }

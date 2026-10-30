@@ -45,6 +45,10 @@ export const rutas: RouteObject[] = [
     lazy: () => import("./pantallas/admin/Imprimir").then((m) => ({ Component: m.Imprimir })),
   },
   { path: "/solicitar", lazy: () => import("./pantallas/Solicitar").then((m) => ({ Component: m.Solicitar })) },
+  {
+    path: "/informacion",
+    lazy: () => import("./pantallas/Informacion").then((m) => ({ Component: m.Informacion })),
+  },
   { path: "/:barrio", element: <VistaPublica /> },
   { path: "/:barrio/anotarse/:turnoId", element: <Anotarse /> },
   { path: "/:barrio/mi-turno/:inscripcionId", element: <MiTurnoRuta /> },

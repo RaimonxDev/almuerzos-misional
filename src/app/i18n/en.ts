@@ -14,6 +14,41 @@ export const en: Mensajes = {
     quieresUsar: "Want to use Missionary Lunch in your ward?",
     solicitar: "Request access",
   },
+  informacion: {
+    pie: "Unofficial tool · Information",
+    antetitulo: "Information",
+    titulo: "Information and legal notice",
+    queEsTitulo: "What it is",
+    queEs:
+      "Missionary Lunch is a free tool that lets the sisters of a ward sign up to give lunch to the missionaries. That way the Relief Society president doesn't have to organize it by hand over text messages.",
+    noOficialTitulo: "This is not an official tool",
+    noOficial:
+      "This is a personal project to support missionary work in wards. It is not affiliated with, sponsored by, or approved by The Church of Jesus Christ of Latter-day Saints; each ward chooses to use it on its own. The Church's names and marks belong to Intellectual Reserve, Inc. This app does not use the Church's logo.",
+    datosTitulo: "Your data",
+    datosIntro: "When you sign up, we save this information:",
+    datosLista: [
+      "Your name.",
+      "Your phone number.",
+      "The address where lunch is delivered, if you enter one.",
+      "A note, if you write one (for example, allergies or directions).",
+    ],
+    datosPublico: "The ward's public page shows only your name.",
+    datosTelefono:
+      "Only the missionaries and the president can see your phone number, and only if you check the consent box when you sign up.",
+    datosToken:
+      "So that you can see, change, or cancel your slot, a code is stored on this phone. It is not an account or a password.",
+    datosBorrar:
+      "To delete your information, cancel your slot from “View my slot” or ask your ward's president.",
+    iglesiaTitulo: "The Church's official website",
+    iglesiaTexto: "For official information about the Church and the missionaries, visit:",
+    iglesiaSitio: "churchofjesuschrist.org",
+    iglesiaMisioneros: "Come unto Christ: meet the missionaries",
+    contactoTitulo: "Contact",
+    contactoTexto: "Want to use the app in another ward or report a problem? Write to us through the access request.",
+    contactoEnlace: "Request access",
+    datosEnlace: "How we handle your data",
+    volver: "Back to home",
+  },
   publico: {
     intro: "Pick an open slot and sign up. Only your name is shown on this page.",
     todos: "All",
