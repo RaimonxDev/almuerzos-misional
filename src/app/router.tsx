@@ -1,5 +1,4 @@
 import type { RouteObject } from "react-router";
-import { Inicio } from "./pantallas/Inicio";
 import { VistaPublica } from "./pantallas/VistaPublica";
 import { Anotarse } from "./pantallas/Anotarse";
 import { MiTurnoRuta } from "./pantallas/MiTurno";
@@ -12,7 +11,13 @@ import { VistaMisioneros } from "./pantallas/VistaMisioneros";
 const panel = () => import("./pantallas/admin/Panel").then((m) => ({ Component: m.PanelRuta }));
 
 export const rutas: RouteObject[] = [
-  { path: "/", element: <Inicio /> },
+  // La portada, las preguntas y la información también van aparte: quien llega al enlace de su
+  // barrio no las necesita.
+  { path: "/", lazy: () => import("./pantallas/portada/Portada").then((m) => ({ Component: m.Portada })) },
+  {
+    path: "/preguntas",
+    lazy: () => import("./pantallas/portada/Preguntas").then((m) => ({ Component: m.Preguntas })),
+  },
   { path: "/admin/login", lazy: () => import("./pantallas/Login").then((m) => ({ Component: m.Login })) },
   {
     path: "/admin/olvide",

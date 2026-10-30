@@ -10,7 +10,7 @@ import { avisarAdmin } from "./invitaciones";
 import { esViolacionUnica, zonaValida } from "./http";
 
 /** Enlaces que ya usa la app: un barrio con uno de ellos quedaría sin vista pública o sin panel. */
-const SLUGS_RESERVADOS = ["admin", "api", "solicitar", "informacion", "nuevo-barrio", "solicitudes", "cuenta", "login", "olvide", "restablecer"];
+const SLUGS_RESERVADOS = ["admin", "api", "solicitar", "informacion", "preguntas", "nuevo-barrio", "solicitudes", "cuenta", "login", "olvide", "restablecer"];
 
 /** Los datos de un barrio nuevo: los mismos al crearlo a mano y al aprobar una solicitud. */
 export const esquemaNuevoBarrio = z.object({

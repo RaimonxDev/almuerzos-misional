@@ -9,16 +9,10 @@ export const en: Mensajes = {
     reintentar: "Try again",
     opcional: "(optional)",
   },
-  inicio: {
-    texto: "Ask your Relief Society president for your ward's link to sign up.",
-    quieresUsar: "Want to use Missionary Lunch in your ward?",
-    solicitar: "Request access",
-  },
   informacion: {
     pie: "Unofficial tool · Information",
     antetitulo: "Information",
     titulo: "Information and legal notice",
-    queEsTitulo: "What it is",
     queEs:
       "Missionary Lunch is a free tool that lets the sisters of a ward sign up to give lunch to the missionaries. That way the Relief Society president doesn't have to organize it by hand over text messages.",
     noOficialTitulo: "This is not an official tool",
@@ -44,10 +38,9 @@ export const en: Mensajes = {
     iglesiaSitio: "churchofjesuschrist.org",
     iglesiaMisioneros: "Come unto Christ: meet the missionaries",
     contactoTitulo: "Contact",
-    contactoTexto: "Want to use the app in another ward or report a problem? Write to us through the access request.",
+    contactoTexto: "Want to use the app in your ward? Ask through the access request. To report a problem or for anything else, write to",
     contactoEnlace: "Request access",
     datosEnlace: "How we handle your data",
-    volver: "Back to home",
   },
   publico: {
     intro: "Pick an open slot and sign up. Only your name is shown on this page.",

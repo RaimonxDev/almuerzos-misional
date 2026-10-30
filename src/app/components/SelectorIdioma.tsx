@@ -14,7 +14,7 @@ export function SelectorIdioma({ oscuro = false }: { oscuro?: boolean }) {
         aria-label={t.comun.idioma}
         className={cn(
           "w-auto gap-1.5 font-semibold",
-          oscuro && "border-white/25 bg-white/10 text-white [&_svg]:text-white/80! hover:bg-white/15",
+          oscuro && "border-white/25 bg-white/10 shadow-none text-white [&_svg]:text-white/80! hover:bg-white/15",
         )}
       >
         <GlobeIcon aria-hidden="true" />
