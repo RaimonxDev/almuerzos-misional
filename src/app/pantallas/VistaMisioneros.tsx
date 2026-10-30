@@ -9,6 +9,7 @@ import { useBarrioConIdioma, useIdiomaDelBarrio, usePeriodoDeLaUrl, useTitulo } 
 import { agruparPorDia, diasVisibles } from "@/app/dias";
 import { textoPeriodo } from "@/app/periodos";
 import { enlaceWhatsApp } from "@/shared/telefonos";
+import { LARGO_CODIGO, normalizarCodigo } from "@/shared/codigo-misioneros";
 import { Encabezado } from "@/app/components/Encabezado";
 import { PiePagina } from "@/app/components/PiePagina";
 import { AlertaError, Aviso, AvisoAmbar, Cargando, ErrorCarga } from "@/app/components/Estado";
@@ -17,7 +18,7 @@ import { SelectorMes } from "@/app/components/SelectorMes";
 import { BotonDiasAnteriores, FilaTurno, TarjetaDia } from "@/app/components/TarjetaDia";
 import { cn } from "@/app/lib/utils";
 import { Button, buttonVariants } from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
+import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from "@/app/components/ui/input-otp";
 import { Label } from "@/app/components/ui/label";
 
 /**
@@ -109,10 +110,15 @@ function IngresarCodigo({
     );
   }
 
+  const entrarCon = (valor: string) => {
+    if (entrar.isPending) return;
+    entrar.mutate(valor, { onSuccess: ({ token }) => alEntrar(token) });
+  };
   const enviar = (e: FormEvent) => {
     e.preventDefault();
-    entrar.mutate(codigo, { onSuccess: ({ token }) => alEntrar(token) });
+    entrarCon(codigo);
   };
+  const casilla = "size-12 font-mono text-2xl font-semibold";
 
   return (
     <>
@@ -121,23 +127,37 @@ function IngresarCodigo({
         {codigoCambio && <AvisoAmbar>{t.misioneros.codigoCambio}</AvisoAmbar>}
         <form onSubmit={enviar} className="flex flex-col gap-3">
           <Label htmlFor={id}>{t.misioneros.codigo}</Label>
-          <Input
+          {/* Se entra solo al completar las 6 casillas; pegar "K7P-M2X" o "k7p m2x" también sirve. */}
+          <InputOTP
             id={id}
+            maxLength={LARGO_CODIGO}
             value={codigo}
-            onChange={(e) => setCodigo(e.target.value)}
-            maxLength={20}
+            onChange={(valor) => setCodigo(valor.toUpperCase())}
+            onComplete={(valor: string) => entrarCon(valor.toUpperCase())}
+            pattern="^[A-Za-z0-9]+$"
+            pasteTransformer={normalizarCodigo}
+            pushPasswordManagerStrategy="none"
+            inputMode="text"
             autoComplete="off"
             autoCapitalize="characters"
             autoCorrect="off"
-            spellCheck={false}
             aria-describedby={`${id}-ayuda`}
-            className="h-14 rounded-[10px] text-center font-mono text-2xl tracking-[0.2em] uppercase"
-          />
+            aria-invalid={entrar.isError || undefined}
+            containerClassName="justify-center gap-2"
+          >
+            <InputOTPGroup>
+              {[0, 1, 2].map((i) => <InputOTPSlot key={i} index={i} className={casilla} />)}
+            </InputOTPGroup>
+            <InputOTPSeparator />
+            <InputOTPGroup>
+              {[3, 4, 5].map((i) => <InputOTPSlot key={i} index={i} className={casilla} />)}
+            </InputOTPGroup>
+          </InputOTP>
           <p id={`${id}-ayuda`} className="text-sm leading-snug text-muted-foreground">
             {t.misioneros.codigoAyuda}
           </p>
           {entrar.isError && <AlertaError>{t.errores[codigoDe(entrar.error)]}</AlertaError>}
-          <Button type="submit" variant="accion" disabled={entrar.isPending || !codigo.trim()}>
+          <Button type="submit" variant="accion" disabled={entrar.isPending || codigo.length < LARGO_CODIGO}>
             {entrar.isPending ? t.misioneros.entrando : t.misioneros.entrar}
           </Button>
         </form>
