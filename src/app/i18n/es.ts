@@ -72,6 +72,21 @@ export const es = {
     tusProximos: "Tus próximos turnos",
     verMiTurno: "Ver mi turno",
   },
+  vistaCalendario: {
+    leyenda: "Leyenda",
+    verComo: "Ver como",
+    lista: "Lista",
+    calendario: "Calendario",
+    libre: "Libre",
+    tomado: "Tomado",
+    tuyo: "Tuyo",
+    bloqueado: "Bloqueado",
+    // Partes del nombre accesible de una celda: "martes, 10 de noviembre, hoy, 1 turno libre".
+    hoy: "hoy",
+    tienesTurno: "tienes un turno",
+    diaBloqueado: "bloqueado",
+    libres: (n: number) => (n === 0 ? "sin turnos libres" : n === 1 ? "1 turno libre" : `${n} turnos libres`),
+  },
   formulario: {
     volver: "Volver al calendario",
     nombre: "¿Quién da el almuerzo?",
