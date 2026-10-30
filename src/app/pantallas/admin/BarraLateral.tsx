@@ -117,10 +117,11 @@ function Enlaces({ slug, nombre, idioma, codigo }: { slug: string; nombre: strin
           alCopiar={() => marcar({ compartido: true })}
         />
         {/* Lo dictan o se lo mandan aparte: entran a ese enlace y lo escriben una vez. */}
+        <span className="mt-1 text-[13px] text-muted-foreground">{t.panel.codigoMisioneros}</span>
         <div className="flex items-center gap-2">
-          <div className="flex h-11 min-w-0 flex-1 items-center justify-between gap-2 rounded-[10px] bg-muted px-3">
-            <span className="text-[13px] text-muted-foreground">{t.panel.codigoMisioneros}</span>
-            <span className="font-mono text-lg font-bold tracking-[0.12em] text-azul-profundo">{formatearCodigo(codigo)}</span>
+          {/* Sin cortes: el guion no debe partir el código en dos líneas cuando la barra es angosta. */}
+          <div className="flex h-11 min-w-0 flex-1 items-center rounded-[10px] bg-muted px-3 font-mono text-lg font-bold tracking-[0.12em] whitespace-nowrap text-azul-profundo">
+            {formatearCodigo(codigo)}
           </div>
           <Button
             variant="outline"
