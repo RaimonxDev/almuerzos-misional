@@ -319,7 +319,7 @@ export const en: Mensajes = {
     contactoTelefono: "Contact phone",
     ayudaContacto: "Shown at the bottom of the printed calendar.",
     idiomaBarrio: "Default language",
-    avisoIdioma: "Once saved, the sisters see the page in this language, unless they already picked another one on their phone.",
+    avisoIdioma: "Once saved, the sisters see the page in this language, unless they already picked another one on their phone. If you haven't picked a language above, this panel switches too.",
     avisoZona: "Once saved, this changes what day it is today in the ward: from which day they can sign up and which days count as past.",
     guardarDatos: "Save details",
     datosGuardados: "Details saved.",

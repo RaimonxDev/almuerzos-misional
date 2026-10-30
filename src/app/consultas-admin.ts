@@ -158,6 +158,9 @@ export function useEditarBarrio(slug: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (json: CambiosBarrio) => datos(barrios[":slug"].$patch({ param: { slug }, json })),
+    // El formulario muestra lo guardado apenas responde la API, sin esperar a la recarga.
+    onSuccess: ({ barrio }) =>
+      queryClient.setQueryData(claves.barrio(slug), (actual: { barrio: typeof barrio } | undefined) => actual && { ...actual, barrio }),
     onSettled: (_r, _e, json) => {
       invalidar(queryClient, slug, ["barrio"]);
       // El nombre también sale en el selector de barrios del encabezado.

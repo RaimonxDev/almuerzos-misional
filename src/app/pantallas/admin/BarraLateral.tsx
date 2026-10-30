@@ -36,7 +36,7 @@ import {
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/app/components/ui/radio-group";
-import { SelectIdiomaBarrio } from "./campos-barrio";
+import { CampoZona, SelectIdiomaBarrio, useErroresCampos } from "./campos-barrio";
 import { DatosCuenta } from "./DatosCuenta";
 import { DisenoCalendario } from "./DisenoCalendario";
 import { enlaceValido, LARGO_ENLACE, sugerirSlug, vistaPreviaEnlace } from "./enlace";
@@ -464,80 +464,95 @@ function Misioneros({
 
 type CampoBarrio = "nombre" | "zonaHoraria";
 
+type ValoresBarrio = { nombre: string; contactoNombre: string; contactoTelefono: string; idioma: Idioma; zonaHoraria: string };
+
+const valoresDe = (b: DatosDelBarrio): ValoresBarrio => ({
+  nombre: b.nombre,
+  contactoNombre: b.contactoNombre ?? "",
+  contactoTelefono: b.contactoTelefono ?? "",
+  idioma: b.idioma,
+  zonaHoraria: b.zonaHoraria,
+});
+
+/** Lo que cambió respecto de lo guardado, listo para el PATCH (texto vacío → `null`). */
+function cambiosDe(guardados: ValoresBarrio, valores: ValoresBarrio): CambiosBarrio {
+  const cambios: CambiosBarrio = {};
+  if (valores.nombre.trim() !== guardados.nombre) cambios.nombre = valores.nombre.trim();
+  if (valores.contactoNombre.trim() !== guardados.contactoNombre) cambios.contactoNombre = valores.contactoNombre.trim() || null;
+  if (valores.contactoTelefono.trim() !== guardados.contactoTelefono)
+    cambios.contactoTelefono = valores.contactoTelefono.trim() || null;
+  if (valores.idioma !== guardados.idioma) cambios.idioma = valores.idioma;
+  if (valores.zonaHoraria.trim() !== guardados.zonaHoraria) cambios.zonaHoraria = valores.zonaHoraria.trim();
+  return cambios;
+}
+
 /**
  * Corrige nombre, contacto (sale en el calendario impreso), idioma y zona. Manda solo lo que cambió.
  * Idioma y zona cambian lo que ven las hermanas: avisa antes de guardar.
  */
 function DatosBarrio({ slug, barrio }: { slug: string; barrio: DatosDelBarrio }) {
   const { t } = useIdioma();
-  const nb = t.nuevoBarrio;
   const id = useId();
   const editar = useEditarBarrio(slug);
-  const [nombre, setNombre] = useState(barrio.nombre);
-  const [contactoNombre, setContactoNombre] = useState(barrio.contactoNombre ?? "");
-  const [contactoTelefono, setContactoTelefono] = useState(barrio.contactoTelefono ?? "");
-  const [idioma, setIdioma] = useState(barrio.idioma);
-  const [zonaHoraria, setZonaHoraria] = useState(barrio.zonaHoraria);
-  const [errores, setErrores] = useState<CampoBarrio[]>([]);
+  // Solo lo que la persona tocó: lo demás sigue a `barrio`, así una recarga trae lo que cambió otro admin.
+  const [editados, setEditados] = useState<Partial<ValoresBarrio>>({});
+  const { errores, setErrores, errorDe, invalido, quitar } = useErroresCampos<CampoBarrio>();
+  const guardados = valoresDe(barrio);
+  const valores = { ...guardados, ...editados };
+  const cambios = cambiosDe(guardados, valores);
 
-  const cambios: CambiosBarrio = {};
-  if (nombre.trim() !== barrio.nombre) cambios.nombre = nombre.trim();
-  if (contactoNombre.trim() !== (barrio.contactoNombre ?? "")) cambios.contactoNombre = contactoNombre.trim() || null;
-  if (contactoTelefono.trim() !== (barrio.contactoTelefono ?? "")) cambios.contactoTelefono = contactoTelefono.trim() || null;
-  if (idioma !== barrio.idioma) cambios.idioma = idioma;
-  if (zonaHoraria.trim() !== barrio.zonaHoraria) cambios.zonaHoraria = zonaHoraria.trim();
-  const hayCambios = Object.keys(cambios).length > 0;
+  const cambiar = <K extends keyof ValoresBarrio>(campo: K, valor: ValoresBarrio[K]) => {
+    setEditados((e) => ({ ...e, [campo]: valor }));
+    if (campo === "nombre" || campo === "zonaHoraria") quitar(campo);
+    if (editar.isError) editar.reset();
+  };
 
   const enviar = (e: FormEvent) => {
     e.preventDefault();
+    // Solo se valida lo que cambió: una zona guardada que este navegador no conoce no impide guardar lo demás.
     const malos: CampoBarrio[] = [];
-    if (nombre.trim().length < 2) malos.push("nombre");
-    if (!zonaValida(zonaHoraria.trim())) malos.push("zonaHoraria");
+    if (cambios.nombre !== undefined && cambios.nombre.length < 2) malos.push("nombre");
+    if (cambios.zonaHoraria !== undefined && !zonaValida(cambios.zonaHoraria)) malos.push("zonaHoraria");
     setErrores(malos);
     if (malos.length > 0) return;
     editar.mutate(cambios, {
-      onSuccess: () => toast.success(t.panel.datosGuardados),
+      onSuccess: () => {
+        setEditados({});
+        toast.success(t.panel.datosGuardados);
+      },
       onError: (err) => {
         if (err instanceof ErrorApi && err.campos) setErrores(err.campos as CampoBarrio[]);
       },
     });
   };
 
-  const errorDe = (campo: CampoBarrio, texto: string) =>
-    errores.includes(campo) && (
-      <p id={`${id}-${campo}-error`} className="text-sm font-semibold text-destructive">
-        {texto}
-      </p>
-    );
-  const invalido = (campo: CampoBarrio) => ({
-    "aria-invalid": errores.includes(campo) || undefined,
-    "aria-describedby": errores.includes(campo) ? `${id}-${campo}-error` : undefined,
-  });
   const codigo = editar.isError ? codigoDe(editar.error) : null;
+  // DATOS_INVALIDOS se muestra en el campo; si el campo no tiene mensaje propio, como error general.
+  const errorEnCampo = codigo === "DATOS_INVALIDOS" && errores.some((c) => c === "nombre" || c === "zonaHoraria");
 
   return (
     <Seccion id="datos-barrio" titulo={t.panel.datosBarrio}>
       <form onSubmit={enviar} noValidate className="flex flex-col gap-3.5">
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor={`${id}-nombre`}>{nb.nombre}</Label>
+          <Label htmlFor={`${id}-nombre`}>{t.nuevoBarrio.nombre}</Label>
           <Input
             id={`${id}-nombre`}
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
+            value={valores.nombre}
+            onChange={(e) => cambiar("nombre", e.target.value)}
             maxLength={80}
             autoComplete="off"
             className="rounded-[10px]"
             {...invalido("nombre")}
           />
-          {errorDe("nombre", nb.errorNombre)}
+          {errorDe("nombre", t.nuevoBarrio.errorNombre)}
         </div>
 
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={`${id}-contacto`}>{t.panel.contactoNombre}</Label>
           <Input
             id={`${id}-contacto`}
-            value={contactoNombre}
-            onChange={(e) => setContactoNombre(e.target.value)}
+            value={valores.contactoNombre}
+            onChange={(e) => cambiar("contactoNombre", e.target.value)}
             maxLength={80}
             autoComplete="off"
             className="rounded-[10px]"
@@ -548,8 +563,8 @@ function DatosBarrio({ slug, barrio }: { slug: string; barrio: DatosDelBarrio })
           <Input
             id={`${id}-telefono`}
             type="tel"
-            value={contactoTelefono}
-            onChange={(e) => setContactoTelefono(e.target.value)}
+            value={valores.contactoTelefono}
+            onChange={(e) => cambiar("contactoTelefono", e.target.value)}
             maxLength={40}
             autoComplete="off"
             className="rounded-[10px]"
@@ -562,33 +577,25 @@ function DatosBarrio({ slug, barrio }: { slug: string; barrio: DatosDelBarrio })
 
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={`${id}-idioma`}>{t.panel.idiomaBarrio}</Label>
-          <SelectIdiomaBarrio id={`${id}-idioma`} value={idioma} onChange={setIdioma} />
+          <SelectIdiomaBarrio id={`${id}-idioma`} value={valores.idioma} onChange={(v) => cambiar("idioma", v)} />
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor={`${id}-zona`}>{nb.zonaHoraria}</Label>
-          <Input
-            id={`${id}-zona`}
-            value={zonaHoraria}
-            onChange={(e) => setZonaHoraria(e.target.value)}
-            autoComplete="off"
-            autoCapitalize="none"
-            spellCheck={false}
-            className="rounded-[10px]"
-            {...invalido("zonaHoraria")}
-          />
-          {errorDe("zonaHoraria", nb.errorZona)}
-          <p className="text-sm text-muted-foreground">{nb.ayudaZona}</p>
-        </div>
+        <CampoZona
+          id={`${id}-zona`}
+          value={valores.zonaHoraria}
+          onChange={(v) => cambiar("zonaHoraria", v)}
+          error={errorDe("zonaHoraria", t.nuevoBarrio.errorZona)}
+          invalido={invalido("zonaHoraria")}
+        />
 
         {cambios.idioma && <AvisoAmbar>{t.panel.avisoIdioma}</AvisoAmbar>}
         {cambios.zonaHoraria !== undefined && <AvisoAmbar>{t.panel.avisoZona}</AvisoAmbar>}
 
-        {codigo && codigo !== "DATOS_INVALIDOS" && <AlertaError>{t.errores[codigo]}</AlertaError>}
+        {codigo && !errorEnCampo && <AlertaError>{t.errores[codigo]}</AlertaError>}
         <Button
           type="submit"
           variant="outline"
-          disabled={editar.isPending || !hayCambios}
+          disabled={editar.isPending || Object.keys(cambios).length === 0}
           className="self-end rounded-[10px] font-bold"
         >
           {t.panel.guardarDatos}

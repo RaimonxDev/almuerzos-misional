@@ -328,7 +328,7 @@ export const es = {
     contactoTelefono: "Teléfono de contacto",
     ayudaContacto: "Salen al pie del calendario impreso.",
     idiomaBarrio: "Idioma por defecto",
-    avisoIdioma: "Al guardar, cambia el idioma con que las hermanas ven la página, salvo quien ya eligió otro en su teléfono.",
+    avisoIdioma: "Al guardar, cambia el idioma con que las hermanas ven la página, salvo quien ya eligió otro en su teléfono. Si no elegiste un idioma arriba, este panel también cambia.",
     avisoZona: "Al guardar, cambia qué día es hoy en el barrio: desde qué día se pueden anotar y cuáles quedan como pasados.",
     guardarDatos: "Guardar datos",
     datosGuardados: "Datos guardados.",

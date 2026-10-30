@@ -322,7 +322,7 @@ export const pt: Mensajes = {
     contactoTelefono: "Telefone de contato",
     ayudaContacto: "Aparecem no rodapé do calendário impresso.",
     idiomaBarrio: "Idioma padrão",
-    avisoIdioma: "Ao salvar, muda o idioma em que as irmãs veem a página, exceto quem já escolheu outro no telefone.",
+    avisoIdioma: "Ao salvar, muda o idioma em que as irmãs veem a página, exceto quem já escolheu outro no telefone. Se você não escolheu um idioma acima, este painel também muda.",
     avisoZona: "Ao salvar, muda qual dia é hoje na ala: a partir de que dia podem se inscrever e quais ficam como passados.",
     guardarDatos: "Salvar dados",
     datosGuardados: "Dados salvos.",
