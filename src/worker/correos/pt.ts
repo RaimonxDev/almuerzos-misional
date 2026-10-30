@@ -71,4 +71,25 @@ export const pt: MensajesCorreo = {
     ],
     pie: PIE_SOLICITUD,
   }),
+  eliminacionSolicitada: ({ nombre, email, barrio, motivo, enlace }) => ({
+    asunto: `Pedido para excluir ${barrio}`,
+    titulo: "Pedido de exclusão",
+    saludo: "Olá:",
+    parrafos: [
+      `${nombre} (${email}) pediu para excluir ${barrio} do Almoço Missionário. A ala continua funcionando até você apagá-la.`,
+      ...(motivo ? [`Escreveu: ${motivo}`] : []),
+    ],
+    boton: { texto: "Abrir a ala", enlace },
+  }),
+  barrioEliminado: ({ nombre, barrio, cuentaBorrada }) => ({
+    asunto: `Excluímos ${barrio}`,
+    titulo: "Ala excluída",
+    saludo: `Olá, ${nombre}:`,
+    parrafos: [
+      `Excluímos ${barrio} do Almoço Missionário, junto com seus calendários, inscrições e imagens. Os links dela não funcionam mais.`,
+      ...(cuentaBorrada ? ["Como você não administrava outra ala, também apagamos sua conta."] : []),
+      "Obrigado pelo tempo em que vocês usaram o aplicativo.",
+    ],
+    pie: "Você recebe este e-mail porque administrava esta ala no Almoço Missionário. É um projeto pessoal, não oficial da Igreja.",
+  }),
 };

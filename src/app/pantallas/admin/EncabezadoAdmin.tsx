@@ -21,7 +21,8 @@ export function EncabezadoAdmin({ slug }: { slug?: string }) {
   const queryClient = useQueryClient();
   const { usuario, barrios } = useYo().data!;
   // Solo el super admin ve las solicitudes; el conteo sale de la misma consulta que la pantalla.
-  const pendientes = useSolicitudes("pendiente", usuario.superAdmin).data?.pendientes ?? 0;
+  const { data: solicitudes } = useSolicitudes("pendiente", usuario.superAdmin);
+  const pendientes = (solicitudes?.pendientes ?? 0) + (solicitudes?.eliminaciones.length ?? 0);
   const actual = barrios.find((b) => b.slug === slug);
   const nombres = Object.fromEntries(barrios.map((b) => [b.slug, b.nombre]));
 

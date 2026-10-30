@@ -41,3 +41,6 @@ export const esquemaNuevaSolicitud = z.object({
 export type NuevaSolicitud = z.input<typeof esquemaNuevaSolicitud>;
 
 export const esquemaRechazoSolicitud = z.object({ motivo: textoOpcional(MOTIVO_RECHAZO_MAX) });
+
+export const MOTIVO_ELIMINACION_MAX = 500;
+export const esquemaSolicitudEliminacion = z.object({ motivo: textoOpcional(MOTIVO_ELIMINACION_MAX) });

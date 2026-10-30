@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { Db } from "@/db";
@@ -6,11 +6,15 @@ import { type Barrio, barrios, companerismos, meses } from "@/db/schema";
 import { nuevoCodigo } from "@/shared/codigo-misioneros";
 import { hoyEnZona } from "@/shared/fechas";
 import { IDIOMAS } from "@/shared/idiomas";
+import { esquemaSolicitudEliminacion } from "@/shared/solicitudes";
+import { avisarBarrioEliminado, avisarEliminacionSolicitada } from "../../avisos-solicitudes";
 import { enlaceConCodigo, esquemaNuevoBarrio } from "../../barrios";
 import type { AppEnvBarrioAdmin } from "../../contexto";
 import { insertsDeTurnos } from "../../consultas";
+import { adminsDelBarrio, borrarBarrio, borrarImagenes, resumenEliminacion } from "../../eliminar-barrio";
 import { esViolacionUnica, fallar, validar, zonaValida } from "../../http";
 import { paramsBarrio } from "../../params";
+import { esSuperAdmin } from "../../permisos";
 
 /** Texto opcional: `null` o vacío lo borra. */
 const texto = (max: number) => z.string().trim().max(max).nullable().transform((v) => v || null);
@@ -61,6 +65,8 @@ const datosBarrio = (b: typeof barrios.$inferSelect) => ({
   notaParaCocinar: b.notaParaCocinar,
   contactoNombre: b.contactoNombre,
   contactoTelefono: b.contactoTelefono,
+  eliminacionSolicitadaEn: b.eliminacionSolicitadaEn,
+  motivoEliminacion: b.motivoEliminacion,
 });
 
 /**
@@ -97,6 +103,58 @@ export const rutasBarrio = new Hono<AppEnvBarrioAdmin>()
     if (Object.keys(cambios).length > 0) await db.update(barrios).set(cambios).where(eq(barrios.id, barrio.id));
     const actual = await db.select().from(barrios).where(eq(barrios.id, barrio.id)).get();
     return c.json({ barrio: datosBarrio(actual!) });
+  })
+
+  /** Solo el super admin. El nombre escrito se revisa aquí: protege también de un panel desactualizado. */
+  .delete("/", validar("json", z.object({ confirmacion: z.string().max(200) })), async (c) => {
+    const { db, barrio, usuario } = c.var;
+    if (!esSuperAdmin(usuario)) return fallar(c, "SIN_PERMISO", 403);
+    if (c.req.valid("json").confirmacion.trim() !== barrio.nombre) return fallar(c, "CONFIRMACION_INCORRECTA", 422);
+
+    const admins = await adminsDelBarrio(db, barrio.id);
+    await borrarBarrio(db, barrio.id, admins.filter((a) => a.cuentaSeBorra).map((a) => a.id));
+    await borrarImagenes(c.env, barrio.id);
+    await avisarBarrioEliminado(c.env, barrio, admins);
+    return c.json({ eliminado: true });
+  })
+
+  .get("/resumen-eliminacion", async (c) => {
+    const { db, barrio, usuario } = c.var;
+    if (!esSuperAdmin(usuario)) return fallar(c, "SIN_PERMISO", 403);
+    return c.json(await resumenEliminacion(db, barrio));
+  })
+
+  /**
+   * La presidenta pide eliminar su barrio; nada cambia hasta que el super admin lo borre. El WHERE
+   * hace que un segundo pedido no cambie la fecha ni vuelva a avisar.
+   */
+  .post("/solicitud-eliminacion", validar("json", esquemaSolicitudEliminacion), async (c) => {
+    const { db, barrio, usuario } = c.var;
+    const { motivo } = c.req.valid("json");
+    const nueva = await db
+      .update(barrios)
+      .set({ eliminacionSolicitadaEn: new Date(), motivoEliminacion: motivo })
+      .where(and(eq(barrios.id, barrio.id), isNull(barrios.eliminacionSolicitadaEn)))
+      .returning({ id: barrios.id });
+    if (nueva.length > 0) {
+      await avisarEliminacionSolicitada(db, c.env, new URL(c.req.url).origin, {
+        nombre: usuario.name,
+        email: usuario.email,
+        barrio: barrio.nombre,
+        slug: barrio.slug,
+        motivo,
+      });
+    }
+    return c.json({ solicitada: true });
+  })
+
+  .delete("/solicitud-eliminacion", async (c) => {
+    const { db, barrio } = c.var;
+    await db
+      .update(barrios)
+      .set({ eliminacionSolicitadaEn: null, motivoEliminacion: null })
+      .where(eq(barrios.id, barrio.id));
+    return c.json({ solicitada: false });
   })
 
   /** El código anterior no entra más y los teléfonos que entraron con él quedan afuera (su token cambia). */

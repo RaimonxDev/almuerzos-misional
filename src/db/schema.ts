@@ -76,6 +76,9 @@ export const barrios = sqliteTable("barrios", {
   contactoNombre: text("contacto_nombre"),
   contactoTelefono: text("contacto_telefono"),
   activo: integer("activo", { mode: "boolean" }).notNull().default(true),
+  /** La presidenta pidió eliminar el barrio; no cambia nada hasta que el super admin lo borre. */
+  eliminacionSolicitadaEn: integer("eliminacion_solicitada_en", { mode: "timestamp" }),
+  motivoEliminacion: text("motivo_eliminacion"),
   creadoEn: creadoEn(),
 });
 

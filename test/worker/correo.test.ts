@@ -81,6 +81,8 @@ describe("plantillas de correo", () => {
     // Sin botón: avisos que no piden nada.
     solicitudRecibida: { nombre: "Ana", barrio: "Centro" },
     solicitudRechazada: { nombre: "Ana", barrio: "Centro", motivo: "Porque sí" },
+    eliminacionSolicitada: { nombre: "Ana", email: "ana@ejemplo.cl", barrio: "Centro", motivo: "Ya no la usamos", enlace: "https://ejemplo.cl/admin/centro" },
+    barrioEliminado: { nombre: "Ana", barrio: "Centro", cuentaBorrada: true },
   } as const;
   const plantillas = Object.keys(datos) as (keyof typeof datos)[];
 

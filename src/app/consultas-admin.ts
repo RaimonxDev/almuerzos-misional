@@ -265,6 +265,51 @@ export const useNuevaPasswordTemporal = (slug: string) =>
     ["admins"],
   );
 
+/** La eliminación pedida se ve en el panel y en la lista del super admin. */
+function useMutacionEliminacion<V, R>(slug: string, mutationFn: (variables: V) => Promise<R>) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn,
+    onSettled: () => {
+      invalidar(queryClient, slug, ["barrio"]);
+      return queryClient.invalidateQueries({ queryKey: ["admin", "solicitudes"] });
+    },
+  });
+}
+
+export const useSolicitarEliminacion = (slug: string) =>
+  useMutacionEliminacion(slug, (motivo: string | undefined) =>
+    datos(barrios[":slug"]["solicitud-eliminacion"].$post({ param: { slug }, json: { motivo } })),
+  );
+
+export const useRetirarEliminacion = (slug: string) =>
+  useMutacionEliminacion(slug, () => datos(barrios[":slug"]["solicitud-eliminacion"].$delete({ param: { slug } })));
+
+/** Lo que se pierde al borrar el barrio. Solo super admin. */
+export const useResumenEliminacion = (slug: string) =>
+  useQuery({
+    queryKey: ["admin", "resumenEliminacion", slug],
+    queryFn: () => datos(barrios[":slug"]["resumen-eliminacion"].$get({ param: { slug } })),
+    gcTime: 0,
+  });
+
+/**
+ * Borra el barrio. Lo saca de `yo` antes de que quien la llama navegue a `/admin`, que lleva al
+ * primero de la lista; las consultas del barrio no se refrescan porque ya darían 404.
+ */
+export function useEliminarBarrio(slug: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (confirmacion: string) => datos(barrios[":slug"].$delete({ param: { slug }, json: { confirmacion } })),
+    onSuccess: () => {
+      queryClient.setQueryData(["admin", "yo"], (yo: { barrios: { slug: string }[] } | undefined) =>
+        yo && { ...yo, barrios: yo.barrios.filter((b) => b.slug !== slug) },
+      );
+      queryClient.invalidateQueries({ queryKey: ["admin", "solicitudes"] });
+    },
+  });
+}
+
 const solicitudes = api.api.admin.solicitudes;
 
 export type EstadoSolicitud = "pendiente" | "aprobada" | "rechazada";

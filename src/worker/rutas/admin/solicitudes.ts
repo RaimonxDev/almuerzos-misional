@@ -1,4 +1,4 @@
-import { and, count, desc, eq } from "drizzle-orm";
+import { and, asc, count, desc, eq, isNotNull } from "drizzle-orm";
 import type { Db } from "@/db";
 import { Hono } from "hono";
 import { createMiddleware } from "hono/factory";
@@ -56,7 +56,7 @@ export const rutasSolicitudesAdmin = new Hono<AppEnvAdmin>()
   .get("/", validar("query", queryLista), async (c) => {
     const { db } = c.var;
     const { estado } = c.req.valid("query");
-    const [filas, [{ pendientes }]] = await db.batch([
+    const [filas, [{ pendientes }], eliminaciones] = await db.batch([
       db
         .select({ solicitud: solicitudes, barrioSlug: barrios.slug })
         .from(solicitudes)
@@ -64,8 +64,18 @@ export const rutasSolicitudesAdmin = new Hono<AppEnvAdmin>()
         .where(eq(solicitudes.estado, estado))
         .orderBy(desc(solicitudes.creadoEn), desc(solicitudes.id)),
       db.select({ pendientes: count() }).from(solicitudes).where(eq(solicitudes.estado, "pendiente")),
+      db
+        .select({
+          slug: barrios.slug,
+          nombre: barrios.nombre,
+          motivo: barrios.motivoEliminacion,
+          solicitadaEn: barrios.eliminacionSolicitadaEn,
+        })
+        .from(barrios)
+        .where(isNotNull(barrios.eliminacionSolicitadaEn))
+        .orderBy(asc(barrios.eliminacionSolicitadaEn)),
     ]);
-    return c.json({ solicitudes: filas.map((f) => aRespuesta(f.solicitud, f.barrioSlug)), pendientes });
+    return c.json({ solicitudes: filas.map((f) => aRespuesta(f.solicitud, f.barrioSlug)), pendientes, eliminaciones });
   })
 
   /** Crea el barrio con los datos que mande el super admin (corregidos si hizo falta) y marca la solicitud. */

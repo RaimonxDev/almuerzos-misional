@@ -33,6 +33,8 @@ export const en: Mensajes = {
       "So that you can see, change, or cancel your slot, a code is stored on this phone. It is not an account or a password.",
     datosBorrar:
       "To delete your information, cancel your slot from “View my slot” or ask your ward's president.",
+    datosEliminarBarrio:
+      "If a ward stops using the app, its president can ask for it to be deleted. Deleting it erases its calendars, sign-ups, and images.",
     iglesiaTitulo: "The Church's official website",
     iglesiaTexto: "For official information about the Church and the missionaries, visit:",
     iglesiaSitio: "churchofjesuschrist.org",
@@ -266,6 +268,28 @@ export const en: Mensajes = {
     copiarCodigo: "Copy the missionaries' code",
     cambiarCodigo: "Change code (the old one stops working)",
     noSeDeshace: "This can't be undone.",
+    dejarDeUsar: "Stop using the app",
+    dejarDeUsarTexto: "If your ward won't use it anymore, you can ask us to delete it with all its data.",
+    solicitarEliminacion: "Ask to delete the ward",
+    solicitarEliminacionTitulo: (barrio: string) => `Ask to delete ${barrio}?`,
+    solicitarEliminacionTexto:
+      "We review each request by hand. Until then the ward keeps working and you can withdraw it. Deleting it erases its calendars, sign-ups, and images, and your account if you don't manage another ward.",
+    enviarSolicitudEliminacion: "Send request",
+    eliminacionEnviada: "Request sent.",
+    eliminacionPedida: (fecha: string) => `Deletion of this ward was requested on ${fecha}.`,
+    eliminacionPedidaTexto: "The ward keeps working until we review the request.",
+    retirarEliminacion: "Withdraw the request",
+    eliminacionRetirada: "Request withdrawn.",
+    eliminarBarrio: "Delete ward",
+    eliminarBarrioTitulo: (barrio: string) => `Delete ${barrio}?`,
+    eliminarBarrioTexto:
+      "This erases its calendars, sign-ups, images, and the request it was created from. Its links stop working and the sisters signed up don't get any notice.",
+    seBorranInscripciones: (total: number, futuras: number) =>
+      `${total === 1 ? "1 sign-up" : `${total} sign-ups`} (${futuras} from today on)`,
+    seBorranCuentas: (cuentas: string) => `Accounts to be deleted: ${cuentas}`,
+    escribeNombreBarrio: (barrio: string) => `To confirm, type ${barrio}`,
+    confirmarEliminarBarrio: "Delete forever",
+    barrioEliminado: (barrio: string) => `${barrio} was deleted.`,
     cambiarCodigoTitulo: "Change the missionaries' code?",
     cambiarCodigoTexto:
       "The current code will stop working, including on phones where it was already entered. You'll need to give the new one to the missionaries.",
@@ -353,6 +377,7 @@ export const en: Mensajes = {
   },
   solicitudes: {
     titulo: "Access requests",
+    eliminaciones: "Deletion requests",
     intro: "Wards asking to use the app. Approving opens the ward form already filled in so you can review it.",
     volver: "Back to the panel",
     pendientes: "Pending",
@@ -527,6 +552,7 @@ export const en: Mensajes = {
     SOLICITUD_PENDIENTE: "We already received a request with that email and are reviewing it. We'll write to you soon.",
     SOLICITUD_RESUELTA: "This request has already been resolved.",
     VERIFICACION_FALLIDA: "We couldn't verify that you're not a robot. Please try again.",
+    CONFIRMACION_INCORRECTA: "The name doesn't match. Type it exactly as shown.",
     ERROR_INTERNO: "Something went wrong or you're offline. Please try again in a moment.",
   },
 };

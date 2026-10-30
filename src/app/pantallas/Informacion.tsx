@@ -74,6 +74,7 @@ export function Informacion() {
               <p>{i.datosTelefono}</p>
               <p>{i.datosToken}</p>
               <p>{i.datosBorrar}</p>
+              <p>{i.datosEliminarBarrio}</p>
             </SeccionHoja>
 
             <SeccionHoja id="sitio-oficial" titulo={i.iglesiaTitulo} cuadro="misioneras">
