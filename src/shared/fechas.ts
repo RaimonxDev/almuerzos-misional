@@ -26,3 +26,25 @@ export function diaDeSemana(fecha: string): number {
   const [anio, mes, dia] = fecha.split("-").map(Number);
   return new Date(Date.UTC(anio, mes - 1, dia)).getUTCDay();
 }
+
+/** ¿Es una zona horaria IANA que el runtime conoce? (API y formularios) */
+export const zonaValida = (zona: string) => {
+  try {
+    new Intl.DateTimeFormat(undefined, { timeZone: zona });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Zona del dispositivo, solo para sugerir la de un barrio nuevo en un formulario
+ * (nunca para decidir qué día es).
+ */
+export const zonaDelNavegador = () => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Santiago";
+  } catch {
+    return "America/Santiago";
+  }
+};

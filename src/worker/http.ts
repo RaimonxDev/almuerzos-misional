@@ -35,15 +35,7 @@ export function nuevoTokenEdicion(): string {
   return [...crypto.getRandomValues(new Uint8Array(32))].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** ¿Es una zona horaria IANA que el runtime conoce? */
-export const zonaValida = (zona: string) => {
-  try {
-    new Intl.DateTimeFormat(undefined, { timeZone: zona });
-    return true;
-  } catch {
-    return false;
-  }
-};
+export { zonaValida } from "@/shared/fechas";
 
 export function leerBearer(c: Context): string | null {
   const valor = c.req.header("Authorization");

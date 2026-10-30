@@ -25,6 +25,9 @@ export const CODIGOS_ERROR = [
   "DEMASIADOS_INTENTOS", // 429: límite de intentos del login (Better Auth) o de inscripciones por IP
   "IMAGEN_INVALIDA", // 400: tipo de imagen no permitido
   "IMAGEN_MUY_GRANDE", // 413
+  "SOLICITUD_PENDIENTE", // 409: ese correo ya tiene una solicitud de acceso sin resolver
+  "SOLICITUD_RESUELTA", // 409: aprobar o rechazar una solicitud que ya estaba aprobada o rechazada
+  "VERIFICACION_FALLIDA", // 400: Turnstile no validó (o falta su token)
   "ERROR_INTERNO",
 ] as const;
 

@@ -77,6 +77,10 @@ describe("plantillas de correo", () => {
     restablecerPassword: { nombre: "Ana", enlace: "https://ejemplo.cl/r?t=1&u=2", minutos: 60 },
     bienvenidaPresidenta: { nombre: "Ana", barrio: "Centro", enlace: "https://ejemplo.cl/b?t=1", panel: "https://ejemplo.cl/admin/centro", dias: 7 },
     barrioAsignado: { nombre: "Ana", barrio: "Centro", enlace: "https://ejemplo.cl/admin/centro" },
+    solicitudNueva: { nombre: "Ana", email: "ana@ejemplo.cl", barrio: "Centro", ciudad: "Lima", pais: "Perú", mensaje: "Hola", enlace: "https://ejemplo.cl/admin/solicitudes" },
+    // Sin botón: avisos que no piden nada.
+    solicitudRecibida: { nombre: "Ana", barrio: "Centro" },
+    solicitudRechazada: { nombre: "Ana", barrio: "Centro", motivo: "Porque sí" },
   } as const;
   const plantillas = Object.keys(datos) as (keyof typeof datos)[];
 
@@ -89,8 +93,13 @@ describe("plantillas de correo", () => {
       for (const plantilla of plantillas) {
         const armado = armarCorreo(idioma, plantilla, datos[plantilla] as never);
         expect(armado.asunto.length).toBeGreaterThan(0);
-        expect(armado.html).toContain(datos[plantilla].enlace.replaceAll("&", "&amp;"));
-        expect(armado.texto).toContain(datos[plantilla].enlace);
+        const { enlace } = datos[plantilla] as { enlace?: string };
+        if (enlace) {
+          expect(armado.html).toContain(enlace.replaceAll("&", "&amp;"));
+          expect(armado.texto).toContain(enlace);
+        } else {
+          expect(armado.html).not.toContain("<a href");
+        }
         expect(armado.texto).toContain("Ana");
       }
     }
@@ -117,6 +126,22 @@ describe("plantillas de correo", () => {
     expect(armado.html).toContain("Barrio &amp; &lt;b&gt;Centro&lt;/b&gt;");
     expect(armado.html).toContain('href="https://ejemplo.cl/b?t=1&amp;x=&quot;2&quot;"');
     expect(armado.texto).toContain("Barrio & <b>Centro</b>");
+  });
+
+  it("a quien pidió acceso le llega su propio pie, no el de quien administra", () => {
+    for (const plantilla of ["solicitudRecibida", "solicitudRechazada"] as const) {
+      const { html, texto } = armarCorreo("es", plantilla, { ...datos.solicitudRechazada });
+      expect(texto).toContain("porque pediste usar Almuerzo Misional");
+      expect(texto).not.toContain("administras un barrio");
+      expect(html).toContain("porque pediste usar Almuerzo Misional");
+    }
+    expect(armarCorreo("es", "solicitudNueva", datos.solicitudNueva).texto).toContain("administras un barrio");
+  });
+
+  it("no repite la palabra barrio delante del nombre", () => {
+    const { texto } = armarCorreo("es", "solicitudRecibida", { nombre: "Ana", barrio: "Barrio Centro" });
+    expect(texto).toContain("para Barrio Centro.");
+    expect(texto).not.toContain("barrio Barrio");
   });
 
   it("usa la paleta en el HTML", () => {

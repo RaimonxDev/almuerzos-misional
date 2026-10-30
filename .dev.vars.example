@@ -10,3 +10,11 @@ BETTER_AUTH_SECRET=cambia-esto-por-un-secreto-largo-y-aleatorio
 # En producción: bunx wrangler secret put RESEND_API_KEY (y CORREO_REMITENTE)
 # RESEND_API_KEY=re_...
 # CORREO_REMITENTE=Almuerzo Misional <hola@ramonmartinez.dev>
+
+# Turnstile (formulario público /solicitar). Clave de prueba de Cloudflare que siempre valida;
+# en producción: bunx wrangler secret put TURNSTILE_SECRET_KEY. La clave pública del sitio va en
+# VITE_TURNSTILE_SITE_KEY (ej. en .env.production.local): `bun run build` falla sin ella. En
+# desarrollo, sin ella, se usa la de prueba 1x00000000000000000000AA.
+TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
+# A quién avisar de solicitudes nuevas (opcional; por defecto a los usuarios con rol admin).
+# CORREO_SUPER_ADMIN=tu@correo.cl

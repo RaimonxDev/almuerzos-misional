@@ -22,7 +22,8 @@ export default defineConfig(async () => {
               miniflare: { bindings: { MIGRACIONES: migraciones, BETTER_AUTH_SECRET: "secreto-solo-para-tests-0123456789abcdef",
                 BETTER_AUTH_URL: "http://localhost",
                 // Vacío a propósito: aunque `.dev.vars` tenga una key, los tests nunca mandan correos reales.
-                RESEND_API_KEY: "", CORREO_REMITENTE: "Almuerzo Misional <tests@ejemplo.cl>" } },
+                RESEND_API_KEY: "", CORREO_REMITENTE: "Almuerzo Misional <tests@ejemplo.cl>",
+                TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA" } },
             }),
           ],
           resolve: { alias },

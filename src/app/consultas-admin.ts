@@ -151,6 +151,7 @@ export type NuevoBarrio = {
   idioma: Idioma;
   zonaHoraria: string;
   companerismos: { tipo: TipoCompanerismo; nombre: string }[];
+  presidenta?: { email: string; nombre: string; cargo?: string | null };
 };
 
 /** Solo super admin. Al crear, `yo` cambia (el super admin ve todos los barrios). */
@@ -232,3 +233,36 @@ export const useNuevaPasswordTemporal = (slug: string) =>
     (userId: string) => datos(barrios[":slug"].admins[":userId"]["password-temporal"].$post({ param: { slug, userId } })),
     ["admins"],
   );
+
+const solicitudes = api.api.admin.solicitudes;
+
+export type EstadoSolicitud = "pendiente" | "aprobada" | "rechazada";
+
+/** Solicitudes de acceso por estado, con la cantidad de pendientes. Solo super admin. */
+export const useSolicitudes = (estado: EstadoSolicitud, habilitada = true) =>
+  useQuery({
+    queryKey: ["admin", "solicitudes", estado],
+    queryFn: () => datos(solicitudes.$get({ query: { estado } })),
+    enabled: habilitada,
+  });
+
+/** Aprobar crea el barrio: cambian las solicitudes y `yo` (el super admin ve todos los barrios). */
+export function useAprobarSolicitud(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (json: NuevoBarrio) => datos(solicitudes[":id"].aprobar.$post({ param: { id }, json })),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "yo"] });
+      return queryClient.invalidateQueries({ queryKey: ["admin", "solicitudes"] });
+    },
+  });
+}
+
+export function useRechazarSolicitud() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, motivo }: { id: string; motivo?: string }) =>
+      datos(solicitudes[":id"].rechazar.$post({ param: { id }, json: { motivo } })),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "solicitudes"] }),
+  });
+}

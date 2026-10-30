@@ -1,9 +1,10 @@
 import { Link, useNavigate } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { LogOutIcon, PlusIcon, UserRoundIcon } from "lucide-react";
+import { InboxIcon, LogOutIcon, PlusIcon, UserRoundIcon } from "lucide-react";
 import { toast } from "sonner";
 import { authClient } from "@/app/auth";
 import { useYo } from "@/app/consultas";
+import { useSolicitudes } from "@/app/consultas-admin";
 import { useIdioma } from "@/app/i18n";
 import { cn } from "@/app/lib/utils";
 import { SelectorIdioma } from "@/app/components/SelectorIdioma";
@@ -19,6 +20,8 @@ export function EncabezadoAdmin({ slug }: { slug?: string }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { usuario, barrios } = useYo().data!;
+  // Solo el super admin ve las solicitudes; el conteo sale de la misma consulta que la pantalla.
+  const pendientes = useSolicitudes("pendiente", usuario.superAdmin).data?.pendientes ?? 0;
   const actual = barrios.find((b) => b.slug === slug);
   const nombres = Object.fromEntries(barrios.map((b) => [b.slug, b.nombre]));
 
@@ -64,6 +67,23 @@ export function EncabezadoAdmin({ slug }: { slug?: string }) {
             actual && <span className="font-bold">{actual.nombre}</span>
           )}
           {actual?.cargo && <span className="text-sm text-[#C9D6E4]">{actual.cargo}</span>}
+          {usuario.superAdmin && (
+            <Link
+              to="/admin/solicitudes"
+              className={cn(buttonVariants({ variant: "ghost" }), "text-white hover:bg-white/10 hover:text-white")}
+            >
+              <InboxIcon aria-hidden="true" />
+              {t.panel.solicitudes}
+              {pendientes > 0 && (
+                <span
+                  aria-label={t.panel.solicitudesPendientes(pendientes)}
+                  className="ml-0.5 min-w-5 rounded-full bg-dorado px-1.5 text-center text-xs leading-5 font-extrabold text-azul-profundo"
+                >
+                  {pendientes}
+                </span>
+              )}
+            </Link>
+          )}
           {usuario.superAdmin && (
             <Link
               to="/admin/nuevo-barrio"

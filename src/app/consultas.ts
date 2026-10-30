@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { NuevaSolicitud } from "@/shared/solicitudes";
 import type { EdicionInscripcion, NuevaInscripcionPublica } from "@/shared/inscripciones";
 import { api, datos, ErrorApi, sinCuerpo } from "./api";
 import { olvidarInscripcion, recordarInscripcion } from "./mis-inscripciones";
@@ -125,3 +126,9 @@ export function useCancelarInscripcion(id: string, token: string, slug: string) 
     },
   });
 }
+
+/** Pedir acceso para un barrio (público, con Turnstile). */
+export const useSolicitarAcceso = () =>
+  useMutation({
+    mutationFn: (json: NuevaSolicitud) => datos(api.api.solicitudes.$post({ json })),
+  });

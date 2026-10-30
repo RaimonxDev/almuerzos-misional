@@ -51,12 +51,21 @@ const FUENTE_TITULO = "Lora, Georgia, 'Times New Roman', serif";
 
 function htmlDelCorreo(c: ContenidoCorreo, comun: MensajesCorreo["comun"], idioma: Idioma): string {
   const e = escaparHtml;
-  const enlace = e(c.boton.enlace);
+  const enlace = c.boton ? e(c.boton.enlace) : "";
   const parrafos = c.parrafos
     .map((p) => `<p style="margin:0 0 16px;font-size:16px;line-height:1.5;color:${COLORES.texto};">${e(p)}</p>`)
     .join("");
   const nota = c.nota
     ? `<p style="margin:0 0 16px;font-size:14px;line-height:1.5;color:${COLORES.suave};">${e(c.nota)}</p>`
+    : "";
+
+  const boton = c.boton
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 24px;"><tr><td style="border-radius:999px;background:${COLORES.azulProfundo};">
+<a href="${enlace}" style="display:inline-block;padding:14px 28px;font-size:16px;font-weight:700;color:${COLORES.blanco};text-decoration:none;border-radius:999px;font-family:${FUENTE};">${e(c.boton.texto)}</a>
+</td></tr></table>`
+    : "";
+  const alternativo = c.boton
+    ? `<p style="margin:0;font-size:13px;line-height:1.5;color:${COLORES.suave};">${e(comun.enlaceAlternativo)}<br><a href="${enlace}" style="color:${COLORES.azulProfundo};word-break:break-all;">${enlace}</a></p>`
     : "";
 
   return `<!doctype html>
@@ -73,13 +82,11 @@ function htmlDelCorreo(c: ContenidoCorreo, comun: MensajesCorreo["comun"], idiom
 <tr><td style="padding:28px;">
 <p style="margin:0 0 16px;font-size:16px;line-height:1.5;color:${COLORES.texto};">${e(c.saludo)}</p>
 ${parrafos}
-<table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 24px;"><tr><td style="border-radius:999px;background:${COLORES.azulProfundo};">
-<a href="${enlace}" style="display:inline-block;padding:14px 28px;font-size:16px;font-weight:700;color:${COLORES.blanco};text-decoration:none;border-radius:999px;font-family:${FUENTE};">${e(c.boton.texto)}</a>
-</td></tr></table>
+${boton}
 ${nota}
-<p style="margin:0;font-size:13px;line-height:1.5;color:${COLORES.suave};">${e(comun.enlaceAlternativo)}<br><a href="${enlace}" style="color:${COLORES.azulProfundo};word-break:break-all;">${enlace}</a></p>
+${alternativo}
 </td></tr>
-<tr><td style="padding:16px 28px;background:${COLORES.fondo};font-size:12px;line-height:1.5;color:${COLORES.suave};">${e(comun.pie)}</td></tr>
+<tr><td style="padding:16px 28px;background:${COLORES.fondo};font-size:12px;line-height:1.5;color:${COLORES.suave};">${e(c.pie ?? comun.pie)}</td></tr>
 </table>
 </td></tr>
 </table>
@@ -92,11 +99,10 @@ function textoDelCorreo(c: ContenidoCorreo, comun: MensajesCorreo["comun"]): str
     c.saludo,
     "",
     ...c.parrafos.flatMap((p) => [p, ""]),
-    `${c.boton.texto}: ${c.boton.enlace}`,
-    "",
+    ...(c.boton ? [`${c.boton.texto}: ${c.boton.enlace}`, ""] : []),
     ...(c.nota ? [c.nota, ""] : []),
     "--",
     comun.nombreApp,
-    comun.pie,
+    c.pie ?? comun.pie,
   ].join("\n");
 }

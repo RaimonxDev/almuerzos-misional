@@ -23,6 +23,7 @@ import { Button, buttonVariants } from "@/app/components/ui/button";
 import { BarraLateral } from "./BarraLateral";
 import { EncabezadoAdmin } from "./EncabezadoAdmin";
 import { contarTurnos, periodoParaCrear } from "./mes";
+import { PrimerosPasos } from "./PrimerosPasos";
 import { TablaMes } from "./TablaMes";
 
 /**
@@ -99,6 +100,8 @@ function PanelBarrio({ slug }: { slug: string }) {
       <EncabezadoAdmin slug={slug} />
       <div className="mx-auto flex max-w-[1240px] flex-wrap items-start gap-6 px-4 py-6 md:px-6">
         <main className="flex min-w-0 flex-[999_1_640px] flex-col gap-[18px]">
+          <PrimerosPasos slug={slug} notaParaCocinar={barrio.data.barrio.notaParaCocinar} meses={lista} />
+
           <nav aria-label={t.panel.meses} className="flex flex-wrap items-center gap-2">
             {lista.map((m) => {
               const elegido = periodo !== null && textoPeriodo(periodo) === m.periodo;
@@ -119,6 +122,7 @@ function PanelBarrio({ slug }: { slug: string }) {
               );
             })}
             <Button
+              id="crear-mes"
               variant="outline"
               onClick={crearMes}
               disabled={crear.isPending}
@@ -210,7 +214,7 @@ function MesDelPanel({
             {titulo}
             <InsigniaEstado estado={mes.estado} className="text-[13px]" />
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div id="estado-mes" className="flex flex-wrap gap-2">
             <Link
               to={`/admin/${slug}/${texto}/imprimir`}
               className={cn(buttonVariants({ variant: "outline" }), "rounded-[10px] px-4 font-bold")}

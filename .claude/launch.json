@@ -6,6 +6,18 @@
       "runtimeExecutable": "bun",
       "runtimeArgs": ["run", "dev"],
       "port": 5173
+    },
+    {
+      "name": "dev-red",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run", "dev", "--host", "0.0.0.0"],
+      "port": 5173
+    },
+    {
+      "name": "dev-tunel",
+      "runtimeExecutable": "env",
+      "runtimeArgs": ["__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=.trycloudflare.com", "bun", "run", "dev", "--host", "0.0.0.0"],
+      "port": 5173
     }
   ]
 }

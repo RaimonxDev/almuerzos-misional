@@ -33,6 +33,12 @@
       "name": "LIMITE_INSCRIPCIONES",
       "namespace_id": "1001",
       "simple": { "limit": 30, "period": 60 }
+    },
+    // Pedir acceso desde `/solicitar`: 5 por minuto por IP (es un formulario que casi nadie usa).
+    {
+      "name": "LIMITE_SOLICITUDES",
+      "namespace_id": "1002",
+      "simple": { "limit": 5, "period": 60 }
     }
   ],
   "r2_buckets": [
