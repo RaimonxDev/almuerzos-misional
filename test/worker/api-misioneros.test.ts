@@ -2,24 +2,80 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { barrios, inscripciones } from "@/db/schema";
 import type { Db } from "@/db";
-import { IDS, NOTA_PRIVADA, TELEFONO_PRIVADO, pedir, sembrar } from "./datos";
+import { CODIGOS, IDS, NOTA_PRIVADA, TELEFONO_PRIVADO, entrarComoMisioneros, pedir, sembrar, tokenMisioneros } from "./datos";
 
 /**
- * Calendario de misioneros: el token del enlace /:barrio/m/:token viaja en
- * `Authorization: Bearer`, así no queda en la URL de la API ni en sus logs.
+ * Calendario de misioneros: entran en /:barrio/m con el código del barrio y reciben un token que
+ * viaja en `Authorization: Bearer`, así no queda en la URL de la API ni en sus logs.
  */
 
 let db: Db;
+let TOKEN: string;
+let TOKEN_OTRO: string;
 beforeEach(async () => {
   db = await sembrar();
+  TOKEN = await tokenMisioneros("prueba");
+  TOKEN_OTRO = await tokenMisioneros("otro");
 });
-
-const TOKEN = "tm-1";
 const TELEFONO_SIN_CONSENTIMIENTO = "+56 9 3333 4444";
 
 const verBarrio = (token?: string, slug = "prueba") => pedir(`/api/barrios/${slug}/misioneros`, { token });
 const verMes = (periodo: string, token?: string, slug = "prueba") =>
   pedir(`/api/barrios/${slug}/misioneros/meses/${periodo}`, { token });
+
+describe("POST /api/barrios/:slug/misioneros/acceso", () => {
+  it("con el código del barrio entrega un token que sirve para ver el calendario", async () => {
+    const res = await entrarComoMisioneros(CODIGOS.prueba);
+    expect(res.status).toBe(200);
+    const { token } = await res.json<any>();
+    expect(token).toMatch(/^[0-9a-f]{64}$/);
+    // El token no es el código: verlo en un teléfono no sirve para entrar desde otro.
+    expect(token).not.toContain(CODIGOS.prueba);
+    expect((await verBarrio(token)).status).toBe(200);
+  });
+
+  it.each([["k7pm2x"], ["K7P-M2X"], [" k7p m2x "]])("acepta el código como se escriba: %s", async (codigo) => {
+    expect((await entrarComoMisioneros(codigo)).status).toBe(200);
+  });
+
+  it("código incorrecto, de otro barrio o barrio inexistente: el mismo 404", async () => {
+    for (const res of [
+      await entrarComoMisioneros("AAAAAA"),
+      await entrarComoMisioneros(CODIGOS.otro),
+      await entrarComoMisioneros(CODIGOS.prueba, "no-existe"),
+      await entrarComoMisioneros(""),
+    ]) {
+      expect(res.status).toBe(404);
+      expect(await res.json()).toEqual({ error: "CODIGO_INVALIDO" });
+    }
+  });
+
+  it("un barrio que quedara sin código no se abre con un código vacío", async () => {
+    await db.update(barrios).set({ codigoMisioneros: "" }).where(eq(barrios.id, "b1"));
+    for (const codigo of ["", " ", "-"]) expect((await entrarComoMisioneros(codigo)).status).toBe(404);
+  });
+
+  it("el token de un barrio no sirve en otro", async () => {
+    expect((await verBarrio(TOKEN, "otro")).status).toBe(404);
+  });
+
+  /** El mismo `limit` que el binding LIMITE_ACCESO_MISIONEROS de wrangler.jsonc. */
+  const LIMITE = 10;
+
+  it("pasado el límite por IP responde 429, aunque después llegue el código correcto", async () => {
+    // Ventanas fijas: si el minuto cambia a mitad de camino pasan más de LIMITE, nunca más del doble.
+    let pasaron = 0;
+    while ((await entrarComoMisioneros("AAAAAA", "prueba", "203.0.113.50")).status !== 429 && pasaron <= 2 * LIMITE) pasaron++;
+    expect(pasaron).toBeGreaterThanOrEqual(LIMITE);
+    expect(pasaron).toBeLessThanOrEqual(2 * LIMITE);
+    const res = await entrarComoMisioneros(CODIGOS.prueba, "prueba", "203.0.113.50");
+    expect(res.status).toBe(429);
+    expect(await res.json()).toEqual({ error: "DEMASIADOS_INTENTOS" });
+    expect((await entrarComoMisioneros(CODIGOS.prueba, "prueba", "203.0.113.51")).status).toBe(200);
+    // Se cuenta por IP y barrio: detrás del mismo CGNAT, otro barrio sigue entrando.
+    expect((await entrarComoMisioneros(CODIGOS.otro, "otro", "203.0.113.50")).status).toBe(200);
+  });
+});
 
 describe("GET /api/barrios/:slug/misioneros", () => {
   it("con el token devuelve el barrio y los meses abiertos y cerrados, sin borradores", async () => {
@@ -44,7 +100,7 @@ describe("GET /api/barrios/:slug/misioneros", () => {
     for (const res of [
       await verBarrio(),
       await verBarrio("nada"),
-      await verBarrio("tm-2"),
+      await verBarrio(TOKEN_OTRO),
       await verBarrio(TOKEN, "no-existe"),
     ]) {
       expect(res.status).toBe(404);
@@ -52,11 +108,13 @@ describe("GET /api/barrios/:slug/misioneros", () => {
     }
   });
 
-  it("al regenerar el token, el anterior deja de servir", async () => {
-    await db.update(barrios).set({ tokenMisioneros: "tm-nuevo" }).where(eq(barrios.id, "b1"));
+  it("al cambiar el código, los teléfonos que entraron con el anterior quedan afuera", async () => {
+    await db.update(barrios).set({ codigoMisioneros: "N3WCDD" }).where(eq(barrios.id, "b1"));
     expect((await verBarrio(TOKEN)).status).toBe(404);
     expect((await verMes("2099-01", TOKEN)).status).toBe(404);
-    expect((await verBarrio("tm-nuevo")).status).toBe(200);
+    expect((await entrarComoMisioneros(CODIGOS.prueba)).status).toBe(404);
+    const nuevo = (await (await entrarComoMisioneros("N3WCDD")).json<any>()).token;
+    expect((await verBarrio(nuevo)).status).toBe(200);
   });
 
   it("el token no sirve en la URL", async () => {
@@ -128,7 +186,7 @@ describe("GET /api/barrios/:slug/misioneros/meses/:periodo", () => {
   });
 
   it("con token de otro barrio o regenerado responde 404 sin datos", async () => {
-    for (const res of [await verMes("2099-01", "tm-2"), await verMes("2099-01"), await verMes("2099-01", TOKEN, "otro")]) {
+    for (const res of [await verMes("2099-01", TOKEN_OTRO), await verMes("2099-01"), await verMes("2099-01", TOKEN, "otro")]) {
       expect(res.status).toBe(404);
       expect(await res.json()).toEqual({ error: "TOKEN_INVALIDO" });
     }

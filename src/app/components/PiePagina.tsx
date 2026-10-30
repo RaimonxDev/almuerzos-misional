@@ -2,8 +2,8 @@ import { Link } from "react-router";
 import { useIdioma } from "@/app/i18n";
 
 /**
- * Pie corto de las pantallas públicas. Es un link interno a `/informacion`: no lleva nada de la
- * URL actual (en `/:barrio/m/:token` el token no viaja ni en el href ni como referer).
+ * Pie corto de las pantallas públicas. Es un link interno a `/informacion` y no lleva nada de la
+ * URL actual: es igual en todas las pantallas y no filtra nada de donde está la persona.
  */
 export function PiePagina() {
   const { t } = useIdioma();

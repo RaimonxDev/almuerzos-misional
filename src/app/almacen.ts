@@ -10,6 +10,14 @@ export function leerLocal(clave: string): string | null {
   }
 }
 
+export function borrarLocal(clave: string) {
+  try {
+    localStorage.removeItem(clave);
+  } catch {
+    // Sin storage no había nada guardado.
+  }
+}
+
 export function guardarLocal(clave: string, valor: string) {
   try {
     localStorage.setItem(clave, valor);

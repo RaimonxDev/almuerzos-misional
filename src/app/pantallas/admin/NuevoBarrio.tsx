@@ -7,7 +7,6 @@ import { Aviso } from "@/app/components/Estado";
 import { EncabezadoAdmin } from "./EncabezadoAdmin";
 import { FormularioBarrio } from "./FormularioBarrio";
 
-export { sugerirSlug } from "./FormularioBarrio";
 
 /** `/admin/nuevo-barrio` — solo el super admin crea barrios. */
 export function NuevoBarrioRuta() {

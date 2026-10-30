@@ -9,6 +9,7 @@ export const CODIGOS_ERROR = [
   "MES_NO_ABIERTO",
   "NO_ENCONTRADO",
   "TOKEN_INVALIDO",
+  "CODIGO_INVALIDO", // 404: código de misioneros incorrecto (o barrio inexistente: la misma respuesta)
   "DATOS_INVALIDOS",
   "NO_AUTORIZADO", // 401: sin sesión
   "SIN_PERMISO", // 403: con sesión pero sin acceso a ese barrio o acción
@@ -22,7 +23,7 @@ export const CODIGOS_ERROR = [
   "CONTRASENA_INCORRECTA", // cambiar la contraseña: la actual no es (Better Auth: INVALID_PASSWORD)
   "CONTRASENA_CORTA", // menos de PASSWORD_MIN (Better Auth: PASSWORD_TOO_SHORT); también lo valida el cliente
   "CONTRASENAS_DISTINTAS", // solo en el cliente: la nueva y la repetida no coinciden
-  "DEMASIADOS_INTENTOS", // 429: límite de intentos del login (Better Auth) o de inscripciones por IP
+  "DEMASIADOS_INTENTOS", // 429: límite de intentos del login (Better Auth), de inscripciones o del código de misioneros por IP
   "IMAGEN_INVALIDA", // 400: tipo de imagen no permitido
   "IMAGEN_MUY_GRANDE", // 413
   "SOLICITUD_PENDIENTE", // 409: ese correo ya tiene una solicitud de acceso sin resolver

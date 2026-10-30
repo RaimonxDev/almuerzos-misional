@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { inscripciones, meses } from "@/db/schema";
 import type { Db } from "@/db";
 import { claveDeIp, esViolacionUnica, sha256Hex } from "@/worker/http";
-import { IDS, NOTA_PRIVADA, TELEFONO_PRIVADO, TOKEN_TOMADO, pedir, sembrar } from "./datos";
+import { CODIGOS, IDS, NOTA_PRIVADA, TELEFONO_PRIVADO, TOKEN_TOMADO, pedir, sembrar } from "./datos";
 
 let db: Db;
 beforeEach(async () => {
@@ -12,6 +12,13 @@ beforeEach(async () => {
 
 const anotarse = (turnoId: string, json: unknown = { nombre: "Hna. Nueva" }, slug = "prueba") =>
   pedir(`/api/barrios/${slug}/turnos/${turnoId}/inscripcion`, { method: "POST", json });
+
+describe("buscadores", () => {
+  it("la API pide no indexar, también en los errores", async () => {
+    expect((await pedir("/api/barrios/prueba")).headers.get("X-Robots-Tag")).toBe("noindex");
+    expect((await pedir("/api/barrios/nada")).headers.get("X-Robots-Tag")).toBe("noindex");
+  });
+});
 
 describe("GET /api/barrios/:slug", () => {
   it("devuelve el barrio y solo los meses abiertos", async () => {
@@ -24,6 +31,8 @@ describe("GET /api/barrios/:slug", () => {
       { anio: 2099, mes: 1 },
     ]);
     expect(body.hoy).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    // El código de los misioneros nunca sale en la vista pública.
+    expect(JSON.stringify(body)).not.toContain(CODIGOS.prueba);
   });
 
   it("responde 404 con código si el barrio no existe", async () => {

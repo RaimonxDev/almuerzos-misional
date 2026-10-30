@@ -2,7 +2,7 @@ import { env } from "cloudflare:test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { crearDb } from "@/db";
 import { solicitudes } from "@/db/schema";
-import { capturarCorreos, crearAdmin, iniciarSesion, pedir, sembrar } from "./datos";
+import { capturarCorreos, crearAdmin, enlaceConCodigo, iniciarSesion, pedir, sembrar } from "./datos";
 
 beforeEach(async () => {
   const db = await sembrar();
@@ -279,7 +279,8 @@ describe("POST /api/admin/solicitudes/:id/aprobar", () => {
     const res = await pedir(`/api/admin/solicitudes/${id}/aprobar`, { method: "POST", cookie: root, json: DATOS_BARRIO });
     expect(res.status).toBe(201);
     const cuerpo = await res.json<any>();
-    expect(cuerpo.barrio).toMatchObject({ slug: "poniente", nombre: "Barrio Poniente", idioma: "pt" });
+    expect(cuerpo.barrio).toMatchObject({ nombre: "Barrio Poniente", idioma: "pt" });
+    expect(cuerpo.barrio.slug).toMatch(enlaceConCodigo("poniente"));
     expect(cuerpo.companerismos.map((c: any) => c.tipo)).toEqual(["elderes", "hermanas"]);
     expect(cuerpo.presidenta).toMatchObject({ email: "soto@ejemplo.cl", cuentaNueva: true });
     expect(cuerpo.solicitud).toEqual({ id, estado: "aprobada" });
@@ -292,10 +293,10 @@ describe("POST /api/admin/solicitudes/:id/aprobar", () => {
 
     const presidenta = await iniciarSesion("soto@ejemplo.cl", cuerpo.presidenta.passwordTemporal);
     const yo = await (await pedir("/api/admin/yo", { cookie: presidenta })).json<any>();
-    expect(yo.barrios.map((b: any) => b.slug)).toEqual(["poniente"]);
+    expect(yo.barrios.map((b: any) => b.slug)).toEqual([cuerpo.barrio.slug]);
 
     const lista = await (await pedir("/api/admin/solicitudes?estado=aprobada", { cookie: root })).json<any>();
-    expect(lista.solicitudes[0].barrioSlug).toBe("poniente");
+    expect(lista.solicitudes[0].barrioSlug).toBe(cuerpo.barrio.slug);
   });
 
   it("no se puede aprobar dos veces → 409 SOLICITUD_RESUELTA", async () => {
@@ -322,14 +323,13 @@ describe("POST /api/admin/solicitudes/:id/aprobar", () => {
     expect(fila.estado).toBe(aprobar.status === 201 ? "aprobada" : "rechazada");
   });
 
-  it("slug existente → 409 SLUG_EXISTENTE y la solicitud sigue pendiente", async () => {
+  it("el enlace de un barrio que ya existe no choca: lleva un código al azar", async () => {
     conServicios();
     const id = await crearPendiente();
     const root = await comoSuperAdmin();
     const res = await pedir(`/api/admin/solicitudes/${id}/aprobar`, { method: "POST", cookie: root, json: { ...DATOS_BARRIO, slug: "prueba" } });
-    expect(res.status).toBe(409);
-    expect((await res.json<any>()).error).toBe("SLUG_EXISTENTE");
-    expect((await filas())[0].estado).toBe("pendiente");
+    expect(res.status).toBe(201);
+    expect((await res.json<any>()).barrio.slug).toMatch(enlaceConCodigo("prueba"));
   });
 
   it("solicitud inexistente → 404; datos inválidos → 400", async () => {
@@ -349,10 +349,10 @@ describe("POST /api/admin/solicitudes/:id/aprobar", () => {
     await vi.waitFor(() => expect(s.correos().length).toBeGreaterThanOrEqual(1));
     const antes = s.correos().length;
 
-    await pedir(`/api/admin/solicitudes/${id}/aprobar`, { method: "POST", cookie: root, json: DATOS_BARRIO });
+    const { barrio } = await (await pedir(`/api/admin/solicitudes/${id}/aprobar`, { method: "POST", cookie: root, json: DATOS_BARRIO })).json<any>();
     const bienvenida = s.correos().slice(antes).find((c) => c.para === "soto@ejemplo.cl")!;
     expect(bienvenida.asunto).toContain("Boas-vindas");
-    expect(bienvenida.texto).toContain("http://localhost/admin/poniente");
+    expect(bienvenida.texto).toContain(`http://localhost/admin/${barrio.slug}`);
     const token = bienvenida.texto.match(/\/admin\/restablecer\?token=([A-Za-z0-9]+)/)![1];
 
     const nueva = await pedir("/api/auth/reset-password", { method: "POST", json: { token, newPassword: "mi-clave-propia-1" } });

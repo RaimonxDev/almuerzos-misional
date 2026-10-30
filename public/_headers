@@ -1,0 +1,14 @@
+# Workers Static Assets. Las pantallas de un barrio muestran nombres de quienes se anotan:
+# que ningún buscador las indexe aunque alguien publique el enlace. Solo la portada,
+# /informacion y /solicitar se pueden encontrar en Google.
+/*
+  X-Robots-Tag: noindex
+
+/
+  ! X-Robots-Tag
+
+/informacion
+  ! X-Robots-Tag
+
+/solicitar
+  ! X-Robots-Tag

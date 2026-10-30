@@ -78,7 +78,7 @@ export const es: MensajesCorreo = {
     parrafos: [
       `Almuerzo Misional es una página para que las hermanas del barrio se anoten a dar almuerzo a los misioneros, sin coordinarlo a mano por WhatsApp. Se creó ${barrio} y quedaste como su administradora.`,
       "Desde el panel puedes abrir los meses, ver quién se anotó, bloquear días y compartir el calendario. Para entrar, primero crea tu contraseña con el botón.",
-      "Primeros pasos: crea el mes que viene, ábrelo cuando esté listo y comparte el enlace del barrio por WhatsApp con las hermanas. El enlace para los misioneros está en la barra lateral del panel.",
+      "Primeros pasos: crea el mes que viene, ábrelo cuando esté listo y comparte el enlace del barrio por WhatsApp con las hermanas. El enlace y el código para los misioneros están en la barra lateral del panel.",
       `Después, tu panel queda en ${panel}`,
     ],
     boton: { texto: "Crear mi contraseña", enlace },

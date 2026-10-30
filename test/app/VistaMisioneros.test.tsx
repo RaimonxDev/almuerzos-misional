@@ -3,10 +3,12 @@ import { focusManager } from "@tanstack/react-query";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 import { VistaMisioneros } from "@/app/pantallas/VistaMisioneros";
-import { renderizarRuta, simularApi } from "./utilidades";
+import { renderizarApp, renderizarRuta, simularApi } from "./utilidades";
 
 const HOY = "2026-11-05";
 const TOKEN = "token-secreto-de-misioneros";
+const CLAVE_TOKEN = "almuerzo-misional:misioneros:centro";
+const CODIGO_CAMBIO = "El código cambió. Pídele el nuevo a la presidenta de la Sociedad de Socorro.";
 
 const turno = (id: string, fecha: string, companerismoId: string, extra: object = {}) => ({
   id,
@@ -64,18 +66,82 @@ const diciembre = {
   },
 };
 
+/** Lo público del barrio: la pantalla del código muestra su nombre y usa su idioma. */
+const publico = (idioma = "es") => ({
+  json: {
+    barrio: { slug: "centro", nombre: "Barrio Centro", idioma, zonaHoraria: "America/Santiago", notaParaCocinar: null },
+    mesesAbiertos: [],
+    hoy: HOY,
+  },
+});
+
 let api: ReturnType<typeof simularApi>;
-const simular = (idioma = "es") => {
+const simular = (idioma = "es", extra: Parameters<typeof simularApi>[0] = {}) => {
   api = simularApi({
+    "/api/barrios/centro": publico(idioma),
     "/api/barrios/centro/misioneros/meses/2026-11": noviembre,
     "/api/barrios/centro/misioneros/meses/2026-12": diciembre,
     "/api/barrios/centro/misioneros": barrio(idioma),
+    ...extra,
   });
 };
 
-beforeEach(() => simular());
+const TOKEN_INVALIDO = { status: 404, json: { error: "TOKEN_INVALIDO" } };
 
-const renderizar = (url = `/centro/m/${TOKEN}`) => renderizarRuta("/:barrio/m/:token", url, <VistaMisioneros />);
+/** Este teléfono ya había entrado con el código. */
+beforeEach(() => {
+  simular();
+  localStorage.setItem(CLAVE_TOKEN, TOKEN);
+});
+
+const renderizar = () => renderizarRuta("/:barrio/m", "/centro/m", <VistaMisioneros />);
+
+const autorizacion = (url: string) =>
+  api.mock.calls.filter(([e]) => String(e).endsWith(url)).map(([, init]) => new Headers(init?.headers).get("Authorization"));
+
+describe("entrar con el código", () => {
+  beforeEach(() => localStorage.removeItem(CLAVE_TOKEN));
+
+  it("sin token pide el código; con el correcto guarda el token y muestra el calendario", async () => {
+    simular("es", { "/api/barrios/centro/misioneros/acceso": { json: { token: TOKEN } } });
+    renderizar();
+    expect(await screen.findByRole("heading", { name: "Barrio Centro" })).toBeInTheDocument();
+    expect(screen.queryByText("Hna. Pérez")).not.toBeInTheDocument();
+
+    await userEvent.type(screen.getByLabelText("Código de acceso"), "k7p m2x");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+
+    expect(await screen.findByText("Hna. Pérez")).toBeInTheDocument();
+    const [envio] = api.mock.calls.filter(([e]) => String(e).endsWith("/misioneros/acceso"));
+    expect(JSON.parse(String(envio[1]!.body))).toEqual({ codigo: "k7p m2x" });
+    expect(localStorage.getItem(CLAVE_TOKEN)).toBe(TOKEN);
+    // El token va en el header, nunca en la URL de la API.
+    expect(autorizacion("/api/barrios/centro/misioneros")).toEqual([`Bearer ${TOKEN}`]);
+    expect(api.mock.calls.some(([e]) => String(e).includes(TOKEN))).toBe(false);
+  });
+
+  it("código incorrecto o demasiados intentos: mensajes traducidos, sin entrar", async () => {
+    let respuesta = { status: 404, json: { error: "CODIGO_INVALIDO" } };
+    simular("es", { "/api/barrios/centro/misioneros/acceso": () => respuesta });
+    renderizar();
+    await userEvent.type(await screen.findByLabelText("Código de acceso"), "AAAAAA");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+    expect(await screen.findByText("Ese código no es correcto. Revísalo o pídeselo a la presidenta.")).toBeInTheDocument();
+
+    respuesta = { status: 429, json: { error: "DEMASIADOS_INTENTOS" } };
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/intentos/i);
+    expect(localStorage.getItem(CLAVE_TOKEN)).toBeNull();
+  });
+
+  it("un enlace viejo con token en la URL lleva a la pantalla del código, sin usar ese token", async () => {
+    renderizarApp("/centro/m/token-de-un-enlace-viejo");
+    expect(await screen.findByLabelText("Código de acceso")).toBeInTheDocument();
+    expect(api.mock.calls.some(([e, init]) => `${String(e)} ${JSON.stringify(init ?? {})}`.includes("token-de-un-enlace-viejo"))).toBe(
+      false,
+    );
+  });
+});
 
 describe("VistaMisioneros", () => {
   it("muestra quién da el almuerzo, la modalidad y la dirección u hora", async () => {
@@ -148,23 +214,30 @@ describe("VistaMisioneros", () => {
     expect(await screen.findByRole("link", { name: "Escrever para Hna. Pérez pelo WhatsApp" })).toBeInTheDocument();
   });
 
-  it("con un token inválido muestra un mensaje claro, traducido y sin datos", async () => {
-    simularApi({ "/api/barrios/centro/misioneros": { status: 404, json: { error: "TOKEN_INVALIDO" } } });
-    renderizar("/centro/m/token-viejo");
-    expect(
-      await screen.findByText("Este enlace ya no sirve. Pide el enlace nuevo a la presidenta de la Sociedad de Socorro."),
-    ).toBeInTheDocument();
-    expect(screen.queryByText("Barrio Centro")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Reintentar" })).not.toBeInTheDocument();
+  it("si cambiaron el código, olvida el token y vuelve a pedirlo con un aviso, sin datos", async () => {
+    simular("es", { "/api/barrios/centro/misioneros": TOKEN_INVALIDO });
+    renderizar();
+    expect(await screen.findByText(CODIGO_CAMBIO)).toBeInTheDocument();
+    expect(screen.getByLabelText("Código de acceso")).toBeInTheDocument();
+    expect(screen.queryByText("Hna. Pérez")).not.toBeInTheDocument();
+    expect(localStorage.getItem(CLAVE_TOKEN)).toBeNull();
   });
 
-  it("el mensaje de token inválido también sale en el idioma elegido", async () => {
+  it("el aviso del código cambiado también sale en el idioma elegido", async () => {
     localStorage.setItem("almuerzo-misional:idioma", "en");
-    simularApi({ "/api/barrios/centro/misioneros": { status: 404, json: { error: "TOKEN_INVALIDO" } } });
-    renderizar("/centro/m/token-viejo");
+    simular("es", { "/api/barrios/centro/misioneros": TOKEN_INVALIDO });
+    renderizar();
     await waitFor(() =>
-      expect(screen.getByText("This link no longer works. Ask the Relief Society president for the new link.")).toBeInTheDocument(),
+      expect(screen.getByText("The code changed. Ask the Relief Society president for the new one.")).toBeInTheDocument(),
     );
+  });
+
+  it("Salir olvida el token de este teléfono y vuelve a pedir el código", async () => {
+    renderizar();
+    await screen.findByText("Hna. Pérez");
+    await userEvent.click(screen.getByRole("button", { name: "Salir" }));
+    expect(await screen.findByLabelText("Código de acceso")).toBeInTheDocument();
+    expect(localStorage.getItem(CLAVE_TOKEN)).toBeNull();
   });
 
   it("marca el día de hoy", async () => {
@@ -173,18 +246,16 @@ describe("VistaMisioneros", () => {
     expect(within(hoy).getByText("Hoy")).toBeInTheDocument();
   });
 
-  it("si regeneran el enlace con la página abierta, deja de mostrar los datos y avisa", async () => {
+  it("si cambian el código con la página abierta, deja de mostrar los datos y avisa", async () => {
     renderizar();
     await screen.findByText("Hna. Pérez");
-    simularApi({ "/api/barrios/centro/misioneros": { status: 404, json: { error: "TOKEN_INVALIDO" } } });
+    simular("es", { "/api/barrios/centro/misioneros": TOKEN_INVALIDO });
     // Volver a la pestaña hace que React Query vuelva a pedir los datos.
     act(() => {
       focusManager.setFocused(false);
       focusManager.setFocused(true);
     });
-    expect(
-      await screen.findByText("Este enlace ya no sirve. Pide el enlace nuevo a la presidenta de la Sociedad de Socorro."),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(CODIGO_CAMBIO)).toBeInTheDocument();
     expect(screen.queryByText("Hna. Pérez")).not.toBeInTheDocument();
     focusManager.setFocused(undefined);
   });

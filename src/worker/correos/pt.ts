@@ -25,7 +25,7 @@ export const pt: MensajesCorreo = {
     parrafos: [
       `O Almoço Missionário é uma página para que as irmãs da ala se inscrevam para dar almoço aos missionários, sem precisar combinar tudo à mão pelo WhatsApp. ${barrio} foi criada e você é a administradora.`,
       "No painel você pode abrir os meses, ver quem se inscreveu, bloquear dias e compartilhar o calendário. Para entrar, primeiro crie sua senha com o botão.",
-      "Primeiros passos: crie o mês que vem, abra-o quando estiver pronto e compartilhe o link da ala pelo WhatsApp com as irmãs. O link para os missionários está na barra lateral do painel.",
+      "Primeiros passos: crie o mês que vem, abra-o quando estiver pronto e compartilhe o link da ala pelo WhatsApp com as irmãs. O link e o código para os missionários estão na barra lateral do painel.",
       `Depois, seu painel fica em ${panel}`,
     ],
     boton: { texto: "Criar minha senha", enlace },

@@ -84,17 +84,22 @@ describe("pie de página con enlace a /informacion", () => {
     expect(await screen.findByRole("link", { name: /Herramienta no oficial/ })).toHaveAttribute("href", "/informacion");
   });
 
-  it("la vista de misioneros enlaza a /informacion sin el token en el enlace", async () => {
+  it("la vista de misioneros enlaza a /informacion, también antes de escribir el código", async () => {
     simularApi({
       "/api/barrios/centro/misioneros/meses": { json: MES },
       "/api/barrios/centro/misioneros": {
         json: { barrio: BARRIO.barrio, meses: BARRIO.mesesAbiertos, hoy: BARRIO.hoy },
       },
+      "/api/barrios/centro": { json: BARRIO },
     });
-    renderizarApp("/centro/m/secreto-123");
+    const vista = renderizarApp("/centro/m");
+    expect(await screen.findByRole("link", { name: /Herramienta no oficial/ })).toHaveAttribute("href", "/informacion");
+    vista.unmount();
+
+    localStorage.setItem("almuerzo-misional:misioneros:centro", "token-de-este-telefono");
+    renderizarApp("/centro/m");
     const pie = await screen.findByRole("link", { name: /Herramienta no oficial/ });
     expect(pie).toHaveAttribute("href", "/informacion");
-    expect(pie.getAttribute("href")).not.toContain("secreto");
   });
 
   it("solicitar enlaza a /informacion", async () => {

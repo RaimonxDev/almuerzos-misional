@@ -20,6 +20,7 @@ export default defineConfig(async () => {
             cloudflareTest({
               wrangler: { configPath: "./wrangler.jsonc" },
               miniflare: { bindings: { MIGRACIONES: migraciones, BETTER_AUTH_SECRET: "secreto-solo-para-tests-0123456789abcdef",
+                SECRETO_MISIONEROS: "secreto-de-misioneros-solo-para-tests",
                 BETTER_AUTH_URL: "http://localhost",
                 // Vacío a propósito: aunque `.dev.vars` tenga una key, los tests nunca mandan correos reales.
                 RESEND_API_KEY: "", CORREO_REMITENTE: "Almuerzo Misional <tests@ejemplo.cl>",

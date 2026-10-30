@@ -2,12 +2,14 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { Db } from "@/db";
-import { type Barrio, barrios, companerismos, meses, nuevoToken } from "@/db/schema";
+import { type Barrio, barrios, companerismos, meses } from "@/db/schema";
+import { nuevoCodigo } from "@/shared/codigo-misioneros";
 import { hoyEnZona } from "@/shared/fechas";
 import { IDIOMAS } from "@/shared/idiomas";
+import { enlaceConCodigo, esquemaNuevoBarrio } from "../../barrios";
 import type { AppEnvBarrioAdmin } from "../../contexto";
 import { insertsDeTurnos } from "../../consultas";
-import { fallar, validar, zonaValida } from "../../http";
+import { esViolacionUnica, fallar, validar, zonaValida } from "../../http";
 import { paramsBarrio } from "../../params";
 
 /** Texto opcional: `null` o vacío lo borra. */
@@ -55,7 +57,7 @@ const datosBarrio = (b: typeof barrios.$inferSelect) => ({
   nombre: b.nombre,
   idioma: b.idioma,
   zonaHoraria: b.zonaHoraria,
-  tokenMisioneros: b.tokenMisioneros,
+  codigoMisioneros: b.codigoMisioneros,
   notaParaCocinar: b.notaParaCocinar,
   contactoNombre: b.contactoNombre,
   contactoTelefono: b.contactoTelefono,
@@ -97,12 +99,28 @@ export const rutasBarrio = new Hono<AppEnvBarrioAdmin>()
     return c.json({ barrio: datosBarrio(actual!) });
   })
 
-  /** El token anterior deja de servir en cuanto se reemplaza. */
-  .post("/token-misioneros", async (c) => {
+  /** El código anterior no entra más y los teléfonos que entraron con él quedan afuera (su token cambia). */
+  .post("/codigo-misioneros", async (c) => {
     const { db, barrio } = c.var;
-    const tokenMisioneros = nuevoToken();
-    await db.update(barrios).set({ tokenMisioneros }).where(eq(barrios.id, barrio.id));
-    return c.json({ tokenMisioneros });
+    const codigoMisioneros = nuevoCodigo();
+    await db.update(barrios).set({ codigoMisioneros }).where(eq(barrios.id, barrio.id));
+    return c.json({ codigoMisioneros });
+  })
+
+  /**
+   * Cambia el enlace público por `<slug>-<código al azar>`: sirve para cerrar un enlace fácil de
+   * adivinar o que circuló de más. El código de misioneros no va en la URL y sigue igual.
+   */
+  .post("/enlace", validar("json", z.object({ slug: esquemaNuevoBarrio.shape.slug })), async (c) => {
+    const { db, barrio } = c.var;
+    const slug = enlaceConCodigo(c.req.valid("json").slug);
+    try {
+      await db.update(barrios).set({ slug }).where(eq(barrios.id, barrio.id));
+    } catch (err) {
+      if (esViolacionUnica(err)) return fallar(c, "SLUG_EXISTENTE", 409);
+      throw err;
+    }
+    return c.json({ slug });
   })
 
   .post("/companerismos", validar("json", esquemaNuevoCompanerismo), async (c) => {

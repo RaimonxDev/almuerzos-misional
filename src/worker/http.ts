@@ -25,9 +25,10 @@ export function esViolacionUnica(err: unknown): boolean {
   return false;
 }
 
+export const hex = (bytes: ArrayBuffer) => [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, "0")).join("");
+
 export async function sha256Hex(texto: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(texto));
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  return hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(texto)));
 }
 
 /** 32 bytes aleatorios en hex: el token de edición que se queda en el teléfono de quien se anota. */
@@ -60,11 +61,14 @@ export function claveDeIp(ip: string): string {
 /**
  * 429 `DEMASIADOS_INTENTOS` si la IP del cliente (`cf-connecting-ip`, que pone Cloudflare) pasó el
  * límite del binding. Sin ese header no se limita: en producción siempre viene.
+ * `alcance` separa el contador (ej. por barrio), para que detrás del mismo CGNAT un abuso en un
+ * lugar no bloquee a quien usa otro.
  */
-export const limitarPorIp = (limitador: (env: Env) => RateLimit): MiddlewareHandler =>
+export const limitarPorIp = (limitador: (env: Env) => RateLimit, alcance?: (c: Context) => string): MiddlewareHandler =>
   createMiddleware(async (c, next) => {
     const ip = c.req.header("cf-connecting-ip");
-    if (ip && !(await limitador(c.env).limit({ key: claveDeIp(ip) })).success) {
+    const clave = ip && (alcance ? `${claveDeIp(ip)}|${alcance(c)}` : claveDeIp(ip));
+    if (clave && !(await limitador(c.env).limit({ key: clave })).success) {
       return fallar(c, "DEMASIADOS_INTENTOS", 429);
     }
     await next();

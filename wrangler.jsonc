@@ -39,6 +39,13 @@
       "name": "LIMITE_SOLICITUDES",
       "namespace_id": "1002",
       "simple": { "limit": 5, "period": 60 }
+    },
+    // Probar el código de misioneros: 10 por minuto por IP. Con ~887 millones de códigos, adivinar
+    // uno así no es viable; no se bloquea el barrio para que nadie pueda dejar afuera a los misioneros.
+    {
+      "name": "LIMITE_ACCESO_MISIONEROS",
+      "namespace_id": "1003",
+      "simple": { "limit": 10, "period": 60 }
     }
   ],
   "r2_buckets": [

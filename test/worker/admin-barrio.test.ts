@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { and, eq } from "drizzle-orm";
 import { companerismos, inscripciones, turnos } from "@/db/schema";
 import type { Db } from "@/db";
-import { crearAdmin, iniciarSesion, pedir, sembrar } from "./datos";
+import { CODIGOS, crearAdmin, enlaceConCodigo, entrarComoMisioneros, iniciarSesion, pedir, sembrar, tokenMisioneros } from "./datos";
 
 let db: Db;
 let cookie: string;
@@ -20,7 +20,7 @@ const turnosDe = async (companerismoId: string, mesId: string) =>
     .length;
 
 describe("GET /api/admin/barrios/:slug", () => {
-  it("devuelve el barrio con su token y todos los compañerismos, activos o no", async () => {
+  it("devuelve el barrio con su código de misioneros y todos los compañerismos, activos o no", async () => {
     const res = await pedir(base, { cookie });
     expect(res.status).toBe(200);
     const body = await res.json<any>();
@@ -29,7 +29,7 @@ describe("GET /api/admin/barrios/:slug", () => {
       nombre: "Barrio Prueba",
       idioma: "es",
       zonaHoraria: "America/Santiago",
-      tokenMisioneros: "tm-1",
+      codigoMisioneros: CODIGOS.prueba,
       notaParaCocinar: null,
       contactoNombre: null,
       contactoTelefono: null,
@@ -42,19 +42,43 @@ describe("GET /api/admin/barrios/:slug", () => {
   });
 });
 
-describe("POST /token-misioneros", () => {
-  it("el token anterior deja de servir y el nuevo sí", async () => {
-    const res = await pedir(`${base}/token-misioneros`, { method: "POST", cookie });
+describe("POST /codigo-misioneros", () => {
+  it("cambia el código: el anterior no entra y los teléfonos que ya entraron quedan afuera", async () => {
+    const token = await tokenMisioneros();
+    const res = await pedir(`${base}/codigo-misioneros`, { method: "POST", cookie });
     expect(res.status).toBe(200);
-    const { tokenMisioneros } = await res.json<any>();
-    expect(tokenMisioneros).toBeTruthy();
-    expect(tokenMisioneros).not.toBe("tm-1");
+    const { codigoMisioneros } = await res.json<any>();
+    expect(codigoMisioneros).toMatch(/^[A-HJKMNP-Z2-9]{6}$/);
+    expect(codigoMisioneros).not.toBe(CODIGOS.prueba);
 
-    const viejo = await pedir("/api/barrios/prueba/misioneros", { token: "tm-1" });
-    expect(viejo.status).toBe(404);
-    expect(await viejo.json()).toEqual({ error: "TOKEN_INVALIDO" });
-    expect((await pedir("/api/barrios/prueba/misioneros", { token: tokenMisioneros })).status).toBe(200);
-    expect((await (await pedir(base, { cookie })).json<any>()).barrio.tokenMisioneros).toBe(tokenMisioneros);
+    expect((await entrarComoMisioneros(CODIGOS.prueba)).status).toBe(404);
+    expect((await pedir("/api/barrios/prueba/misioneros", { token })).status).toBe(404);
+    expect((await entrarComoMisioneros(codigoMisioneros)).status).toBe(200);
+    expect((await (await pedir(base, { cookie })).json<any>()).barrio.codigoMisioneros).toBe(codigoMisioneros);
+  });
+});
+
+describe("POST /enlace", () => {
+  it("cambia el enlace por uno con código; el anterior deja de funcionar y el código de misioneros sigue", async () => {
+    const res = await pedir(`${base}/enlace`, { method: "POST", cookie, json: { slug: "barrio-prueba" } });
+    expect(res.status).toBe(200);
+    const { slug } = await res.json<any>();
+    expect(slug).toMatch(enlaceConCodigo("barrio-prueba"));
+
+    expect((await pedir("/api/barrios/prueba")).status).toBe(404);
+    expect((await entrarComoMisioneros(CODIGOS.prueba)).status).toBe(404);
+    expect((await pedir(`/api/barrios/${slug}`)).status).toBe(200);
+    // El código no va en la URL: los misioneros entran al enlace nuevo con el mismo.
+    expect((await entrarComoMisioneros(CODIGOS.prueba, slug)).status).toBe(200);
+    // El panel sigue con el enlace nuevo; los meses e inscripciones no se tocan.
+    expect((await pedir(`/api/admin/barrios/${slug}/meses/2099-01`, { cookie })).status).toBe(200);
+    expect((await pedir(base, { cookie })).status).toBe(403);
+  });
+
+  it.each([["Mayúsculas"], ["x"], ["-guion"], ["a".repeat(55)]])("enlace inválido %s → 400", async (slug) => {
+    const res = await pedir(`${base}/enlace`, { method: "POST", cookie, json: { slug } });
+    expect(res.status).toBe(400);
+    expect((await res.json<any>()).campos).toEqual(["slug"]);
   });
 });
 
@@ -77,7 +101,7 @@ describe("PATCH /api/admin/barrios/:slug", () => {
       contactoTelefono: "+56 9 1",
       idioma: "pt",
       zonaHoraria: "America/Sao_Paulo",
-      tokenMisioneros: "tm-1",
+      codigoMisioneros: CODIGOS.prueba,
     });
     const publica = await (await pedir("/api/barrios/prueba")).json<any>();
     expect(publica.barrio).toMatchObject({ idioma: "pt", zonaHoraria: "America/Sao_Paulo", notaParaCocinar: "Sin gluten" });
@@ -171,7 +195,8 @@ describe("permisos", () => {
     const intentos: [string, string, unknown?][] = [
       ["GET", base],
       ["PATCH", base, { nombre: "X" }],
-      ["POST", `${base}/token-misioneros`],
+      ["POST", `${base}/codigo-misioneros`],
+      ["POST", `${base}/enlace`, { slug: "robado" }],
       ["POST", `${base}/companerismos`, { tipo: "elderes", nombre: "X" }],
       ["PATCH", `${base}/companerismos/c-e`, { activo: false }],
     ];

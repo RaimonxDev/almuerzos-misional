@@ -20,6 +20,7 @@ import {
   uniqueIndex,
   primaryKey,
 } from "drizzle-orm/sqlite-core";
+import { nuevoCodigo } from "../shared/codigo-misioneros";
 import { IDIOMAS } from "../shared/idiomas";
 import { MODALIDADES } from "../shared/inscripciones";
 import { ESTADOS_SOLICITUD } from "../shared/solicitudes";
@@ -43,10 +44,6 @@ const actualizadoEn = () =>
     .default(sql`(unixepoch())`)
     .$onUpdateFn(() => new Date());
 
-/** Token largo no adivinable para URLs (misioneros / edición). */
-export const nuevoToken = () =>
-  crypto.randomUUID().replaceAll("-", "") + crypto.randomUUID().replaceAll("-", "");
-
 // ---------- barrios ----------
 
 export const barrios = sqliteTable("barrios", {
@@ -59,14 +56,20 @@ export const barrios = sqliteTable("barrios", {
   /** Zona IANA con la que se calcula "hoy" y se interpretan las fechas de los turnos. */
   zonaHoraria: text("zona_horaria").notNull().default("America/Santiago"),
   /**
-   * Código del enlace de misioneros: /centro/m/<token>.
-   * Se guarda en claro porque la presidenta necesita volver a copiarlo;
-   * "Regenerar enlace" simplemente lo reemplaza.
+   * Obsoleta: el enlace con token de antes del código de misioneros. Nada la lee; sigue en el
+   * esquema hasta que la versión que no la usa esté en producción, porque borrarla en la misma
+   * migración rompería al Worker anterior entre `db:migrate:remote` y `deploy`. Se borra en la
+   * siguiente migración.
    */
   tokenMisioneros: text("token_misioneros")
     .notNull()
     .unique()
-    .$defaultFn(nuevoToken),
+    .$defaultFn(() => crypto.randomUUID()),
+  /**
+   * Código de acceso de los misioneros (`src/shared/codigo-misioneros.ts`). En claro porque la
+   * presidenta necesita volver a verlo; "Cambiar código" lo reemplaza.
+   */
+  codigoMisioneros: text("codigo_misioneros").notNull().$defaultFn(nuevoCodigo),
   /** Alergias o preferencias de los misioneros actuales; se muestra al anotarse. */
   notaParaCocinar: text("nota_para_cocinar"),
   /** Contacto que aparece en el calendario imprimible. */

@@ -11,7 +11,7 @@ const SUPER = {
 const PRESIDENTA = { ...SUPER, usuario: { ...SUPER.usuario, superAdmin: false } };
 
 const CREADO = {
-  barrio: { slug: "barrio-norte", nombre: "Barrio Norte", idioma: "es", zonaHoraria: "America/Santiago", tokenMisioneros: "t" },
+  barrio: { slug: "barrio-norte-k7m2x", nombre: "Barrio Norte", idioma: "es", zonaHoraria: "America/Santiago", codigoMisioneros: "K7PM2X" },
   companerismos: [{ id: "c-1", tipo: "hermanas", nombre: "Hermanas", activo: true, orden: 0 }],
 };
 
@@ -31,15 +31,17 @@ describe("Nuevo barrio", () => {
     const api = simularApi({
       "/api/admin/yo": { json: SUPER },
       "/api/admin/barrios": { status: 201, json: CREADO },
-      "/api/admin/barrios/barrio-norte/meses": { json: { meses: [] } },
-      "/api/admin/barrios/barrio-norte/admins": { json: { admins: [] } },
-      "/api/admin/barrios/barrio-norte": { json: { barrio: { ...CREADO.barrio, notaParaCocinar: null, contactoNombre: null, contactoTelefono: null }, companerismos: CREADO.companerismos } },
+      "/api/admin/barrios/barrio-norte-k7m2x/meses": { json: { meses: [] } },
+      "/api/admin/barrios/barrio-norte-k7m2x/admins": { json: { admins: [] } },
+      "/api/admin/barrios/barrio-norte-k7m2x": { json: { barrio: { ...CREADO.barrio, notaParaCocinar: null, contactoNombre: null, contactoTelefono: null }, companerismos: CREADO.companerismos } },
     });
     await abrir();
 
     await user.type(screen.getByLabelText("Nombre del barrio"), "Barrio Norte");
     // El enlace se sugiere desde el nombre.
     expect(screen.getByLabelText("Enlace")).toHaveValue("barrio-norte");
+    // Avisa que el Worker le agrega un código al azar (el enlace final llega en la respuesta).
+    expect(screen.getByText(/\/barrio-norte-•••••/)).toBeInTheDocument();
     await user.clear(screen.getByLabelText("Zona horaria"));
     await user.type(screen.getByLabelText("Zona horaria"), "America/Santiago");
     // Solo hermanas en este barrio.
@@ -71,9 +73,9 @@ describe("Nuevo barrio", () => {
           presidenta: { email: "rojas@ejemplo.cl", nombre: "Hna. Rojas", cargo: null, cuentaNueva: true, correoEnviado: true, passwordTemporal: null },
         },
       },
-      "/api/admin/barrios/barrio-norte/meses": { json: { meses: [] } },
-      "/api/admin/barrios/barrio-norte/admins": { json: { admins: [] } },
-      "/api/admin/barrios/barrio-norte": { json: { barrio: { ...CREADO.barrio, notaParaCocinar: null, contactoNombre: null, contactoTelefono: null }, companerismos: CREADO.companerismos } },
+      "/api/admin/barrios/barrio-norte-k7m2x/meses": { json: { meses: [] } },
+      "/api/admin/barrios/barrio-norte-k7m2x/admins": { json: { admins: [] } },
+      "/api/admin/barrios/barrio-norte-k7m2x": { json: { barrio: { ...CREADO.barrio, notaParaCocinar: null, contactoNombre: null, contactoTelefono: null }, companerismos: CREADO.companerismos } },
     });
     await abrir();
 
@@ -102,9 +104,9 @@ describe("Nuevo barrio", () => {
           presidenta: { email: "rojas@ejemplo.cl", nombre: "Hna. Rojas", cargo: null, cuentaNueva: true, correoEnviado: false, passwordTemporal: "temporal-abc-123" },
         },
       },
-      "/api/admin/barrios/barrio-norte/meses": { json: { meses: [] } },
-      "/api/admin/barrios/barrio-norte/admins": { json: { admins: [] } },
-      "/api/admin/barrios/barrio-norte": { json: { barrio: { ...CREADO.barrio, notaParaCocinar: null, contactoNombre: null, contactoTelefono: null }, companerismos: CREADO.companerismos } },
+      "/api/admin/barrios/barrio-norte-k7m2x/meses": { json: { meses: [] } },
+      "/api/admin/barrios/barrio-norte-k7m2x/admins": { json: { admins: [] } },
+      "/api/admin/barrios/barrio-norte-k7m2x": { json: { barrio: { ...CREADO.barrio, notaParaCocinar: null, contactoNombre: null, contactoTelefono: null }, companerismos: CREADO.companerismos } },
     });
     await abrir();
 
@@ -138,9 +140,9 @@ describe("Nuevo barrio", () => {
           presidenta: { email: "rojas@ejemplo.cl", nombre: "Hna. Rojas", cargo: null, cuentaNueva: false, correoEnviado: false, passwordTemporal: null },
         },
       },
-      "/api/admin/barrios/barrio-norte/meses": { json: { meses: [] } },
-      "/api/admin/barrios/barrio-norte/admins": { json: { admins: [] } },
-      "/api/admin/barrios/barrio-norte": { json: { barrio: { ...CREADO.barrio, notaParaCocinar: null, contactoNombre: null, contactoTelefono: null }, companerismos: CREADO.companerismos } },
+      "/api/admin/barrios/barrio-norte-k7m2x/meses": { json: { meses: [] } },
+      "/api/admin/barrios/barrio-norte-k7m2x/admins": { json: { admins: [] } },
+      "/api/admin/barrios/barrio-norte-k7m2x": { json: { barrio: { ...CREADO.barrio, notaParaCocinar: null, contactoNombre: null, contactoTelefono: null }, companerismos: CREADO.companerismos } },
     });
     await abrir();
 
@@ -203,7 +205,7 @@ describe("Nuevo barrio", () => {
     const meses = { json: { meses: [] } };
     const barrio = {
       json: {
-        barrio: { slug: "centro", nombre: "Barrio Centro", idioma: "es", zonaHoraria: "America/Santiago", tokenMisioneros: "t", notaParaCocinar: null, contactoNombre: null, contactoTelefono: null },
+        barrio: { slug: "centro", nombre: "Barrio Centro", idioma: "es", zonaHoraria: "America/Santiago", codigoMisioneros: "K7PM2X", notaParaCocinar: null, contactoNombre: null, contactoTelefono: null },
         companerismos: [],
       },
     };

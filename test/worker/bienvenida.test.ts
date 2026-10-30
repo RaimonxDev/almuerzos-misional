@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { crearDb } from "@/db";
 import { user, verification } from "@/db/auth-schema";
-import { capturarCorreos, crearAdmin, iniciarSesion, pedir, sembrar } from "./datos";
+import { capturarCorreos, crearAdmin, enlaceConCodigo, iniciarSesion, pedir, sembrar } from "./datos";
 
 beforeEach(async () => {
   await sembrar();
@@ -59,8 +59,13 @@ const comoSuperAdmin = async () => {
   return iniciarSesion("root@ejemplo.cl");
 };
 
-const crearBarrio = (cookie: string, presidenta: object = PRESIDENTA) =>
-  pedir("/api/admin/barrios", { method: "POST", cookie, json: { ...BARRIO_NUEVO, presidenta } });
+/** El enlace del último barrio creado con `crearBarrio`: lleva un código al azar. */
+let oriente = "";
+const crearBarrio = async (cookie: string, presidenta: object = PRESIDENTA) => {
+  const res = await pedir("/api/admin/barrios", { method: "POST", cookie, json: { ...BARRIO_NUEVO, presidenta } });
+  if (res.status === 201) oriente = (await res.clone().json<any>()).barrio.slug;
+  return res;
+};
 
 const restablecer = (token: string, newPassword: string) =>
   pedir("/api/auth/reset-password", { method: "POST", json: { token, newPassword } });
@@ -80,7 +85,7 @@ describe("POST /api/admin/barrios: bienvenida a la presidenta", () => {
     expect(correo.para).toBe("nueva@ejemplo.cl");
     expect(correo.asunto).toBe("Boas-vindas ao Almoço Missionário: Barrio Oriente");
     expect(correo.texto).toContain("Hna. Rojas");
-    expect(correo.texto).toContain("http://localhost/admin/oriente");
+    expect(correo.texto).toContain(`http://localhost/admin/${oriente}`);
     expect(correo.texto).toContain("7 dias");
     const token = correo.texto.match(ENLACE)![1];
 
@@ -101,7 +106,7 @@ describe("POST /api/admin/barrios: bienvenida a la presidenta", () => {
     const suya = await iniciarSesion("nueva@ejemplo.cl", "mi-clave-propia-1");
     const yo = await (await pedir("/api/admin/yo", { cookie: suya })).json<any>();
     expect(yo.usuario.debeCambiarPassword).toBe(false);
-    expect(yo.barrios.map((b: any) => b.slug)).toEqual(["oriente"]);
+    expect(yo.barrios.map((b: any) => b.slug)).toEqual([oriente]);
   });
 
   it("si Resend falla el barrio igual se crea, correoEnviado es falso y se entrega la contraseña temporal", async () => {
@@ -111,14 +116,14 @@ describe("POST /api/admin/barrios: bienvenida a la presidenta", () => {
     const res = await crearBarrio(root);
     expect(res.status).toBe(201);
     const { barrio, presidenta } = await res.json<any>();
-    expect(barrio.slug).toBe("oriente");
+    expect(barrio.slug).toMatch(enlaceConCodigo("oriente"));
     expect(enviados()).toHaveLength(1);
     expect(presidenta.correoEnviado).toBe(false);
     expect(presidenta.passwordTemporal).toMatch(/^.{12,}$/);
 
     // "Copiar datos" sirve de respaldo: con la temporal entra.
     const suya = await iniciarSesion("nueva@ejemplo.cl", presidenta.passwordTemporal);
-    expect((await pedir("/api/admin/barrios/oriente", { cookie: suya })).status).toBe(200);
+    expect((await pedir(`/api/admin/barrios/${oriente}`, { cookie: suya })).status).toBe(200);
   });
 
   it("sin RESEND_API_KEY (desarrollo) el correo va a la consola y correoEnviado es falso, con la contraseña temporal", async () => {
@@ -147,7 +152,7 @@ describe("POST /api/admin/barrios: bienvenida a la presidenta", () => {
     const [correo] = enviados();
     expect(correo.para).toBe("a@ejemplo.cl");
     expect(correo.asunto).toBe("Agora você administra Barrio Oriente");
-    expect(correo.texto).toContain("http://localhost/admin/oriente");
+    expect(correo.texto).toContain(`http://localhost/admin/${oriente}`);
     expect(correo.texto).not.toMatch(ENLACE);
     expect(await iniciarSesion("a@ejemplo.cl")).toContain("session_token=");
   });
@@ -209,7 +214,7 @@ describe("POST /api/admin/barrios/:slug/admins/:userId/invitacion", () => {
     const nueva = await crearDb(env.DB).select().from(user).where(eq(user.email, "nueva@ejemplo.cl")).get();
     const primero = enviados()[0].texto.match(ENLACE)![1];
 
-    const res = await pedir(`/api/admin/barrios/oriente/admins/${nueva!.id}/invitacion`, { method: "POST", cookie: root });
+    const res = await pedir(`/api/admin/barrios/${oriente}/admins/${nueva!.id}/invitacion`, { method: "POST", cookie: root });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ correoEnviado: true });
 
@@ -260,7 +265,7 @@ describe("enlaces pendientes", () => {
     const enviados = conResend();
     await crearBarrio(root);
     const nueva = await crearDb(env.DB).select().from(user).where(eq(user.email, "nueva@ejemplo.cl")).get();
-    await pedir(`/api/admin/barrios/oriente/admins/${nueva!.id}/invitacion`, { method: "POST", cookie: root });
+    await pedir(`/api/admin/barrios/${oriente}/admins/${nueva!.id}/invitacion`, { method: "POST", cookie: root });
     const [primero, segundo] = enviados().map((c) => c.texto.match(ENLACE)![1]);
 
     expect((await restablecer(segundo, "mi-clave-propia-1")).status).toBe(200);
@@ -287,7 +292,7 @@ describe("enlaces pendientes", () => {
 
 describe("PATCH /api/admin/barrios/:slug/admins/:userId (corregir el correo)", () => {
   const corregir = (cookie: string, userId: string, email: string) =>
-    pedir(`/api/admin/barrios/oriente/admins/${userId}`, { method: "PATCH", cookie, json: { email } });
+    pedir(`/api/admin/barrios/${oriente}/admins/${userId}`, { method: "PATCH", cookie, json: { email } });
 
   it("cambia el correo, invalida el enlace mandado al equivocado y manda la bienvenida al nuevo", async () => {
     const root = await comoSuperAdmin();
@@ -329,7 +334,7 @@ describe("PATCH /api/admin/barrios/:slug/admins/:userId (corregir el correo)", (
 
 describe("POST /api/admin/barrios/:slug/admins/:userId/password-temporal", () => {
   const nuevaTemporal = (cookie: string, userId: string) =>
-    pedir(`/api/admin/barrios/oriente/admins/${userId}/password-temporal`, { method: "POST", cookie });
+    pedir(`/api/admin/barrios/${oriente}/admins/${userId}/password-temporal`, { method: "POST", cookie });
 
   it("da otra contraseña temporal: con ella entra (y debe cambiarla), con la anterior no", async () => {
     const root = await comoSuperAdmin();
