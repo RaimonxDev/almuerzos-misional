@@ -1,6 +1,7 @@
 import type { CSSProperties, Ref } from "react";
 import { grillaDelMes } from "@/app/calendario";
 import { LOCALES, useIdioma } from "@/app/i18n";
+import { PALETA } from "@/app/paleta";
 
 export type Plantilla = "azul" | "dorado" | "cielo";
 
@@ -18,9 +19,9 @@ type Tema = {
 
 /** Colores de las plantillas (maqueta 4): azul sereno, dorado cálido y cielo claro. */
 export const TEMAS: Record<Plantilla, Tema> = {
-  azul: { fondo: "#14304F", texto: "#FFFFFF", acento: "#E2C27A", titulo: "#14304F", suave: "#EAF2F9", chipElderes: "#14304F", chipHermanas: "#8A6516", bordeImagen: "rgba(255,255,255,0.35)", fondoImagen: "rgba(255,255,255,0.06)" },
-  dorado: { fondo: "#F6EEDC", texto: "#3A2E14", acento: "#7A5912", titulo: "#6B4E12", suave: "#FBF6EA", chipElderes: "#6B4E12", chipHermanas: "#1F5C99", bordeImagen: "#D9C493", fondoImagen: "#FBF6EA" },
-  cielo: { fondo: "#DCEAF6", texto: "#14304F", acento: "#1F5C99", titulo: "#14304F", suave: "#F2F7FC", chipElderes: "#14304F", chipHermanas: "#8A6516", bordeImagen: "#A9C3DD", fondoImagen: "#EEF5FB" },
+  azul: { fondo: PALETA.azulProfundo, texto: "#FFFFFF", acento: PALETA.doradoClaro, titulo: PALETA.azulProfundo, suave: PALETA.cieloClaro, chipElderes: PALETA.azulProfundo, chipHermanas: PALETA.doradoOscuro, bordeImagen: "rgba(255,255,255,0.35)", fondoImagen: "rgba(255,255,255,0.06)" },
+  dorado: { fondo: "#F6EEDC", texto: "#3A2E14", acento: "#7A5912", titulo: "#6B4E12", suave: "#FBF6EA", chipElderes: "#6B4E12", chipHermanas: PALETA.azulMedio, bordeImagen: "#D9C493", fondoImagen: "#FBF6EA" },
+  cielo: { fondo: PALETA.cielo, texto: PALETA.azulProfundo, acento: PALETA.azulMedio, titulo: PALETA.azulProfundo, suave: "#F2F7FC", chipElderes: PALETA.azulProfundo, chipHermanas: PALETA.doradoOscuro, bordeImagen: "#A9C3DD", fondoImagen: "#EEF5FB" },
 };
 
 /** Tamaño fijo en px (A4 apaisado a 96 dpi). Para una vista previa, envolver con `transform: scale()`. */

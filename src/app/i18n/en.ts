@@ -315,6 +315,19 @@ export const en: Mensajes = {
     guardarNota: "Save note",
     notaGuardada: "Note saved.",
   },
+  qr: {
+    boton: "QR",
+    verQr: (para: string) => `QR code of the link ${para}`,
+    titulo: (para: string) => `QR code ${para}`,
+    descripcion:
+      "Print it or share it as an image. It uses the current link: if you change the link, the QR code updates by itself and the old one stops working.",
+    imagenDe: (url: string) => `QR code for ${url}`,
+    subtituloHermanas: "Lunch for the missionaries",
+    subtituloMisioneros: "Lunch calendar",
+    llamadoHermanas: "Scan to sign up to give lunch",
+    llamadoMisioneros: "Scan and enter the access code",
+    cerrar: "Close",
+  },
   primerosPasos: {
     titulo: "Getting started",
     avance: (hechos: number, total: number) => `${hechos} of ${total}`,
