@@ -37,6 +37,8 @@ export const es = {
       "Para que puedas ver, cambiar o cancelar tu turno, un código queda guardado en este teléfono. No es una cuenta ni una contraseña.",
     datosBorrar:
       "Para borrar lo tuyo, cancela tu turno desde “Ver mi turno” o pídeselo a la presidenta de tu barrio.",
+    datosEliminarBarrio:
+      "Si un barrio deja de usar la app, su presidenta puede pedir que se elimine. Al eliminarlo se borran sus calendarios, sus inscripciones y sus imágenes.",
     iglesiaTitulo: "Sitio oficial de la Iglesia",
     iglesiaTexto: "Para información oficial sobre la Iglesia y los misioneros, visita:",
     iglesiaSitio: "churchofjesuschrist.org",
@@ -275,6 +277,29 @@ export const es = {
     copiarCodigo: "Copiar el código de los misioneros",
     cambiarCodigo: "Cambiar código (el anterior deja de funcionar)",
     noSeDeshace: "Esta acción no se puede deshacer.",
+    dejarDeUsar: "Dejar de usar la app",
+    dejarDeUsarTexto: "Si tu barrio ya no la va a usar, puedes pedir que lo eliminemos con todos sus datos.",
+    solicitarEliminacion: "Pedir eliminar el barrio",
+    solicitarEliminacionTitulo: (barrio: string) => `¿Pedir eliminar ${barrio}?`,
+    solicitarEliminacionTexto:
+      "Revisaremos tu pedido a mano. Hasta entonces el barrio sigue funcionando y puedes retirarlo. Al eliminarlo se borran sus calendarios, inscripciones e imágenes, y tu cuenta si no administras otro barrio.",
+    enviarSolicitudEliminacion: "Enviar pedido",
+    eliminacionEnviada: "Pedido enviado.",
+    eliminacionPedida: (fecha: string) => `Se pidió eliminar este barrio el ${fecha}.`,
+    eliminacionPedidaTexto: "El barrio sigue funcionando hasta que lo revisemos.",
+    retirarEliminacion: "Retirar el pedido",
+    eliminacionRetirada: "Pedido retirado.",
+    eliminarBarrio: "Eliminar barrio",
+    eliminarBarrioTitulo: (barrio: string) => `¿Eliminar ${barrio}?`,
+    eliminarBarrioTexto:
+      "Se borran sus calendarios, inscripciones, imágenes y la solicitud con que se creó. Sus enlaces dejan de funcionar y las hermanas anotadas no reciben ningún aviso.",
+    seBorranInscripciones: (total: number, futuras: number) =>
+      `${total === 1 ? "1 inscripción" : `${total} inscripciones`} (${futuras} de hoy en adelante)`,
+    seBorranCuentas: (cuentas: string) => `Cuentas que se borran: ${cuentas}`,
+    escribeNombreBarrio: (barrio: string) => `Para confirmar, escribe ${barrio}`,
+    confirmarEliminarBarrio: "Eliminar para siempre",
+    barrioEliminado: (barrio: string) => `${barrio} se eliminó.`,
+    barrioYaNoEsta: "Ese barrio ya no existe o cambió de enlace.",
     cambiarCodigoTitulo: "¿Cambiar el código de los misioneros?",
     cambiarCodigoTexto:
       "El código actual dejará de funcionar, también en los teléfonos donde ya lo escribieron. Tendrás que darles el nuevo a los misioneros.",
@@ -362,6 +387,7 @@ export const es = {
   },
   solicitudes: {
     titulo: "Solicitudes de acceso",
+    eliminaciones: "Pedidos de eliminación",
     intro: "Barrios que piden usar la app. Al aprobar se abre el formulario del barrio ya lleno para que lo revises.",
     volver: "Volver al panel",
     pendientes: "Pendientes",
@@ -536,6 +562,8 @@ export const es = {
     SOLICITUD_PENDIENTE: "Ya recibimos una solicitud con ese correo y la estamos revisando. Te escribiremos pronto.",
     SOLICITUD_RESUELTA: "Esta solicitud ya fue resuelta.",
     VERIFICACION_FALLIDA: "No pudimos verificar que no eres un robot. Vuelve a intentarlo.",
+    CONFIRMACION_INCORRECTA: "El nombre no coincide. Escríbelo tal como aparece.",
+    PEDIDO_CAMBIO: "El pedido de eliminación cambió. Revísalo y vuelve a intentarlo.",
     ERROR_INTERNO: "Algo salió mal o no hay conexión. Inténtalo de nuevo en un momento.",
   } satisfies Record<CodigoError, string>,
 };

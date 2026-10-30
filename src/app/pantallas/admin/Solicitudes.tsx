@@ -8,7 +8,6 @@ import { type EstadoSolicitud, useRechazarSolicitud, useSolicitudes } from "@/ap
 import { useTitulo } from "@/app/hooks";
 import { useIdioma } from "@/app/i18n";
 import { cn } from "@/app/lib/utils";
-import { hoyEnZona, zonaDelNavegador } from "@/shared/fechas";
 import { enlaceWhatsApp } from "@/shared/telefonos";
 import { MOTIVO_RECHAZO_MAX } from "@/shared/solicitudes";
 import { RutaAdmin } from "@/app/components/RutaAdmin";
@@ -25,6 +24,7 @@ import {
 import { Label } from "@/app/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
 import { Textarea } from "@/app/components/ui/textarea";
+import { diaLocal, FECHA_LARGA } from "./comunes";
 import { EncabezadoAdmin } from "./EncabezadoAdmin";
 
 const ESTADOS: EstadoSolicitud[] = ["pendiente", "aprobada", "rechazada"];
@@ -60,7 +60,9 @@ function Pantalla() {
   const [estado, setEstado] = useState<EstadoSolicitud>("pendiente");
   const consulta = useSolicitudes(estado);
   // La cantidad pendiente sale siempre de la consulta de pendientes (la del encabezado).
-  const pendientes = useSolicitudes("pendiente").data?.pendientes ?? 0;
+  const { data: siempre } = useSolicitudes("pendiente");
+  const pendientes = siempre?.pendientes ?? 0;
+  const eliminaciones = siempre?.eliminaciones ?? [];
   const [aRechazar, setARechazar] = useState<Solicitud | null>(null);
   const nombres = { pendiente: s.pendientes, aprobada: s.aprobadas, rechazada: s.rechazadas };
   const vacio = { pendiente: s.vacioPendientes, aprobada: s.vacioAprobadas, rechazada: s.vacioRechazadas };
@@ -73,6 +75,8 @@ function Pantalla() {
           <h1 className="font-serif text-[26px] font-semibold text-azul-profundo">{s.titulo}</h1>
           <p className="text-muted-foreground">{s.intro}</p>
         </div>
+
+        {eliminaciones.length > 0 && <ListaEliminaciones eliminaciones={eliminaciones} />}
 
         <Tabs value={estado} onValueChange={(v) => setEstado(v as EstadoSolicitud)}>
           <TabsList className="w-full sm:w-fit">
@@ -107,10 +111,36 @@ function Pantalla() {
   );
 }
 
-type Solicitud = NonNullable<ReturnType<typeof useSolicitudes>["data"]>["solicitudes"][number];
+type Respuesta = NonNullable<ReturnType<typeof useSolicitudes>["data"]>;
+type Solicitud = Respuesta["solicitudes"][number];
 
-/** Día en que llegó, en la zona de quien mira (no en UTC: de noche en América sería el día siguiente). */
-const fechaIso = (v: string | number) => hoyEnZona(zonaDelNavegador(), new Date(v));
+/** Barrios cuya presidenta pidió eliminarlos: se resuelven desde el panel de cada uno. */
+function ListaEliminaciones({ eliminaciones }: { eliminaciones: Respuesta["eliminaciones"] }) {
+  const { t, formatearFecha } = useIdioma();
+  const s = t.solicitudes;
+  return (
+    <section className="flex flex-col gap-3">
+      <h2 className="font-sans text-base font-extrabold text-azul-profundo">{s.eliminaciones}</h2>
+      <ul className="flex flex-col gap-3">
+        {eliminaciones.map((e) => (
+          <li key={e.slug} className="flex flex-col gap-1 rounded-[14px] border bg-card p-4">
+            <h3 className="font-serif text-xl font-semibold text-azul-profundo">{e.nombre}</h3>
+            {e.solicitadaEn && (
+              <p className="text-sm text-muted-foreground">{s.solicitadaEl(formatearFecha(diaLocal(e.solicitadaEn), FECHA_LARGA))}</p>
+            )}
+            {e.motivo && <p className="whitespace-pre-wrap">{e.motivo}</p>}
+            <Link
+              to={`/admin/${e.slug}`}
+              className="inline-flex min-h-11 items-center self-start font-semibold text-azul-medio underline-offset-2 hover:underline"
+            >
+              {s.verPanel}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
 /** Una solicitud: en móvil y escritorio es una tarjeta apilada (pocas solicitudes, mucho texto). */
 function TarjetaSolicitud({ solicitud: sol, alRechazar }: { solicitud: Solicitud; alRechazar: () => void }) {
@@ -127,7 +157,7 @@ function TarjetaSolicitud({ solicitud: sol, alRechazar }: { solicitud: Solicitud
           {[sol.estaca ? s.estaca(sol.estaca) : null, s.ubicacion(sol.ciudad, sol.pais)].filter(Boolean).join(" · ")}
         </p>
         <p className="text-sm text-muted-foreground">
-          {s.solicitadaEl(formatearFecha(fechaIso(sol.creadoEn), { day: "numeric", month: "long", year: "numeric" }))}
+          {s.solicitadaEl(formatearFecha(diaLocal(sol.creadoEn), FECHA_LARGA))}
         </p>
       </div>
 

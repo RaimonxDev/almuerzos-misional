@@ -25,6 +25,9 @@ export function esViolacionUnica(err: unknown): boolean {
   return false;
 }
 
+/** Origen por el que entró la request: los enlaces de los correos sirven en local y en cada dominio. */
+export const origenDe = (url: string) => new URL(url).origin;
+
 export const hex = (bytes: ArrayBuffer) => [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, "0")).join("");
 
 export async function sha256Hex(texto: string): Promise<string> {

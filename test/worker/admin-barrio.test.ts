@@ -33,6 +33,8 @@ describe("GET /api/admin/barrios/:slug", () => {
       notaParaCocinar: null,
       contactoNombre: null,
       contactoTelefono: null,
+      eliminacionSolicitadaEn: null,
+      motivoEliminacion: null,
     });
     expect(body.companerismos).toEqual([
       { id: "c-e", tipo: "elderes", nombre: "Élderes", activo: true, orden: 0 },

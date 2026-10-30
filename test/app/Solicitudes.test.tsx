@@ -31,7 +31,9 @@ const SOLICITUD = {
   barrioSlug: null,
 };
 
-const lista = (solicitudes: unknown[], pendientes = solicitudes.length) => ({ json: { solicitudes, pendientes } });
+const lista = (solicitudes: unknown[], pendientes = solicitudes.length, eliminaciones: unknown[] = []) => ({
+  json: { solicitudes, pendientes, eliminaciones },
+});
 
 const cuerpos = (api: ReturnType<typeof simularApi>, url: string) =>
   api.mock.calls.filter(([e, init]) => init?.method === "POST" && String(e).endsWith(url)).map(([, init]) => JSON.parse(String(init!.body)));
@@ -120,7 +122,7 @@ describe("Solicitudes", () => {
       "/api/admin/yo": { json: SUPER },
       "/api/admin/solicitudes": () =>
         // Pendientes hasta que se rechaza; después la lista de pendientes queda vacía.
-        ({ json: { solicitudes: rechazada ? [] : [SOLICITUD], pendientes: rechazada ? 0 : 1 } }),
+        ({ json: { solicitudes: rechazada ? [] : [SOLICITUD], pendientes: rechazada ? 0 : 1, eliminaciones: [] } }),
       "/api/admin/solicitudes/s-1/rechazar": () => {
         rechazada = true;
         return { json: { solicitud: { id: "s-1", estado: "rechazada", motivoRechazo: "Ya hay un barrio" } } };

@@ -71,4 +71,25 @@ export const en: MensajesCorreo = {
     ],
     pie: PIE_SOLICITUD,
   }),
+  eliminacionSolicitada: ({ nombre, email, barrio, motivo, enlace }) => ({
+    asunto: `Request to delete ${barrio}`,
+    titulo: "Deletion request",
+    saludo: "Hi,",
+    parrafos: [
+      `${nombre} (${email}) asked to delete ${barrio} from Missionary Lunch. The ward keeps working until you delete it.`,
+      ...(motivo ? [`They wrote: ${motivo}`] : []),
+    ],
+    boton: { texto: "View requests", enlace },
+  }),
+  barrioEliminado: ({ nombre, barrio, cuentaBorrada }) => ({
+    asunto: `We deleted ${barrio}`,
+    titulo: "Ward deleted",
+    saludo: `Hi ${nombre},`,
+    parrafos: [
+      `We deleted ${barrio} from Missionary Lunch, along with its calendars, sign-ups, and images. Its links no longer work.`,
+      ...(cuentaBorrada ? ["Since you didn't manage another ward, we also deleted your account."] : []),
+      "Thank you for the time you used it.",
+    ],
+    pie: "You're receiving this email because you managed this ward on Missionary Lunch. It is a personal project, not an official Church site.",
+  }),
 };

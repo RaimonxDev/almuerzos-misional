@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import type { Db } from "@/db";
 import { user } from "@/db/auth-schema";
-import type { Solicitud } from "@/db/schema";
+import type { Barrio, Solicitud } from "@/db/schema";
 import { enviarCorreo } from "./correo";
 import { armarCorreo } from "./correos";
 
@@ -43,6 +43,47 @@ export async function avisarSolicitudNueva(db: Db, env: Env, origen: string, s: 
     ]);
   } catch (e) {
     console.error("[correo] No se pudieron mandar los avisos de la solicitud:", e);
+  }
+}
+
+/** Al super admin (en español): una presidenta pidió eliminar su barrio. Nunca lanza. */
+export async function avisarEliminacionSolicitada(
+  db: Db,
+  env: Env,
+  origen: string,
+  datos: { nombre: string; email: string; barrio: string; motivo: string | null },
+) {
+  try {
+    // A la lista y no al panel: el enlace del barrio puede cambiar antes de que se lea el correo.
+    const aviso = armarCorreo("es", "eliminacionSolicitada", { ...datos, enlace: `${origen}/admin/solicitudes` });
+    const destinatarios = await correosDelSuperAdmin(db, env);
+    await Promise.all(destinatarios.map((para) => enviarCorreo(env, { para, ...aviso })));
+  } catch (e) {
+    console.error("[correo] No se pudo avisar la solicitud de eliminación:", e);
+  }
+}
+
+/** A cada admin del barrio borrado, en el idioma del barrio. Nunca lanza. */
+export async function avisarBarrioEliminado(
+  env: Env,
+  barrio: Pick<Barrio, "nombre" | "idioma">,
+  admins: { email: string; nombre: string; cuentaSeBorra: boolean }[],
+) {
+  try {
+    await Promise.all(
+      admins.map((a) =>
+        enviarCorreo(env, {
+          para: a.email,
+          ...armarCorreo(barrio.idioma, "barrioEliminado", {
+            nombre: a.nombre,
+            barrio: barrio.nombre,
+            cuentaBorrada: a.cuentaSeBorra,
+          }),
+        }),
+      ),
+    );
+  } catch (e) {
+    console.error("[correo] No se pudo avisar que se eliminó el barrio:", e);
   }
 }
 

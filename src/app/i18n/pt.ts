@@ -33,6 +33,8 @@ export const pt: Mensajes = {
       "Para que você possa ver, alterar ou cancelar o seu horário, um código fica guardado neste telefone. Não é uma conta nem uma senha.",
     datosBorrar:
       "Para apagar o que é seu, cancele o seu horário em “Ver meu horário” ou peça à presidente da sua ala.",
+    datosEliminarBarrio:
+      "Se uma ala deixar de usar o aplicativo, a presidente pode pedir que ela seja excluída. Ao excluí-la, são apagados seus calendários, inscrições e imagens.",
     iglesiaTitulo: "Site oficial da Igreja",
     iglesiaTexto: "Para informações oficiais sobre a Igreja e os missionários, visite:",
     iglesiaSitio: "churchofjesuschrist.org",
@@ -269,6 +271,29 @@ export const pt: Mensajes = {
     copiarCodigo: "Copiar o código dos missionários",
     cambiarCodigo: "Trocar código (o anterior deixa de funcionar)",
     noSeDeshace: "Esta ação não pode ser desfeita.",
+    dejarDeUsar: "Deixar de usar o aplicativo",
+    dejarDeUsarTexto: "Se a sua ala não vai mais usá-lo, você pode pedir que a excluamos com todos os dados.",
+    solicitarEliminacion: "Pedir para excluir a ala",
+    solicitarEliminacionTitulo: (barrio: string) => `Pedir para excluir ${barrio}?`,
+    solicitarEliminacionTexto:
+      "Vamos analisar seu pedido manualmente. Até lá a ala continua funcionando e você pode retirá-lo. Ao excluí-la, são apagados seus calendários, inscrições e imagens, e sua conta se você não administrar outra ala.",
+    enviarSolicitudEliminacion: "Enviar pedido",
+    eliminacionEnviada: "Pedido enviado.",
+    eliminacionPedida: (fecha: string) => `A exclusão desta ala foi pedida em ${fecha}.`,
+    eliminacionPedidaTexto: "A ala continua funcionando até analisarmos o pedido.",
+    retirarEliminacion: "Retirar o pedido",
+    eliminacionRetirada: "Pedido retirado.",
+    eliminarBarrio: "Excluir ala",
+    eliminarBarrioTitulo: (barrio: string) => `Excluir ${barrio}?`,
+    eliminarBarrioTexto:
+      "São apagados seus calendários, inscrições, imagens e a solicitação com que foi criada. Os links deixam de funcionar e as irmãs inscritas não recebem nenhum aviso.",
+    seBorranInscripciones: (total: number, futuras: number) =>
+      `${total === 1 ? "1 inscrição" : `${total} inscrições`} (${futuras} de hoje em diante)`,
+    seBorranCuentas: (cuentas: string) => `Contas que serão apagadas: ${cuentas}`,
+    escribeNombreBarrio: (barrio: string) => `Para confirmar, escreva ${barrio}`,
+    confirmarEliminarBarrio: "Excluir para sempre",
+    barrioEliminado: (barrio: string) => `${barrio} foi excluída.`,
+    barrioYaNoEsta: "Essa ala não existe mais ou mudou de link.",
     cambiarCodigoTitulo: "Trocar o código dos missionários?",
     cambiarCodigoTexto:
       "O código atual deixará de funcionar, inclusive nos celulares onde já foi digitado. Você terá que passar o novo aos missionários.",
@@ -356,6 +381,7 @@ export const pt: Mensajes = {
   },
   solicitudes: {
     titulo: "Solicitações de acesso",
+    eliminaciones: "Pedidos de exclusão",
     intro: "Alas que pedem para usar o app. Ao aprovar, o formulário da ala abre já preenchido para você revisar.",
     volver: "Voltar ao painel",
     pendientes: "Pendentes",
@@ -530,6 +556,8 @@ export const pt: Mensajes = {
     SOLICITUD_PENDIENTE: "Já recebemos uma solicitação com esse e-mail e estamos analisando. Vamos escrever em breve.",
     SOLICITUD_RESUELTA: "Esta solicitação já foi resolvida.",
     VERIFICACION_FALLIDA: "Não conseguimos verificar que você não é um robô. Tente novamente.",
+    CONFIRMACION_INCORRECTA: "O nome não confere. Escreva exatamente como aparece.",
+    PEDIDO_CAMBIO: "O pedido de exclusão mudou. Confira e tente de novo.",
     ERROR_INTERNO: "Algo deu errado ou não há conexão. Tente novamente em instantes.",
   },
 };

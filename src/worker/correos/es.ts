@@ -40,6 +40,10 @@ export interface DatosCorreo {
   solicitudRecibida: { nombre: string; barrio: string };
   /** A quien pidió acceso: no se aprobó; `motivo` si el super admin lo escribió. */
   solicitudRechazada: { nombre: string; barrio: string; motivo: string | null };
+  /** Al super admin: una presidenta pidió eliminar su barrio. `enlace` lleva a `/admin/solicitudes`. */
+  eliminacionSolicitada: { nombre: string; email: string; barrio: string; motivo: string | null; enlace: string };
+  /** A cada admin de un barrio borrado; `cuentaBorrada` si no le queda otro barrio. */
+  barrioEliminado: { nombre: string; barrio: string; cuentaBorrada: boolean };
 }
 
 export type PlantillaCorreo = keyof DatosCorreo;
@@ -123,5 +127,26 @@ export const es: MensajesCorreo = {
       "Si crees que es un error o quieres volver a intentarlo, responde a este correo o envía otra solicitud.",
     ],
     pie: PIE_SOLICITUD,
+  }),
+  eliminacionSolicitada: ({ nombre, email, barrio, motivo, enlace }) => ({
+    asunto: `Piden eliminar ${barrio}`,
+    titulo: "Solicitud de eliminación",
+    saludo: "Hola:",
+    parrafos: [
+      `${nombre} (${email}) pidió eliminar ${barrio} de Almuerzo Misional. El barrio sigue funcionando hasta que lo borres.`,
+      ...(motivo ? [`Escribió: ${motivo}`] : []),
+    ],
+    boton: { texto: "Ver los pedidos", enlace },
+  }),
+  barrioEliminado: ({ nombre, barrio, cuentaBorrada }) => ({
+    asunto: `Eliminamos ${barrio}`,
+    titulo: "Barrio eliminado",
+    saludo: `Hola, ${nombre}:`,
+    parrafos: [
+      `Eliminamos ${barrio} de Almuerzo Misional, junto con sus calendarios, inscripciones e imágenes. Sus enlaces ya no funcionan.`,
+      ...(cuentaBorrada ? ["Como no administrabas otro barrio, también borramos tu cuenta."] : []),
+      "Gracias por el tiempo que lo usaron.",
+    ],
+    pie: "Recibes este correo porque administrabas este barrio en Almuerzo Misional. Es un proyecto personal, no oficial de la Iglesia.",
   }),
 };

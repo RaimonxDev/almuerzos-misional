@@ -6,7 +6,7 @@ import { adminsBarrio, barrios } from "@/db/schema";
 import { account, session, user } from "@/db/auth-schema";
 import { hashPassword } from "@/shared/password";
 import type { AppEnvAdmin } from "../../contexto";
-import { esViolacionUnica, fallar, validar } from "../../http";
+import { esViolacionUnica, fallar, origenDe, validar } from "../../http";
 import { paramsBarrio } from "../../params";
 import { esSuperAdmin } from "../../permisos";
 import { borrarEnlacesRestablecer } from "../../auth";
@@ -14,9 +14,6 @@ import { avisarAdmin } from "../../invitaciones";
 import { crearBarrio, esquemaNuevoBarrio, passwordTemporal } from "../../barrios";
 
 const paramsInvitacion = paramsBarrio.extend({ userId: z.string().min(1).max(100) });
-
-/** Origen por el que entró la request: los enlaces de los correos sirven en local y en cada dominio. */
-const origenDe = (url: string) => new URL(url).origin;
 
 const esquemaNuevoAdmin = z.object({
   email: z.string().trim().toLowerCase().pipe(z.email()),

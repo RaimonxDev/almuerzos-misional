@@ -1,4 +1,4 @@
-import { and, count, desc, eq } from "drizzle-orm";
+import { and, asc, count, desc, eq, isNotNull, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { Hono } from "hono";
 import { createMiddleware } from "hono/factory";
@@ -8,7 +8,7 @@ import { ESTADOS_SOLICITUD, esquemaRechazoSolicitud, type TipoCompanerismo } fro
 import { avisarSolicitudRechazada } from "../../avisos-solicitudes";
 import { crearBarrio, esquemaNuevoBarrio } from "../../barrios";
 import type { AppEnvAdmin } from "../../contexto";
-import { fallar, validar } from "../../http";
+import { fallar, origenDe, validar } from "../../http";
 import { esSuperAdmin } from "../../permisos";
 
 const paramsSolicitud = z.object({ id: z.string().min(1).max(100) });
@@ -26,8 +26,6 @@ const aRespuesta = (s: Solicitud, barrioSlug: string | null) => {
   const companerismos: TipoCompanerismo[] = [...(tieneElderes ? (["elderes"] as const) : []), ...(tieneHermanas ? (["hermanas"] as const) : [])];
   return { ...resto, companerismos, barrioSlug };
 };
-
-const origenDe = (url: string) => new URL(url).origin;
 
 /**
  * Toma la solicitud si sigue pendiente: el UPDATE lleva `estado = 'pendiente'` en el WHERE, así dos
@@ -56,7 +54,7 @@ export const rutasSolicitudesAdmin = new Hono<AppEnvAdmin>()
   .get("/", validar("query", queryLista), async (c) => {
     const { db } = c.var;
     const { estado } = c.req.valid("query");
-    const [filas, [{ pendientes }]] = await db.batch([
+    const [filas, [{ pendientes }], eliminaciones] = await db.batch([
       db
         .select({ solicitud: solicitudes, barrioSlug: barrios.slug })
         .from(solicitudes)
@@ -64,8 +62,19 @@ export const rutasSolicitudesAdmin = new Hono<AppEnvAdmin>()
         .where(eq(solicitudes.estado, estado))
         .orderBy(desc(solicitudes.creadoEn), desc(solicitudes.id)),
       db.select({ pendientes: count() }).from(solicitudes).where(eq(solicitudes.estado, "pendiente")),
+      db
+        .select({
+          slug: barrios.slug,
+          nombre: barrios.nombre,
+          motivo: barrios.motivoEliminacion,
+          solicitadaEn: barrios.eliminacionSolicitadaEn,
+        })
+        .from(barrios)
+        // Solo hacen falta con las pendientes: la pantalla y el contador leen esa consulta.
+        .where(estado === "pendiente" ? isNotNull(barrios.eliminacionSolicitadaEn) : sql`0`)
+        .orderBy(asc(barrios.eliminacionSolicitadaEn)),
     ]);
-    return c.json({ solicitudes: filas.map((f) => aRespuesta(f.solicitud, f.barrioSlug)), pendientes });
+    return c.json({ solicitudes: filas.map((f) => aRespuesta(f.solicitud, f.barrioSlug)), pendientes, eliminaciones });
   })
 
   /** Crea el barrio con los datos que mande el super admin (corregidos si hizo falta) y marca la solicitud. */

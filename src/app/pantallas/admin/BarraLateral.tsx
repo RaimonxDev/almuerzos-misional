@@ -37,8 +37,10 @@ import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/app/components/ui/radio-group";
 import { CampoZona, SelectIdiomaBarrio, useErroresCampos } from "./campos-barrio";
+import { ESTILO_ACCION_PELIGROSA } from "./comunes";
 import { DatosCuenta } from "./DatosCuenta";
 import { DisenoCalendario } from "./DisenoCalendario";
+import { EliminacionBarrio } from "./EliminarBarrio";
 import { enlaceValido, LARGO_ENLACE, sugerirSlug, vistaPreviaEnlace } from "./enlace";
 import { formatearCodigo } from "@/shared/codigo-misioneros";
 import { zonaValida } from "@/shared/fechas";
@@ -67,7 +69,12 @@ export function BarraLateral({
   superAdmin = false,
 }: {
   slug: string;
-  barrio: DatosDelBarrio & { codigoMisioneros: string; notaParaCocinar: string | null };
+  barrio: DatosDelBarrio & {
+    codigoMisioneros: string;
+    notaParaCocinar: string | null;
+    eliminacionSolicitadaEn: string | null;
+    motivoEliminacion: string | null;
+  };
   companerismos: Companerismo[];
   /** Mes visible (`2026-11`); sin él no hay sección de diseño. */
   periodo: string | null;
@@ -81,7 +88,31 @@ export function BarraLateral({
       <Misioneros slug={slug} companerismos={companerismos} notaParaCocinar={barrio.notaParaCocinar} />
       <DatosBarrio slug={slug} barrio={barrio} />
       {superAdmin && <Administradores slug={slug} />}
+      <SeccionEliminacion slug={slug} barrio={barrio} superAdmin={superAdmin} />
     </aside>
+  );
+}
+
+function SeccionEliminacion({
+  slug,
+  barrio,
+  superAdmin,
+}: {
+  slug: string;
+  barrio: { nombre: string; eliminacionSolicitadaEn: string | null; motivoEliminacion: string | null };
+  superAdmin: boolean;
+}) {
+  const { t } = useIdioma();
+  return (
+    <Seccion id="eliminar-barrio" titulo={superAdmin ? t.panel.eliminarBarrio : t.panel.dejarDeUsar}>
+      <EliminacionBarrio
+        slug={slug}
+        nombre={barrio.nombre}
+        solicitadaEn={barrio.eliminacionSolicitadaEn}
+        motivo={barrio.motivoEliminacion}
+        superAdmin={superAdmin}
+      />
+    </Seccion>
   );
 }
 
@@ -189,9 +220,6 @@ function Enlaces({ slug, nombre, idioma, codigo }: { slug: string; nombre: strin
     </Seccion>
   );
 }
-
-const ESTILO_ACCION_PELIGROSA =
-  "h-11 self-start px-0 text-[13px] font-bold whitespace-normal text-destructive hover:bg-transparent hover:text-destructive hover:underline";
 
 /** Cambia el enlace público por uno con código al azar: cierra uno fácil de adivinar o que circuló de más. */
 function CambiarEnlace({ slug, nombre }: { slug: string; nombre: string }) {
