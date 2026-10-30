@@ -144,12 +144,30 @@ export function useCambiarEnlace(slug: string) {
   });
 }
 
-export const useEditarBarrio = (slug: string) =>
-  useMutacionBarrio(
-    slug,
-    (json: { notaParaCocinar: string | null }) => datos(barrios[":slug"].$patch({ param: { slug }, json })),
-    ["barrio"],
-  );
+/** Campos editables del barrio; solo se mandan los que cambian. */
+export type CambiosBarrio = Partial<{
+  nombre: string;
+  notaParaCocinar: string | null;
+  contactoNombre: string | null;
+  contactoTelefono: string | null;
+  idioma: Idioma;
+  zonaHoraria: string;
+}>;
+
+export function useEditarBarrio(slug: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (json: CambiosBarrio) => datos(barrios[":slug"].$patch({ param: { slug }, json })),
+    // El formulario muestra lo guardado apenas responde la API, sin esperar a la recarga.
+    onSuccess: ({ barrio }) =>
+      queryClient.setQueryData(claves.barrio(slug), (actual: { barrio: typeof barrio } | undefined) => actual && { ...actual, barrio }),
+    onSettled: (_r, _e, json) => {
+      invalidar(queryClient, slug, ["barrio"]);
+      // El nombre también sale en el selector de barrios del encabezado.
+      if (json.nombre !== undefined) queryClient.invalidateQueries({ queryKey: ["admin", "yo"] });
+    },
+  });
+}
 
 export const useEditarCompanerismo = (slug: string) =>
   useMutacionBarrio(slug, ({ id, activo }: { id: string; activo: boolean }) =>

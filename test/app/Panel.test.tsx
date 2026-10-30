@@ -1,9 +1,17 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { compartirPng } from "@/app/compartir-imagen";
 import { contarTurnos } from "@/app/pantallas/admin/mes";
 import { renderizarApp, simularApi } from "./utilidades";
+
+/** Zonas que el "navegador" no reconoce en `zonaValida` (la API sí las aceptó). */
+const zonasDesconocidas = vi.hoisted(() => new Set<string>());
+vi.mock("@/shared/fechas", async (original) => {
+  const fechas = await original<typeof import("@/shared/fechas")>();
+  return { ...fechas, zonaValida: (zona: string) => !zonasDesconocidas.has(zona) && fechas.zonaValida(zona) };
+});
+afterEach(() => zonasDesconocidas.clear());
 
 vi.mock("@/app/compartir-imagen", async (original) => ({
   ...(await original<typeof import("@/app/compartir-imagen")>()),
@@ -458,6 +466,148 @@ describe("Panel: enlaces, misioneros y gestión del mes", () => {
     await user.click(screen.getByRole("button", { name: "Guardar nota" }));
 
     await waitFor(() => expect(llamadas(api, "PATCH", RUTA_BARRIO)).toEqual([{ notaParaCocinar: "Sin mariscos" }]));
+  });
+
+  describe("datos del barrio", () => {
+    const datosBarrio = () => within(screen.getByRole("region", { name: "Datos del barrio" }));
+
+    /** API con estado: el PATCH aplica los cambios (y `ajeno`, como si otro admin editara a la vez). */
+    const apiConEstado = (inicial: Partial<ReturnType<typeof barrio>["barrio"]> = {}, ajeno: object = {}) => {
+      let actual = { ...barrio().barrio, ...inicial };
+      return simular({
+        [RUTA_BARRIO]: (init) => {
+          if (init?.method === "PATCH") actual = { ...actual, ...JSON.parse(String(init.body)), ...ajeno };
+          return { json: init?.method === "PATCH" ? { barrio: actual } : { ...barrio(), barrio: actual } };
+        },
+      });
+    };
+
+    it("muestra los valores actuales y guarda solo lo que cambió", async () => {
+      const user = userEvent.setup();
+      api = simular({ [RUTA_BARRIO]: (init) => ({ json: init?.method === "PATCH" ? { barrio: barrio().barrio } : barrio() }) });
+      await abrirPanel();
+
+      const seccion = datosBarrio();
+      expect(seccion.getByLabelText("Nombre del barrio")).toHaveValue("Barrio Centro");
+      expect(seccion.getByLabelText("Quién coordina")).toHaveValue("");
+      expect(seccion.getByLabelText("Teléfono de contacto")).toHaveValue("");
+      expect(seccion.getByRole("combobox", { name: "Idioma por defecto" })).toHaveTextContent("Español");
+      expect(seccion.getByLabelText("Zona horaria")).toHaveValue("America/Santiago");
+      expect(seccion.getByRole("button", { name: "Guardar datos" })).toBeDisabled();
+
+      await user.clear(seccion.getByLabelText("Nombre del barrio"));
+      await user.type(seccion.getByLabelText("Nombre del barrio"), "Barrio Centro Norte");
+      await user.type(seccion.getByLabelText("Quién coordina"), "Hna. Soto");
+      expect(seccion.queryByText(/cambia el idioma/)).not.toBeInTheDocument();
+      await user.click(seccion.getByRole("button", { name: "Guardar datos" }));
+
+      await waitFor(() =>
+        expect(llamadas(api, "PATCH", RUTA_BARRIO)).toEqual([{ nombre: "Barrio Centro Norte", contactoNombre: "Hna. Soto" }]),
+      );
+    });
+
+    it("avisa al cambiar el idioma o la zona", async () => {
+      const user = userEvent.setup();
+      await abrirPanel();
+
+      const seccion = datosBarrio();
+      await user.click(seccion.getByRole("combobox", { name: "Idioma por defecto" }));
+      await user.click(await screen.findByRole("option", { name: "Português" }));
+      expect(seccion.getByText(/cambia el idioma con que las hermanas ven la página/)).toBeInTheDocument();
+
+      await user.clear(seccion.getByLabelText("Zona horaria"));
+      await user.type(seccion.getByLabelText("Zona horaria"), "America/Sao_Paulo");
+      expect(seccion.getByText(/cambia qué día es hoy/)).toBeInTheDocument();
+    });
+
+    it("muestra el error de la API en la zona horaria", async () => {
+      const user = userEvent.setup();
+      api = simular({
+        [RUTA_BARRIO]: (init) =>
+          init?.method === "PATCH"
+            ? { status: 400, json: { error: "DATOS_INVALIDOS", campos: ["zonaHoraria"] } }
+            : { json: barrio() },
+      });
+      await abrirPanel();
+
+      const seccion = datosBarrio();
+      const zona = seccion.getByLabelText("Zona horaria");
+      await user.clear(zona);
+      await user.type(zona, "America/Lima");
+      await user.click(seccion.getByRole("button", { name: "Guardar datos" }));
+
+      expect(await seccion.findByText("Zona horaria no válida (ej. America/Santiago).")).toBeInTheDocument();
+      expect(zona).toHaveAttribute("aria-invalid", "true");
+      expect(llamadas(api, "PATCH", RUTA_BARRIO)).toEqual([{ zonaHoraria: "America/Lima" }]);
+
+      // Al corregir el campo, el error se va.
+      await user.type(zona, "x");
+      expect(seccion.queryByText("Zona horaria no válida (ej. America/Santiago).")).not.toBeInTheDocument();
+      expect(zona).not.toHaveAttribute("aria-invalid");
+    });
+
+    it("no manda nada con un nombre corto o una zona inválida", async () => {
+      const user = userEvent.setup();
+      await abrirPanel();
+
+      const seccion = datosBarrio();
+      await user.clear(seccion.getByLabelText("Nombre del barrio"));
+      await user.type(seccion.getByLabelText("Nombre del barrio"), "B");
+      await user.clear(seccion.getByLabelText("Zona horaria"));
+      await user.type(seccion.getByLabelText("Zona horaria"), "Marte/Olimpo");
+      await user.click(seccion.getByRole("button", { name: "Guardar datos" }));
+
+      expect(seccion.getByText("Escribe el nombre (al menos 2 letras).")).toBeInTheDocument();
+      expect(seccion.getByText("Zona horaria no válida (ej. America/Santiago).")).toBeInTheDocument();
+      expect(llamadas(api, "PATCH", RUTA_BARRIO)).toEqual([]);
+    });
+
+    it("no valida la zona guardada si no se cambió", async () => {
+      const user = userEvent.setup();
+      // Una zona que la API aceptó pero este navegador no reconoce no impide corregir el nombre.
+      zonasDesconocidas.add("America/Santiago");
+      api = apiConEstado();
+      await abrirPanel();
+
+      const seccion = datosBarrio();
+      await user.type(seccion.getByLabelText("Nombre del barrio"), " Norte");
+      await user.click(seccion.getByRole("button", { name: "Guardar datos" }));
+
+      await waitFor(() => expect(llamadas(api, "PATCH", RUTA_BARRIO)).toEqual([{ nombre: "Barrio Centro Norte" }]));
+    });
+
+    it("después de guardar toma los datos que vuelven de la API, también los que cambió otro admin", async () => {
+      const user = userEvent.setup();
+      api = apiConEstado({}, { idioma: "pt" });
+      await abrirPanel();
+
+      const seccion = datosBarrio();
+      await user.type(seccion.getByLabelText("Quién coordina"), "Hna. Soto");
+      await user.click(seccion.getByRole("button", { name: "Guardar datos" }));
+
+      await waitFor(() => expect(seccion.getByRole("button", { name: /Salvar dados|Guardar datos/ })).toBeDisabled());
+      expect(seccion.getByLabelText(/Quem coordena|Quién coordina/)).toHaveValue("Hna. Soto");
+      expect(seccion.getByRole("combobox", { name: /Idioma/ })).toHaveTextContent("Português");
+      expect(seccion.queryByText(/idioma/i, { selector: "p" })).not.toBeInTheDocument();
+      expect(llamadas(api, "PATCH", RUTA_BARRIO)).toEqual([{ contactoNombre: "Hna. Soto" }]);
+    });
+
+    it("muestra un error general si la API rechaza un campo sin mensaje propio", async () => {
+      const user = userEvent.setup();
+      api = simular({
+        [RUTA_BARRIO]: (init) =>
+          init?.method === "PATCH"
+            ? { status: 400, json: { error: "DATOS_INVALIDOS", campos: ["contactoTelefono"] } }
+            : { json: barrio() },
+      });
+      await abrirPanel();
+
+      const seccion = datosBarrio();
+      await user.type(seccion.getByLabelText("Teléfono de contacto"), "abc");
+      await user.click(seccion.getByRole("button", { name: "Guardar datos" }));
+
+      expect(await seccion.findByRole("alert")).toHaveTextContent("Revisa los datos del formulario.");
+    });
   });
 
   it("activa y desactiva compañerismos", async () => {

@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { codigoDe, ErrorApi } from "@/app/api";
 import type { NuevoBarrio, TipoCompanerismo } from "@/app/consultas-admin";
-import { IDIOMAS, mensajesDe, NOMBRES_IDIOMA, useIdioma } from "@/app/i18n";
+import { mensajesDe, useIdioma } from "@/app/i18n";
 import { cn } from "@/app/lib/utils";
 import { zonaDelNavegador, zonaValida } from "@/shared/fechas";
 import type { Idioma } from "@/shared/idiomas";
@@ -12,7 +12,7 @@ import { Button, buttonVariants } from "@/app/components/ui/button";
 import { Checkbox } from "@/app/components/ui/checkbox";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
+import { CampoZona, SelectIdiomaBarrio, useErroresCampos } from "./campos-barrio";
 import { DatosCuenta } from "./DatosCuenta";
 import { EncabezadoAdmin } from "./EncabezadoAdmin";
 import { enlaceValido, LARGO_ENLACE, sugerirSlug, vistaPreviaEnlace } from "./enlace";
@@ -90,7 +90,7 @@ export function FormularioBarrio({
   const [nombrePresidenta, setNombrePresidenta] = useState(valoresIniciales?.nombrePresidenta ?? "");
   const [cargo, setCargo] = useState("");
   const [cuentaNueva, setCuentaNueva] = useState<CuentaNueva | null>(null);
-  const [errores, setErrores] = useState<Campo[]>([]);
+  const { setErrores, errorDe, invalido } = useErroresCampos<Campo>();
   const slug = slugEscrito ?? sugerirSlug(nombre);
 
   // Nombres por defecto en el idioma del barrio: es lo que verán las hermanas.
@@ -140,16 +140,6 @@ export function FormularioBarrio({
     );
   };
 
-  const errorDe = (campo: Campo, texto: string) =>
-    errores.includes(campo) && (
-      <p id={`${id}-${campo}-error`} className="text-sm font-semibold text-destructive">
-        {texto}
-      </p>
-    );
-  const invalido = (campo: Campo) => ({
-    "aria-invalid": errores.includes(campo) || undefined,
-    "aria-describedby": errores.includes(campo) ? `${id}-${campo}-error` : undefined,
-  });
   const codigo = crear.isError ? codigoDe(crear.error) : null;
 
   return (
@@ -195,35 +185,16 @@ export function FormularioBarrio({
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor={`${id}-idioma`}>{nb.idioma}</Label>
-            <Select items={NOMBRES_IDIOMA} value={idioma} onValueChange={(v) => v && setIdioma(v as Idioma)}>
-              <SelectTrigger id={`${id}-idioma`} className="w-full rounded-[10px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {IDIOMAS.map((i) => (
-                  <SelectItem key={i} value={i} className="min-h-11">
-                    {NOMBRES_IDIOMA[i]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SelectIdiomaBarrio id={`${id}-idioma`} value={idioma} onChange={setIdioma} />
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor={`${id}-zona`}>{nb.zonaHoraria}</Label>
-            <Input
-              id={`${id}-zona`}
-              value={zonaHoraria}
-              onChange={(e) => setZonaHoraria(e.target.value)}
-              autoComplete="off"
-              autoCapitalize="none"
-              spellCheck={false}
-              className="rounded-[10px]"
-              {...invalido("zonaHoraria")}
-            />
-            {errorDe("zonaHoraria", nb.errorZona)}
-            <p className="text-sm text-muted-foreground">{nb.ayudaZona}</p>
-          </div>
+          <CampoZona
+            id={`${id}-zona`}
+            value={zonaHoraria}
+            onChange={setZonaHoraria}
+            error={errorDe("zonaHoraria", nb.errorZona)}
+            invalido={invalido("zonaHoraria")}
+          />
 
           <fieldset className="flex flex-col gap-2" {...invalido("companerismos")}>
             <legend className="mb-1.5 text-sm font-bold">{nb.companerismos}</legend>
