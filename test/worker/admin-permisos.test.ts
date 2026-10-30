@@ -170,7 +170,7 @@ describe("POST /api/admin/barrios", () => {
     expect(await crearDb(env.DB).select().from(barrios)).toHaveLength(2);
   });
 
-  it.each([["Mayúsculas"], ["con espacio"], ["admin"], ["api"], ["nuevo-barrio"], ["-guion"], ["x"]])("slug inválido %s → 400", async (slug) => {
+  it.each([["Mayúsculas"], ["con espacio"], ["admin"], ["api"], ["nuevo-barrio"], ["solicitudes"], ["solicitar"], ["-guion"], ["x"]])("slug inválido %s → 400", async (slug) => {
     const cookie = await como("root@ejemplo.cl", { superAdmin: true });
     const res = await pedir("/api/admin/barrios", { method: "POST", cookie, json: { ...BARRIO_NUEVO, slug } });
     expect(res.status).toBe(400);

@@ -222,6 +222,27 @@ for (const b of BARRIOS) {
 for (const a of ADMINS) console.log(`  admin: ${a.email} / ${a.password}${a.barrio ? ` (barrio ${a.barrio})` : " (super admin)"}`);
 console.log(`  token de edición de ejemplo (Hna. Pérez): ${TOKEN_EDICION_DEMO}`);
 
+// Solicitudes de acceso de ejemplo (`/admin/solicitudes`): una pendiente y una rechazada.
+const SOLICITUDES = [
+  {
+    id: "dev-solicitud-pendiente", nombre: "Hna. Carolina Soto", email: "carolina@ejemplo.cl", telefono: "+56 9 5555 4444",
+    barrio: "Barrio Poniente", estaca: "Estaca Maipú", ciudad: "Santiago", pais: "Chile", idioma: "es",
+    zona_horaria: "America/Santiago", tiene_elderes: true, tiene_hermanas: true,
+    mensaje: "Hoy lo coordinamos por WhatsApp y queremos ordenarlo.", estado: "pendiente", motivo_rechazo: null,
+  },
+  {
+    id: "dev-solicitud-rechazada", nombre: "Irmã Beatriz Lima", email: "beatriz@ejemplo.com.br",
+    telefono: "+55 11 98888 7777", barrio: "Ala Vila Nova", estaca: null, ciudad: "São Paulo", pais: "Brasil", idioma: "pt",
+    zona_horaria: "America/Sao_Paulo", tiene_elderes: true, tiene_hermanas: false,
+    mensaje: null, estado: "rechazada", motivo_rechazo: "Ya hay otra presidenta con acceso a esa ala.",
+  },
+];
+for (const s of SOLICITUDES) {
+  sql.push(`DELETE FROM solicitudes WHERE id = ${sqlValor(s.id)};`);
+  sql.push(insert("solicitudes", { ...s, ...(s.estado !== "pendiente" && { resuelta_en: Math.floor(Date.now() / 1000) }) }));
+  console.log(`✓ solicitud ${s.estado}: ${s.email}`);
+}
+
 mkdirSync(".wrangler", { recursive: true });
 writeFileSync(".wrangler/seed.sql", sql.join("\n") + "\n");
 execFileSync("bunx", ["wrangler", "d1", "execute", "almuerzo-misional", "--local", "--file", ".wrangler/seed.sql"], {

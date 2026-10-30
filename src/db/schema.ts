@@ -22,6 +22,7 @@ import {
 } from "drizzle-orm/sqlite-core";
 import { IDIOMAS } from "../shared/idiomas";
 import { MODALIDADES } from "../shared/inscripciones";
+import { ESTADOS_SOLICITUD } from "../shared/solicitudes";
 import { user } from "./auth-schema";
 
 // ---------- helpers ----------
@@ -220,6 +221,46 @@ export const inscripciones = sqliteTable(
   (t) => [index("inscripciones_token_idx").on(t.tokenEdicionHash)],
 );
 
+// ---------- solicitudes de acceso ----------
+
+/**
+ * Alguien que quiere usar la app en su barrio. El super admin la aprueba (crea el barrio y la
+ * presidenta) o la rechaza a mano. Solo puede haber una `pendiente` por correo (índice único parcial).
+ */
+export const solicitudes = sqliteTable(
+  "solicitudes",
+  {
+    id: id(),
+    nombre: text("nombre").notNull(),
+    /** En minúsculas. */
+    email: text("email").notNull(),
+    telefono: text("telefono").notNull(),
+    /** Nombre del barrio tal como lo escribió. */
+    barrio: text("barrio").notNull(),
+    estaca: text("estaca"),
+    ciudad: text("ciudad").notNull(),
+    pais: text("pais").notNull(),
+    idioma: text("idioma", { enum: IDIOMAS }).notNull(),
+    zonaHoraria: text("zona_horaria").notNull(),
+    /** Qué misioneros tiene el barrio; al menos uno de los dos. */
+    tieneElderes: integer("tiene_elderes", { mode: "boolean" }).notNull(),
+    tieneHermanas: integer("tiene_hermanas", { mode: "boolean" }).notNull(),
+    mensaje: text("mensaje"),
+    estado: text("estado", { enum: ESTADOS_SOLICITUD }).notNull().default("pendiente"),
+    motivoRechazo: text("motivo_rechazo"),
+    resueltaEn: integer("resuelta_en", { mode: "timestamp" }),
+    resueltaPorUserId: text("resuelta_por_user_id").references(() => user.id, { onDelete: "set null" }),
+    /** El barrio que se creó al aprobarla. */
+    barrioId: text("barrio_id").references(() => barrios.id, { onDelete: "set null" }),
+    creadoEn: creadoEn(),
+  },
+  (t) => [
+    index("solicitudes_estado_idx").on(t.estado),
+    // Una sola pendiente por correo, también si llegan dos a la vez (la API responde 409).
+    uniqueIndex("solicitudes_email_pendiente_uq").on(t.email).where(sql`${t.estado} = 'pendiente'`),
+  ],
+);
+
 // ---------- relaciones (para db.query.*) ----------
 
 export const barriosRelations = relations(barrios, ({ many }) => ({
@@ -269,3 +310,4 @@ export type Mes = typeof meses.$inferSelect;
 export type Turno = typeof turnos.$inferSelect;
 export type Inscripcion = typeof inscripciones.$inferSelect;
 export type NuevaInscripcion = typeof inscripciones.$inferInsert;
+export type Solicitud = typeof solicitudes.$inferSelect;

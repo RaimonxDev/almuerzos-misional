@@ -14,6 +14,7 @@ import {
   useReenviarInvitacion,
 } from "@/app/consultas-admin";
 import { useIdioma } from "@/app/i18n";
+import { usePrimerosPasos } from "@/app/primeros-pasos";
 import { cn } from "@/app/lib/utils";
 import { AlertaError } from "@/app/components/Estado";
 import { Button } from "@/app/components/ui/button";
@@ -66,9 +67,9 @@ export function BarraLateral({
   );
 }
 
-function Seccion({ titulo, children }: { titulo: string; children: ReactNode }) {
+function Seccion({ titulo, children, id }: { titulo: string; children: ReactNode; id?: string }) {
   return (
-    <section className="flex flex-col gap-3.5 rounded-[14px] border bg-card p-4">
+    <section id={id} className="flex flex-col gap-3.5 rounded-[14px] border bg-card p-4">
       <h2 className="font-sans text-base font-extrabold text-azul-profundo">{titulo}</h2>
       {children}
     </section>
@@ -79,15 +80,17 @@ function Enlaces({ slug, token }: { slug: string; token: string }) {
   const { t } = useIdioma();
   const regenerar = useRegenerarToken(slug);
   const [confirmando, setConfirmando] = useState(false);
+  const [, marcar] = usePrimerosPasos(slug);
   const base = window.location.origin;
 
   return (
-    <Seccion titulo={t.panel.enlaces}>
+    <Seccion id="enlaces" titulo={t.panel.enlaces}>
       <Enlace
         titulo={t.panel.paraHermanas}
         detalle={t.panel.soloNombres}
         url={`${base}/${slug}`}
         etiquetaCopiar={t.panel.copiarEnlace(t.panel.paraLasHermanas)}
+        alCopiar={() => marcar({ compartido: true })}
       />
       <div className="flex flex-col gap-1.5">
         <Enlace
@@ -95,6 +98,7 @@ function Enlaces({ slug, token }: { slug: string; token: string }) {
           detalle={t.panel.conTelefonos}
           url={`${base}/${slug}/m/${token}`}
           etiquetaCopiar={t.panel.copiarEnlace(t.panel.paraLosMisioneros)}
+          alCopiar={() => marcar({ compartido: true })}
         />
         <Button
           variant="ghost"
@@ -146,16 +150,19 @@ function Enlace({
   detalle,
   url,
   etiquetaCopiar,
+  alCopiar,
 }: {
   titulo: string;
   detalle: string;
   url: string;
   etiquetaCopiar: string;
+  alCopiar?: () => void;
 }) {
   const { t } = useIdioma();
   const copiar = async () => {
     try {
       await navigator.clipboard.writeText(url);
+      alCopiar?.();
       toast.success(t.panel.copiado);
     } catch {
       toast.error(t.errores.ERROR_INTERNO);
@@ -201,7 +208,7 @@ function Misioneros({
   };
 
   return (
-    <Seccion titulo={t.panel.misioneros}>
+    <Seccion id="misioneros" titulo={t.panel.misioneros}>
       <ul className="flex flex-col">
         {companerismos.map((c) => (
           <li key={c.id} className="flex min-h-11 items-center gap-2 border-t border-[#EEF2F6] py-1 first:border-t-0">

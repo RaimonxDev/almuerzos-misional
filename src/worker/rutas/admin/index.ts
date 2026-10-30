@@ -5,6 +5,7 @@ import { rutasBarrio } from "./barrio";
 import { rutasCuenta } from "./cuenta";
 import { rutasMeses } from "./meses";
 import { rutasPersonalizacion } from "./personalizacion";
+import { rutasSolicitudesAdmin } from "./solicitudes";
 import { rutasTurnos } from "./turnos";
 
 /**
@@ -23,4 +24,5 @@ const deBarrio = new Hono<AppEnvBarrioAdmin>()
 export const rutasAdmin = new Hono<AppEnvAdmin>()
   .use(conSesion)
   .route("/", rutasCuenta)
+  .route("/solicitudes", rutasSolicitudesAdmin)
   .route("/barrios/:slug", deBarrio);

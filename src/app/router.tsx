@@ -31,11 +31,20 @@ export const rutas: RouteObject[] = [
     path: "/admin/nuevo-barrio",
     lazy: () => import("./pantallas/admin/NuevoBarrio").then((m) => ({ Component: m.NuevoBarrioRuta })),
   },
+  {
+    path: "/admin/solicitudes",
+    lazy: () => import("./pantallas/admin/Solicitudes").then((m) => ({ Component: m.SolicitudesRuta })),
+  },
+  {
+    path: "/admin/solicitudes/:id/aprobar",
+    lazy: () => import("./pantallas/admin/AprobarSolicitud").then((m) => ({ Component: m.AprobarSolicitudRuta })),
+  },
   { path: "/admin/:barrio", lazy: panel },
   {
     path: "/admin/:barrio/:periodo/imprimir",
     lazy: () => import("./pantallas/admin/Imprimir").then((m) => ({ Component: m.Imprimir })),
   },
+  { path: "/solicitar", lazy: () => import("./pantallas/Solicitar").then((m) => ({ Component: m.Solicitar })) },
   { path: "/:barrio", element: <VistaPublica /> },
   { path: "/:barrio/anotarse/:turnoId", element: <Anotarse /> },
   { path: "/:barrio/mi-turno/:inscripcionId", element: <MiTurnoRuta /> },

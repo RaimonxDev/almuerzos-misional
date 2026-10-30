@@ -8,4 +8,11 @@ interface Env {
   RESEND_API_KEY?: string;
   /** Remitente, ej. `Almuerzo Misional <hola@dominio>` (opcional: por defecto `onboarding@resend.dev`). */
   CORREO_REMITENTE?: string;
+  /**
+   * Secreto de Turnstile para `/api/solicitudes`. En desarrollo, la clave de prueba de Cloudflare
+   * que siempre valida: `1x0000000000000000000000000000000AA`.
+   */
+  TURNSTILE_SECRET_KEY: string;
+  /** Correo(s) del super admin para avisar solicitudes nuevas, separados por coma (opcional: si falta, a los usuarios con rol `admin`). */
+  CORREO_SUPER_ADMIN?: string;
 }

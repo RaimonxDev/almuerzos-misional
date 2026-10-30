@@ -7,6 +7,7 @@ import { rutasBarrios } from "./rutas/barrios";
 import { rutasImagenes } from "./rutas/imagenes";
 import { rutasInscripciones } from "./rutas/inscripciones";
 import { rutasMisioneros } from "./rutas/misioneros";
+import { rutasSolicitudes } from "./rutas/solicitudes";
 
 const app = new Hono<AppEnv>().basePath("/api");
 
@@ -21,6 +22,7 @@ const rutas = app
   .route("/barrios", rutasMisioneros)
   .route("/imagenes", rutasImagenes)
   .route("/inscripciones", rutasInscripciones)
+  .route("/solicitudes", rutasSolicitudes)
   .route("/admin", rutasAdmin);
 
 app.notFound((c) => c.json<RespuestaError>({ error: "NO_ENCONTRADO" }, 404));

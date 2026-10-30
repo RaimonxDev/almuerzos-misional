@@ -77,6 +77,10 @@ describe("plantillas de correo", () => {
     restablecerPassword: { nombre: "Ana", enlace: "https://ejemplo.cl/r?t=1&u=2", minutos: 60 },
     bienvenidaPresidenta: { nombre: "Ana", barrio: "Centro", enlace: "https://ejemplo.cl/b?t=1", panel: "https://ejemplo.cl/admin/centro", dias: 7 },
     barrioAsignado: { nombre: "Ana", barrio: "Centro", enlace: "https://ejemplo.cl/admin/centro" },
+    solicitudNueva: { nombre: "Ana", email: "ana@ejemplo.cl", barrio: "Centro", ciudad: "Lima", pais: "Perú", mensaje: "Hola", enlace: "https://ejemplo.cl/admin/solicitudes" },
+    // Sin botón: avisos que no piden nada.
+    solicitudRecibida: { nombre: "Ana", barrio: "Centro" },
+    solicitudRechazada: { nombre: "Ana", barrio: "Centro", motivo: "Porque sí" },
   } as const;
   const plantillas = Object.keys(datos) as (keyof typeof datos)[];
 
@@ -89,8 +93,13 @@ describe("plantillas de correo", () => {
       for (const plantilla of plantillas) {
         const armado = armarCorreo(idioma, plantilla, datos[plantilla] as never);
         expect(armado.asunto.length).toBeGreaterThan(0);
-        expect(armado.html).toContain(datos[plantilla].enlace.replaceAll("&", "&amp;"));
-        expect(armado.texto).toContain(datos[plantilla].enlace);
+        const { enlace } = datos[plantilla] as { enlace?: string };
+        if (enlace) {
+          expect(armado.html).toContain(enlace.replaceAll("&", "&amp;"));
+          expect(armado.texto).toContain(enlace);
+        } else {
+          expect(armado.html).not.toContain("<a href");
+        }
         expect(armado.texto).toContain("Ana");
       }
     }
