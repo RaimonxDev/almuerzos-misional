@@ -1,8 +1,11 @@
-import { useId, useState, type FormEvent, type ReactNode } from "react";
+import { useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useNavigate } from "react-router";
-import { PlusIcon } from "lucide-react";
+import { ImageIcon, PlusIcon, QrCodeIcon } from "lucide-react";
 import { toast } from "sonner";
 import { codigoDe } from "@/app/api";
+import { nombreArchivoQr } from "@/app/qr";
+import { useCompartirPng } from "@/app/usar-compartir-png";
+import type { Idioma } from "@/shared/idiomas";
 import {
   type TipoCompanerismo,
   useCambiarEnlace,
@@ -18,7 +21,9 @@ import {
 import { useIdioma } from "@/app/i18n";
 import { usePrimerosPasos } from "@/app/primeros-pasos";
 import { cn } from "@/app/lib/utils";
+import { AjustarAlAncho } from "@/app/components/AjustarAlAncho";
 import { AlertaError, AvisoDestructivo } from "@/app/components/Estado";
+import { ALTO_TARJETA_QR, ANCHO_TARJETA_QR, TarjetaQr } from "@/app/components/TarjetaQr";
 import { Button } from "@/app/components/ui/button";
 import {
   Dialog,
@@ -50,6 +55,7 @@ export function BarraLateral({
   slug: string;
   barrio: {
     nombre: string;
+    idioma: Idioma;
     codigoMisioneros: string;
     notaParaCocinar: string | null;
     contactoNombre: string | null;
@@ -63,7 +69,7 @@ export function BarraLateral({
 }) {
   return (
     <aside className="flex min-w-0 flex-[1_1_320px] flex-col gap-4">
-      <Enlaces slug={slug} nombre={barrio.nombre} codigo={barrio.codigoMisioneros} />
+      <Enlaces slug={slug} nombre={barrio.nombre} idioma={barrio.idioma} codigo={barrio.codigoMisioneros} />
       {periodo && <DisenoCalendario slug={slug} periodo={periodo} barrio={barrio} />}
       <Misioneros slug={slug} companerismos={companerismos} notaParaCocinar={barrio.notaParaCocinar} />
       {superAdmin && <Administradores slug={slug} />}
@@ -80,7 +86,7 @@ function Seccion({ titulo, children, id }: { titulo: string; children: ReactNode
   );
 }
 
-function Enlaces({ slug, nombre, codigo }: { slug: string; nombre: string; codigo: string }) {
+function Enlaces({ slug, nombre, idioma, codigo }: { slug: string; nombre: string; idioma: Idioma; codigo: string }) {
   const { t } = useIdioma();
   const cambiarCodigo = useCambiarCodigoMisioneros(slug);
   const copiar = useCopiar();
@@ -95,6 +101,7 @@ function Enlaces({ slug, nombre, codigo }: { slug: string; nombre: string; codig
           titulo={t.panel.paraHermanas}
           detalle={t.panel.soloNombres}
           url={`${base}/${slug}`}
+          qr={{ slug, barrio: nombre, idioma, para: "hermanas" }}
           etiquetaCopiar={t.panel.copiarEnlace(t.panel.paraLasHermanas)}
           alCopiar={() => marcar({ compartido: true })}
         />
@@ -105,6 +112,7 @@ function Enlaces({ slug, nombre, codigo }: { slug: string; nombre: string; codig
           titulo={t.panel.paraMisioneros}
           detalle={t.panel.conTelefonos}
           url={`${base}/${slug}/m`}
+          qr={{ slug, barrio: nombre, idioma, para: "misioneros" }}
           etiquetaCopiar={t.panel.copiarEnlace(t.panel.paraLosMisioneros)}
           alCopiar={() => marcar({ compartido: true })}
         />
@@ -270,21 +278,27 @@ function useCopiar() {
   };
 }
 
+type DatosQr = { slug: string; barrio: string; idioma: Idioma; para: "hermanas" | "misioneros" };
+
 function Enlace({
   titulo,
   detalle,
   url,
+  qr,
   etiquetaCopiar,
   alCopiar,
 }: {
   titulo: string;
   detalle: string;
   url: string;
+  qr: DatosQr;
   etiquetaCopiar: string;
   alCopiar?: () => void;
 }) {
   const { t } = useIdioma();
   const copiar = useCopiar();
+  const [viendoQr, setViendoQr] = useState(false);
+  const para = qr.para === "hermanas" ? t.panel.paraLasHermanas : t.panel.paraLosMisioneros;
   return (
     <div className="flex flex-col gap-1.5">
       <div className="text-[13px] font-bold">
@@ -296,6 +310,15 @@ function Enlace({
         </div>
         <Button
           variant="outline"
+          aria-label={t.qr.verQr(para)}
+          onClick={() => setViendoQr(true)}
+          className="rounded-[10px] px-3 font-bold"
+        >
+          <QrCodeIcon aria-hidden="true" />
+          {t.qr.boton}
+        </Button>
+        <Button
+          variant="outline"
           aria-label={etiquetaCopiar}
           onClick={() => copiar(url, t.panel.copiado, alCopiar)}
           className="rounded-[10px] font-bold"
@@ -303,7 +326,47 @@ function Enlace({
           {t.panel.copiar}
         </Button>
       </div>
+      {viendoQr && <DialogoQr url={url} qr={qr} titulo={t.qr.titulo(para)} alCerrar={() => setViendoQr(false)} />}
     </div>
+  );
+}
+
+/**
+ * Tarjeta con el QR del enlace para imprimir o mandar por WhatsApp. Se arma con el enlace vigente,
+ * así que "Cambiar enlace" la regenera; el PNG se pide de nuevo.
+ */
+function DialogoQr({ url, qr, titulo, alCerrar }: { url: string; qr: DatosQr; titulo: string; alCerrar: () => void }) {
+  const { t } = useIdioma();
+  const tarjeta = useRef<HTMLDivElement>(null);
+  const { compartir, compartiendo } = useCompartirPng();
+
+  return (
+    <Dialog open onOpenChange={(abierto) => !abierto && alCerrar()}>
+      <DialogContent showCloseButton={false} className="max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl">
+        <DialogHeader>
+          <DialogTitle className="text-xl text-azul-profundo">{titulo}</DialogTitle>
+          <DialogDescription>{t.qr.descripcion}</DialogDescription>
+        </DialogHeader>
+        <div className="min-w-0 rounded-xl bg-[#E9EEF4]">
+          <AjustarAlAncho ancho={ANCHO_TARJETA_QR} alto={ALTO_TARJETA_QR}>
+            <TarjetaQr ref={tarjeta} barrio={qr.barrio} idioma={qr.idioma} url={url} para={qr.para} />
+          </AjustarAlAncho>
+        </div>
+        <DialogFooter className="gap-2.5">
+          <Button variant="accion-outline" onClick={alCerrar}>
+            {t.qr.cerrar}
+          </Button>
+          <Button
+            variant="accion"
+            onClick={() => compartir(tarjeta.current, nombreArchivoQr(qr.slug, qr.para))}
+            disabled={compartiendo}
+          >
+            <ImageIcon aria-hidden="true" />
+            {compartiendo ? t.calendario.compartiendo : t.calendario.compartirImagen}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
