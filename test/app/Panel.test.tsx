@@ -416,6 +416,69 @@ describe("Panel: enlaces, misioneros y gestión del mes", () => {
     await waitFor(() => expect(llamadas(api, "PATCH", RUTA_BARRIO)).toEqual([{ notaParaCocinar: "Sin mariscos" }]));
   });
 
+  describe("datos del barrio", () => {
+    const datosBarrio = () => within(screen.getByRole("region", { name: "Datos del barrio" }));
+
+    it("muestra los valores actuales y guarda solo lo que cambió", async () => {
+      const user = userEvent.setup();
+      api = simular({ [RUTA_BARRIO]: (init) => ({ json: init?.method === "PATCH" ? { barrio: barrio().barrio } : barrio() }) });
+      await abrirPanel();
+
+      const seccion = datosBarrio();
+      expect(seccion.getByLabelText("Nombre del barrio")).toHaveValue("Barrio Centro");
+      expect(seccion.getByLabelText("Quién coordina")).toHaveValue("");
+      expect(seccion.getByLabelText("Teléfono de contacto")).toHaveValue("");
+      expect(seccion.getByRole("combobox", { name: "Idioma por defecto" })).toHaveTextContent("Español");
+      expect(seccion.getByLabelText("Zona horaria")).toHaveValue("America/Santiago");
+      expect(seccion.getByRole("button", { name: "Guardar datos" })).toBeDisabled();
+
+      await user.clear(seccion.getByLabelText("Nombre del barrio"));
+      await user.type(seccion.getByLabelText("Nombre del barrio"), "Barrio Centro Norte");
+      await user.type(seccion.getByLabelText("Quién coordina"), "Hna. Soto");
+      expect(seccion.queryByText(/cambia el idioma/)).not.toBeInTheDocument();
+      await user.click(seccion.getByRole("button", { name: "Guardar datos" }));
+
+      await waitFor(() =>
+        expect(llamadas(api, "PATCH", RUTA_BARRIO)).toEqual([{ nombre: "Barrio Centro Norte", contactoNombre: "Hna. Soto" }]),
+      );
+    });
+
+    it("avisa al cambiar el idioma o la zona", async () => {
+      const user = userEvent.setup();
+      await abrirPanel();
+
+      const seccion = datosBarrio();
+      await user.click(seccion.getByRole("combobox", { name: "Idioma por defecto" }));
+      await user.click(await screen.findByRole("option", { name: "Português" }));
+      expect(seccion.getByText(/cambia el idioma con que las hermanas ven la página/)).toBeInTheDocument();
+
+      await user.clear(seccion.getByLabelText("Zona horaria"));
+      await user.type(seccion.getByLabelText("Zona horaria"), "America/Sao_Paulo");
+      expect(seccion.getByText(/cambia qué día es hoy/)).toBeInTheDocument();
+    });
+
+    it("muestra el error de la API en la zona horaria", async () => {
+      const user = userEvent.setup();
+      api = simular({
+        [RUTA_BARRIO]: (init) =>
+          init?.method === "PATCH"
+            ? { status: 400, json: { error: "DATOS_INVALIDOS", campos: ["zonaHoraria"] } }
+            : { json: barrio() },
+      });
+      await abrirPanel();
+
+      const seccion = datosBarrio();
+      const zona = seccion.getByLabelText("Zona horaria");
+      await user.clear(zona);
+      await user.type(zona, "America/Lima");
+      await user.click(seccion.getByRole("button", { name: "Guardar datos" }));
+
+      expect(await seccion.findByText("Zona horaria no válida (ej. America/Santiago).")).toBeInTheDocument();
+      expect(zona).toHaveAttribute("aria-invalid", "true");
+      expect(llamadas(api, "PATCH", RUTA_BARRIO)).toEqual([{ zonaHoraria: "America/Lima" }]);
+    });
+  });
+
   it("activa y desactiva compañerismos", async () => {
     const user = userEvent.setup();
     api = simular({

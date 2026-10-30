@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { codigoDe, ErrorApi } from "@/app/api";
 import type { NuevoBarrio, TipoCompanerismo } from "@/app/consultas-admin";
-import { IDIOMAS, mensajesDe, NOMBRES_IDIOMA, useIdioma } from "@/app/i18n";
+import { mensajesDe, useIdioma } from "@/app/i18n";
 import { cn } from "@/app/lib/utils";
 import { zonaDelNavegador, zonaValida } from "@/shared/fechas";
 import type { Idioma } from "@/shared/idiomas";
@@ -12,7 +12,7 @@ import { Button, buttonVariants } from "@/app/components/ui/button";
 import { Checkbox } from "@/app/components/ui/checkbox";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
+import { SelectIdiomaBarrio } from "./campos-barrio";
 import { DatosCuenta } from "./DatosCuenta";
 import { EncabezadoAdmin } from "./EncabezadoAdmin";
 import { enlaceValido, LARGO_ENLACE, sugerirSlug, vistaPreviaEnlace } from "./enlace";
@@ -195,18 +195,7 @@ export function FormularioBarrio({
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor={`${id}-idioma`}>{nb.idioma}</Label>
-            <Select items={NOMBRES_IDIOMA} value={idioma} onValueChange={(v) => v && setIdioma(v as Idioma)}>
-              <SelectTrigger id={`${id}-idioma`} className="w-full rounded-[10px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {IDIOMAS.map((i) => (
-                  <SelectItem key={i} value={i} className="min-h-11">
-                    {NOMBRES_IDIOMA[i]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SelectIdiomaBarrio id={`${id}-idioma`} value={idioma} onChange={setIdioma} />
           </div>
 
           <div className="flex flex-col gap-1.5">

@@ -2,8 +2,9 @@ import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { PlusIcon } from "lucide-react";
 import { toast } from "sonner";
-import { codigoDe } from "@/app/api";
+import { codigoDe, ErrorApi } from "@/app/api";
 import {
+  type CambiosBarrio,
   type TipoCompanerismo,
   useCambiarEnlace,
   useCrearCompanerismo,
@@ -18,7 +19,7 @@ import {
 import { useIdioma } from "@/app/i18n";
 import { usePrimerosPasos } from "@/app/primeros-pasos";
 import { cn } from "@/app/lib/utils";
-import { AlertaError, AvisoDestructivo } from "@/app/components/Estado";
+import { AlertaError, AvisoAmbar, AvisoDestructivo } from "@/app/components/Estado";
 import { Button } from "@/app/components/ui/button";
 import {
   Dialog,
@@ -31,15 +32,29 @@ import {
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/app/components/ui/radio-group";
+import { SelectIdiomaBarrio } from "./campos-barrio";
 import { DatosCuenta } from "./DatosCuenta";
 import { DisenoCalendario } from "./DisenoCalendario";
 import { enlaceValido, LARGO_ENLACE, sugerirSlug, vistaPreviaEnlace } from "./enlace";
 import { formatearCodigo } from "@/shared/codigo-misioneros";
+import { zonaValida } from "@/shared/fechas";
+import type { Idioma } from "@/shared/idiomas";
 import { Textarea } from "@/app/components/ui/textarea";
 
 type Companerismo = { id: string; nombre: string; activo: boolean };
 
-/** Columna derecha del panel: enlaces del barrio, compañerismos, nota para cocinar y (super admin) administradores. */
+type DatosDelBarrio = {
+  nombre: string;
+  idioma: Idioma;
+  zonaHoraria: string;
+  contactoNombre: string | null;
+  contactoTelefono: string | null;
+};
+
+/**
+ * Columna derecha del panel: enlaces del barrio, compañerismos, nota para cocinar, datos del barrio
+ * y (super admin) administradores.
+ */
 export function BarraLateral({
   slug,
   barrio,
@@ -48,13 +63,7 @@ export function BarraLateral({
   superAdmin = false,
 }: {
   slug: string;
-  barrio: {
-    nombre: string;
-    codigoMisioneros: string;
-    notaParaCocinar: string | null;
-    contactoNombre: string | null;
-    contactoTelefono: string | null;
-  };
+  barrio: DatosDelBarrio & { codigoMisioneros: string; notaParaCocinar: string | null };
   companerismos: Companerismo[];
   /** Mes visible (`2026-11`); sin él no hay sección de diseño. */
   periodo: string | null;
@@ -66,15 +75,19 @@ export function BarraLateral({
       <Enlaces slug={slug} nombre={barrio.nombre} codigo={barrio.codigoMisioneros} />
       {periodo && <DisenoCalendario slug={slug} periodo={periodo} barrio={barrio} />}
       <Misioneros slug={slug} companerismos={companerismos} notaParaCocinar={barrio.notaParaCocinar} />
+      <DatosBarrio slug={slug} barrio={barrio} />
       {superAdmin && <Administradores slug={slug} />}
     </aside>
   );
 }
 
 function Seccion({ titulo, children, id }: { titulo: string; children: ReactNode; id?: string }) {
+  const idTitulo = useId();
   return (
-    <section id={id} className="flex flex-col gap-3.5 rounded-[14px] border bg-card p-4">
-      <h2 className="font-sans text-base font-extrabold text-azul-profundo">{titulo}</h2>
+    <section id={id} aria-labelledby={idTitulo} className="flex flex-col gap-3.5 rounded-[14px] border bg-card p-4">
+      <h2 id={idTitulo} className="font-sans text-base font-extrabold text-azul-profundo">
+        {titulo}
+      </h2>
       {children}
     </section>
   );
@@ -382,6 +395,142 @@ function Misioneros({
           className="self-end rounded-[10px] font-bold"
         >
           {t.panel.guardarNota}
+        </Button>
+      </form>
+    </Seccion>
+  );
+}
+
+type CampoBarrio = "nombre" | "zonaHoraria";
+
+/**
+ * Corrige nombre, contacto (sale en el calendario impreso), idioma y zona. Manda solo lo que cambió.
+ * Idioma y zona cambian lo que ven las hermanas: avisa antes de guardar.
+ */
+function DatosBarrio({ slug, barrio }: { slug: string; barrio: DatosDelBarrio }) {
+  const { t } = useIdioma();
+  const nb = t.nuevoBarrio;
+  const id = useId();
+  const editar = useEditarBarrio(slug);
+  const [nombre, setNombre] = useState(barrio.nombre);
+  const [contactoNombre, setContactoNombre] = useState(barrio.contactoNombre ?? "");
+  const [contactoTelefono, setContactoTelefono] = useState(barrio.contactoTelefono ?? "");
+  const [idioma, setIdioma] = useState(barrio.idioma);
+  const [zonaHoraria, setZonaHoraria] = useState(barrio.zonaHoraria);
+  const [errores, setErrores] = useState<CampoBarrio[]>([]);
+
+  const cambios: CambiosBarrio = {};
+  if (nombre.trim() !== barrio.nombre) cambios.nombre = nombre.trim();
+  if (contactoNombre.trim() !== (barrio.contactoNombre ?? "")) cambios.contactoNombre = contactoNombre.trim() || null;
+  if (contactoTelefono.trim() !== (barrio.contactoTelefono ?? "")) cambios.contactoTelefono = contactoTelefono.trim() || null;
+  if (idioma !== barrio.idioma) cambios.idioma = idioma;
+  if (zonaHoraria.trim() !== barrio.zonaHoraria) cambios.zonaHoraria = zonaHoraria.trim();
+  const hayCambios = Object.keys(cambios).length > 0;
+
+  const enviar = (e: FormEvent) => {
+    e.preventDefault();
+    const malos: CampoBarrio[] = [];
+    if (nombre.trim().length < 2) malos.push("nombre");
+    if (!zonaValida(zonaHoraria.trim())) malos.push("zonaHoraria");
+    setErrores(malos);
+    if (malos.length > 0) return;
+    editar.mutate(cambios, {
+      onSuccess: () => toast.success(t.panel.datosGuardados),
+      onError: (err) => {
+        if (err instanceof ErrorApi && err.campos) setErrores(err.campos as CampoBarrio[]);
+      },
+    });
+  };
+
+  const errorDe = (campo: CampoBarrio, texto: string) =>
+    errores.includes(campo) && (
+      <p id={`${id}-${campo}-error`} className="text-sm font-semibold text-destructive">
+        {texto}
+      </p>
+    );
+  const invalido = (campo: CampoBarrio) => ({
+    "aria-invalid": errores.includes(campo) || undefined,
+    "aria-describedby": errores.includes(campo) ? `${id}-${campo}-error` : undefined,
+  });
+  const codigo = editar.isError ? codigoDe(editar.error) : null;
+
+  return (
+    <Seccion id="datos-barrio" titulo={t.panel.datosBarrio}>
+      <form onSubmit={enviar} noValidate className="flex flex-col gap-3.5">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor={`${id}-nombre`}>{nb.nombre}</Label>
+          <Input
+            id={`${id}-nombre`}
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            maxLength={80}
+            autoComplete="off"
+            className="rounded-[10px]"
+            {...invalido("nombre")}
+          />
+          {errorDe("nombre", nb.errorNombre)}
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor={`${id}-contacto`}>{t.panel.contactoNombre}</Label>
+          <Input
+            id={`${id}-contacto`}
+            value={contactoNombre}
+            onChange={(e) => setContactoNombre(e.target.value)}
+            maxLength={80}
+            autoComplete="off"
+            className="rounded-[10px]"
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor={`${id}-telefono`}>{t.panel.contactoTelefono}</Label>
+          <Input
+            id={`${id}-telefono`}
+            type="tel"
+            value={contactoTelefono}
+            onChange={(e) => setContactoTelefono(e.target.value)}
+            maxLength={40}
+            autoComplete="off"
+            className="rounded-[10px]"
+            aria-describedby={`${id}-contacto-ayuda`}
+          />
+          <p id={`${id}-contacto-ayuda`} className="text-sm text-muted-foreground">
+            {t.panel.ayudaContacto}
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor={`${id}-idioma`}>{t.panel.idiomaBarrio}</Label>
+          <SelectIdiomaBarrio id={`${id}-idioma`} value={idioma} onChange={setIdioma} />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor={`${id}-zona`}>{nb.zonaHoraria}</Label>
+          <Input
+            id={`${id}-zona`}
+            value={zonaHoraria}
+            onChange={(e) => setZonaHoraria(e.target.value)}
+            autoComplete="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            className="rounded-[10px]"
+            {...invalido("zonaHoraria")}
+          />
+          {errorDe("zonaHoraria", nb.errorZona)}
+          <p className="text-sm text-muted-foreground">{nb.ayudaZona}</p>
+        </div>
+
+        {cambios.idioma && <AvisoAmbar>{t.panel.avisoIdioma}</AvisoAmbar>}
+        {cambios.zonaHoraria !== undefined && <AvisoAmbar>{t.panel.avisoZona}</AvisoAmbar>}
+
+        {codigo && codigo !== "DATOS_INVALIDOS" && <AlertaError>{t.errores[codigo]}</AlertaError>}
+        <Button
+          type="submit"
+          variant="outline"
+          disabled={editar.isPending || !hayCambios}
+          className="self-end rounded-[10px] font-bold"
+        >
+          {t.panel.guardarDatos}
         </Button>
       </form>
     </Seccion>
