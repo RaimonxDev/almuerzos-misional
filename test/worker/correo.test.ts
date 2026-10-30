@@ -128,6 +128,22 @@ describe("plantillas de correo", () => {
     expect(armado.texto).toContain("Barrio & <b>Centro</b>");
   });
 
+  it("a quien pidió acceso le llega su propio pie, no el de quien administra", () => {
+    for (const plantilla of ["solicitudRecibida", "solicitudRechazada"] as const) {
+      const { html, texto } = armarCorreo("es", plantilla, { ...datos.solicitudRechazada });
+      expect(texto).toContain("porque pediste usar Almuerzo Misional");
+      expect(texto).not.toContain("administras un barrio");
+      expect(html).toContain("porque pediste usar Almuerzo Misional");
+    }
+    expect(armarCorreo("es", "solicitudNueva", datos.solicitudNueva).texto).toContain("administras un barrio");
+  });
+
+  it("no repite la palabra barrio delante del nombre", () => {
+    const { texto } = armarCorreo("es", "solicitudRecibida", { nombre: "Ana", barrio: "Barrio Centro" });
+    expect(texto).toContain("para Barrio Centro.");
+    expect(texto).not.toContain("barrio Barrio");
+  });
+
   it("usa la paleta en el HTML", () => {
     const { html } = armarCorreo("es", "barrioAsignado", datos.barrioAsignado);
     expect(html).toContain("#14304F");

@@ -16,6 +16,8 @@ export interface ContenidoCorreo {
   boton?: { texto: string; enlace: string };
   /** Texto chico bajo el botón (vencimiento del enlace, "si no fuiste tú"…). */
   nota?: string;
+  /** Reemplaza el pie común (ej. a quien pidió acceso, que todavía no administra nada). */
+  pie?: string;
 }
 
 /** Datos que necesita cada plantilla. */
@@ -51,6 +53,10 @@ export type MensajesCorreo = {
   };
 } & { [P in PlantillaCorreo]: (datos: DatosCorreo[P]) => ContenidoCorreo };
 
+/** Pie de los correos a quien pidió acceso: todavía no administra nada. */
+const PIE_SOLICITUD =
+  "Recibes este correo porque pediste usar Almuerzo Misional en tu barrio. Es un proyecto personal, no oficial de la Iglesia.";
+
 export const es: MensajesCorreo = {
   comun: {
     nombreApp: "Almuerzo Misional",
@@ -70,7 +76,7 @@ export const es: MensajesCorreo = {
     titulo: "Te damos la bienvenida",
     saludo: `Hola, ${nombre}:`,
     parrafos: [
-      `Almuerzo Misional es una página para que las hermanas del barrio se anoten a dar almuerzo a los misioneros, sin coordinarlo a mano por WhatsApp. Se creó el barrio ${barrio} y quedaste como su administradora.`,
+      `Almuerzo Misional es una página para que las hermanas del barrio se anoten a dar almuerzo a los misioneros, sin coordinarlo a mano por WhatsApp. Se creó ${barrio} y quedaste como su administradora.`,
       "Desde el panel puedes abrir los meses, ver quién se anotó, bloquear días y compartir el calendario. Para entrar, primero crea tu contraseña con el botón.",
       "Primeros pasos: crea el mes que viene, ábrelo cuando esté listo y comparte el enlace del barrio por WhatsApp con las hermanas. El enlace para los misioneros está en la barra lateral del panel.",
       `Después, tu panel queda en ${panel}`,
@@ -83,7 +89,7 @@ export const es: MensajesCorreo = {
     titulo: "Tienes un barrio nuevo",
     saludo: `Hola, ${nombre}:`,
     parrafos: [
-      `Te asignaron el barrio ${barrio} en Almuerzo Misional. Ya aparece en tu panel, junto a los que administrabas.`,
+      `Te asignaron ${barrio} en Almuerzo Misional. Ya aparece en tu panel, junto a los que administrabas.`,
     ],
     boton: { texto: `Abrir ${barrio}`, enlace },
     nota: "Entra con tu correo y tu contraseña de siempre.",
@@ -93,7 +99,7 @@ export const es: MensajesCorreo = {
     titulo: "Nueva solicitud",
     saludo: "Hola:",
     parrafos: [
-      `${nombre} (${email}) pidió usar Almuerzo Misional en el barrio ${barrio}, ${ciudad}, ${pais}.`,
+      `${nombre} (${email}) pidió usar Almuerzo Misional en ${barrio} (${ciudad}, ${pais}).`,
       ...(mensaje ? [`Escribió: ${mensaje}`] : []),
     ],
     boton: { texto: "Revisar la solicitud", enlace },
@@ -103,17 +109,19 @@ export const es: MensajesCorreo = {
     titulo: "Recibimos tu solicitud",
     saludo: `Hola, ${nombre}:`,
     parrafos: [
-      `Gracias por pedir Almuerzo Misional para el barrio ${barrio}. La revisaremos pronto y te avisaremos por este mismo correo.`,
+      `Gracias por pedir Almuerzo Misional para ${barrio}. La revisaremos pronto y te avisaremos por este mismo correo.`,
     ],
+    pie: PIE_SOLICITUD,
   }),
   solicitudRechazada: ({ nombre, barrio, motivo }) => ({
     asunto: "Sobre tu solicitud de Almuerzo Misional",
     titulo: "Sobre tu solicitud",
     saludo: `Hola, ${nombre}:`,
     parrafos: [
-      `Gracias por tu interés en Almuerzo Misional para el barrio ${barrio}. Por ahora no pudimos aprobar tu solicitud.`,
+      `Gracias por tu interés en Almuerzo Misional para ${barrio}. Por ahora no pudimos aprobar tu solicitud.`,
       ...(motivo ? [`Motivo: ${motivo}`] : []),
       "Si crees que es un error o quieres volver a intentarlo, responde a este correo o envía otra solicitud.",
     ],
+    pie: PIE_SOLICITUD,
   }),
 };

@@ -85,7 +85,9 @@ export function Solicitar() {
   const [estaca, setEstaca] = useState("");
   const [ciudad, setCiudad] = useState("");
   const [pais, setPais] = useState("");
-  const [idiomaBarrio, setIdiomaBarrio] = useState<Idioma>(idioma);
+  // Sigue al idioma de la pantalla hasta que la persona elige uno.
+  const [idiomaElegido, setIdiomaBarrio] = useState<Idioma | null>(null);
+  const idiomaBarrio = idiomaElegido ?? idioma;
   const [zonaHoraria, setZonaHoraria] = useState(detectada);
   const [companerismos, setCompanerismos] = useState<TipoCompanerismo[]>([]);
   const [mensaje, setMensaje] = useState("");

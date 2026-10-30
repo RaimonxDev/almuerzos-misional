@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { Solicitar } from "@/app/pantallas/Solicitar";
@@ -49,6 +49,16 @@ describe("Solicitar acceso", () => {
       turnstileToken: "token-de-prueba",
     });
     expect(typeof cuerpo.zonaHoraria).toBe("string");
+  });
+
+  it("el idioma del barrio sigue al de la pantalla hasta que se elige uno", async () => {
+    const user = renderizar();
+    const grupo = () => screen.getByRole("group", { name: "Idioma del barrio" });
+    expect(within(grupo()).getByRole("button", { name: "Español" })).toHaveAttribute("aria-pressed", "true");
+    await user.click(screen.getByRole("combobox", { name: "Idioma" }));
+    await user.click(await screen.findByRole("option", { name: "Português" }));
+    const grupoPt = screen.getByRole("group", { name: "Idioma da ala" });
+    expect(within(grupoPt).getByRole("button", { name: "Português" })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("sin elegir misioneros no se envía y marca el campo", async () => {

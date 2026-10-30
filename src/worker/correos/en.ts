@@ -1,5 +1,9 @@
 import type { MensajesCorreo } from "./es";
 
+/** Pie de los correos a quien pidió acceso: todavía no administra nada. */
+const PIE_SOLICITUD =
+  "You're receiving this email because you asked to use Missionary Lunch in your ward. It's a personal project, not an official Church site.";
+
 export const en: MensajesCorreo = {
   comun: {
     nombreApp: "Missionary Lunch",
@@ -19,7 +23,7 @@ export const en: MensajesCorreo = {
     titulo: "Welcome",
     saludo: `Hi ${nombre},`,
     parrafos: [
-      `Missionary Lunch is a page where the sisters of the ward sign up to give lunch to the missionaries, without coordinating it by hand on WhatsApp. The ${barrio} ward was created and you are its administrator.`,
+      `Missionary Lunch is a page where the sisters of the ward sign up to give lunch to the missionaries, without coordinating it by hand on WhatsApp. ${barrio} was created and you are its administrator.`,
       "From the dashboard you can open months, see who signed up, block days and share the calendar. To sign in, first create your password with the button.",
       "First steps: create next month, open it when it's ready and share the ward link on WhatsApp with the sisters. The link for the missionaries is in the dashboard sidebar.",
       `After that, your dashboard is at ${panel}`,
@@ -32,7 +36,7 @@ export const en: MensajesCorreo = {
     titulo: "You have a new ward",
     saludo: `Hi ${nombre},`,
     parrafos: [
-      `You were assigned the ${barrio} ward on Missionary Lunch. It already shows up in your dashboard, next to the ones you managed.`,
+      `You were assigned ${barrio} on Missionary Lunch. It already shows up in your dashboard, next to the ones you managed.`,
     ],
     boton: { texto: `Open ${barrio}`, enlace },
     nota: "Sign in with your usual email and password.",
@@ -42,7 +46,7 @@ export const en: MensajesCorreo = {
     titulo: "New request",
     saludo: "Hi,",
     parrafos: [
-      `${nombre} (${email}) asked to use Missionary Lunch in the ${barrio} ward, ${ciudad}, ${pais}.`,
+      `${nombre} (${email}) asked to use Missionary Lunch in ${barrio} (${ciudad}, ${pais}).`,
       ...(mensaje ? [`They wrote: ${mensaje}`] : []),
     ],
     boton: { texto: "Review the request", enlace },
@@ -52,17 +56,19 @@ export const en: MensajesCorreo = {
     titulo: "We received your request",
     saludo: `Hi ${nombre},`,
     parrafos: [
-      `Thanks for asking for Missionary Lunch in the ${barrio} ward. We'll review it soon and let you know at this same email.`,
+      `Thanks for asking for Missionary Lunch in ${barrio}. We'll review it soon and let you know at this same email.`,
     ],
+    pie: PIE_SOLICITUD,
   }),
   solicitudRechazada: ({ nombre, barrio, motivo }) => ({
     asunto: "About your Missionary Lunch request",
     titulo: "About your request",
     saludo: `Hi ${nombre},`,
     parrafos: [
-      `Thanks for your interest in Missionary Lunch for the ${barrio} ward. We couldn't approve your request for now.`,
+      `Thanks for your interest in Missionary Lunch for ${barrio}. We couldn't approve your request for now.`,
       ...(motivo ? [`Reason: ${motivo}`] : []),
       "If you think this is a mistake or want to try again, reply to this email or send another request.",
     ],
+    pie: PIE_SOLICITUD,
   }),
 };

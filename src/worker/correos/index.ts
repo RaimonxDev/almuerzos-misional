@@ -86,7 +86,7 @@ ${boton}
 ${nota}
 ${alternativo}
 </td></tr>
-<tr><td style="padding:16px 28px;background:${COLORES.fondo};font-size:12px;line-height:1.5;color:${COLORES.suave};">${e(comun.pie)}</td></tr>
+<tr><td style="padding:16px 28px;background:${COLORES.fondo};font-size:12px;line-height:1.5;color:${COLORES.suave};">${e(c.pie ?? comun.pie)}</td></tr>
 </table>
 </td></tr>
 </table>
@@ -103,6 +103,6 @@ function textoDelCorreo(c: ContenidoCorreo, comun: MensajesCorreo["comun"]): str
     ...(c.nota ? [c.nota, ""] : []),
     "--",
     comun.nombreApp,
-    comun.pie,
+    c.pie ?? comun.pie,
   ].join("\n");
 }
