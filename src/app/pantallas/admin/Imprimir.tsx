@@ -1,12 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import { Link, useParams } from "react-router";
 import { ArrowLeftIcon, ImageIcon, PrinterIcon } from "lucide-react";
-import { toast } from "sonner";
-import { compartirPng, nombreArchivoCalendario, prepararFuentes } from "@/app/compartir-imagen";
+import { nombreArchivoCalendario } from "@/app/compartir-imagen";
 import { useBarrioAdmin, useMesAdmin } from "@/app/consultas-admin";
 import { useIdiomaDelBarrio, useTitulo } from "@/app/hooks";
 import { useIdioma } from "@/app/i18n";
 import { leerPeriodo } from "@/app/periodos";
+import { useCompartirPng } from "@/app/usar-compartir-png";
 import { AjustarAlAncho } from "@/app/components/AjustarAlAncho";
 import { CalendarioImpreso } from "@/app/components/CalendarioImpreso";
 import { RutaAdmin } from "@/app/components/RutaAdmin";
@@ -40,27 +40,14 @@ function VistaImprimir() {
   const barrio = useBarrioAdmin(slug);
   const mes = useMesAdmin(slug, leerPeriodo(periodo) ? periodo : null);
   const calendario = useRef<HTMLDivElement>(null);
-  const [compartiendo, setCompartiendo] = useState(false);
+  const { compartir: compartirNodo, compartiendo } = useCompartirPng();
   useIdiomaDelBarrio(barrio.data?.barrio.idioma);
   useTitulo(barrio.data?.barrio.nombre);
-  // Lo lento de la imagen (incrustar fuentes) se hace antes del toque en "Compartir imagen".
-  useEffect(() => void prepararFuentes().catch(() => {}), []);
 
   const volver = `/admin/${slug}?mes=${periodo}`;
   const error = barrio.error ?? mes.error;
 
-  async function compartir() {
-    if (!calendario.current) return;
-    setCompartiendo(true);
-    try {
-      const resultado = await compartirPng(calendario.current, nombreArchivoCalendario(slug, periodo));
-      if (resultado === "descargado") toast.success(t.calendario.imagenLista);
-    } catch {
-      toast.error(t.calendario.imagenError);
-    } finally {
-      setCompartiendo(false);
-    }
-  }
+  const compartir = () => compartirNodo(calendario.current, nombreArchivoCalendario(slug, periodo));
 
   const listo = barrio.data && mes.data;
 

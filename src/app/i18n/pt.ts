@@ -327,6 +327,19 @@ export const pt: Mensajes = {
     guardarDatos: "Salvar dados",
     datosGuardados: "Dados salvos.",
   },
+  qr: {
+    boton: "QR",
+    verQr: (para: string) => `Código QR do link ${para}`,
+    titulo: (para: string) => `Código QR ${para}`,
+    descripcion:
+      "Imprima ou compartilhe como imagem. Ele usa o link atual: se você mudar o link, o QR muda sozinho e o anterior deixa de funcionar.",
+    imagenDe: (url: string) => `Código QR de ${url}`,
+    subtituloHermanas: "Almoço para os missionários",
+    subtituloMisioneros: "Calendário de almoços",
+    llamadoHermanas: "Escaneie para se inscrever e dar almoço",
+    llamadoMisioneros: "Escaneie e digite o código de acesso",
+    cerrar: "Fechar",
+  },
   primerosPasos: {
     titulo: "Primeiros passos",
     avance: (hechos: number, total: number) => `${hechos} de ${total}`,

@@ -1,8 +1,15 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { compartirPng } from "@/app/compartir-imagen";
 import { contarTurnos } from "@/app/pantallas/admin/mes";
 import { renderizarApp, simularApi } from "./utilidades";
+
+vi.mock("@/app/compartir-imagen", async (original) => ({
+  ...(await original<typeof import("@/app/compartir-imagen")>()),
+  prepararFuentes: vi.fn(async () => ""),
+  compartirPng: vi.fn(async () => "descargado"),
+}));
 
 // Meses en 2099: ningún día queda en el pasado, no depende de la fecha en que corran los tests.
 
@@ -292,6 +299,38 @@ describe("Panel: enlaces, misioneros y gestión del mes", () => {
     expect(await navigator.clipboard.readText()).toBe("K7P-M2X");
   });
 
+  it("muestra el QR de cada enlace en una tarjeta con el nombre del barrio y la comparte como imagen", async () => {
+    const user = userEvent.setup();
+    await abrirPanel();
+
+    await user.click(screen.getByRole("button", { name: "Código QR del enlace para las hermanas" }));
+    const dialogo = await screen.findByRole("dialog");
+    expect(within(dialogo).getByRole("heading", { name: "Código QR para las hermanas" })).toBeInTheDocument();
+    expect(within(dialogo).getByRole("img", { name: `Código QR de ${location.origin}/centro` })).toBeInTheDocument();
+    expect(within(dialogo).getByText("Barrio Centro")).toBeInTheDocument();
+    expect(within(dialogo).getByText("Escanea para anotarte a dar almuerzo")).toBeInTheDocument();
+
+    await user.click(within(dialogo).getByRole("button", { name: "Compartir imagen" }));
+    expect(compartirPng).toHaveBeenCalledWith(expect.any(HTMLElement), "qr-centro.png");
+
+    await user.click(within(dialogo).getByRole("button", { name: "Cerrar" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("el QR de los misioneros no lleva el código de acceso", async () => {
+    const user = userEvent.setup();
+    await abrirPanel();
+
+    await user.click(screen.getByRole("button", { name: "Código QR del enlace para los misioneros" }));
+    const dialogo = await screen.findByRole("dialog");
+    expect(within(dialogo).getByRole("img", { name: `Código QR de ${location.origin}/centro/m` })).toBeInTheDocument();
+    expect(within(dialogo).getByText("Escanea y escribe el código de acceso")).toBeInTheDocument();
+    expect(within(dialogo).queryByText("K7P-M2X")).not.toBeInTheDocument();
+
+    await user.click(within(dialogo).getByRole("button", { name: "Compartir imagen" }));
+    expect(compartirPng).toHaveBeenLastCalledWith(expect.any(HTMLElement), "qr-centro-misioneros.png");
+  });
+
   it("cambiar el código de los misioneros pide confirmación y muestra el nuevo", async () => {
     const user = userEvent.setup();
     api = simular({ [`${RUTA_BARRIO}/codigo-misioneros`]: { json: { codigoMisioneros: "Q4WN8R" } } });
@@ -355,6 +394,11 @@ describe("Panel: enlaces, misioneros y gestión del mes", () => {
     await user.click(within(otro).getByRole("button", { name: "Sí, cambiar" }));
     expect(await screen.findByText(`${location.origin}/centro-k7m2x`)).toBeInTheDocument();
     expect(llamadas(api, "POST", "/enlace")).toEqual([{ slug: "centro" }]);
+
+    // El QR se arma con el enlace vigente: cambiar el enlace lo regenera.
+    await user.click(screen.getByRole("button", { name: "Código QR del enlace para las hermanas" }));
+    const qr = await screen.findByRole("dialog");
+    expect(within(qr).getByRole("img", { name: `Código QR de ${location.origin}/centro-k7m2x` })).toBeInTheDocument();
   });
 
   it("el cambio de estado refleja el nuevo estado", async () => {

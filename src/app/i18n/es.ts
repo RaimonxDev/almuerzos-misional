@@ -333,6 +333,19 @@ export const es = {
     guardarDatos: "Guardar datos",
     datosGuardados: "Datos guardados.",
   },
+  qr: {
+    boton: "QR",
+    verQr: (para: string) => `Código QR del enlace ${para}`,
+    titulo: (para: string) => `Código QR ${para}`,
+    descripcion:
+      "Imprímelo o compártelo como imagen. Se arma con el enlace de ahora: si cambias el enlace, el QR cambia solo y el anterior deja de servir.",
+    imagenDe: (url: string) => `Código QR de ${url}`,
+    subtituloHermanas: "Almuerzo para los misioneros",
+    subtituloMisioneros: "Calendario de almuerzos",
+    llamadoHermanas: "Escanea para anotarte a dar almuerzo",
+    llamadoMisioneros: "Escanea y escribe el código de acceso",
+    cerrar: "Cerrar",
+  },
   primerosPasos: {
     titulo: "Primeros pasos",
     avance: (hechos: number, total: number) => `${hechos} de ${total}`,
