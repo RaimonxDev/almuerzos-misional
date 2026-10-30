@@ -108,12 +108,12 @@ describe("entrar con el código", () => {
     expect(await screen.findByRole("heading", { name: "Barrio Centro" })).toBeInTheDocument();
     expect(screen.queryByText("Hna. Pérez")).not.toBeInTheDocument();
 
-    await userEvent.type(screen.getByLabelText("Código de acceso"), "k7p m2x");
-    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+    // Al completar las 6 casillas entra sin tocar "Entrar"; las minúsculas pasan a mayúsculas.
+    await userEvent.type(screen.getByLabelText("Código de acceso"), "k7pm2x");
 
     expect(await screen.findByText("Hna. Pérez")).toBeInTheDocument();
     const [envio] = api.mock.calls.filter(([e]) => String(e).endsWith("/misioneros/acceso"));
-    expect(JSON.parse(String(envio[1]!.body))).toEqual({ codigo: "k7p m2x" });
+    expect(JSON.parse(String(envio[1]!.body))).toEqual({ codigo: "K7PM2X" });
     expect(localStorage.getItem(CLAVE_TOKEN)).toBe(TOKEN);
     // El token va en el header, nunca en la URL de la API.
     expect(autorizacion("/api/barrios/centro/misioneros")).toEqual([`Bearer ${TOKEN}`]);
@@ -125,13 +125,23 @@ describe("entrar con el código", () => {
     simular("es", { "/api/barrios/centro/misioneros/acceso": () => respuesta });
     renderizar();
     await userEvent.type(await screen.findByLabelText("Código de acceso"), "AAAAAA");
-    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
     expect(await screen.findByText("Ese código no es correcto. Revísalo o pídeselo a la presidenta.")).toBeInTheDocument();
 
     respuesta = { status: 429, json: { error: "DEMASIADOS_INTENTOS" } };
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(/intentos/i);
     expect(localStorage.getItem(CLAVE_TOKEN)).toBeNull();
+  });
+
+  it("pegar el código con guion o espacios lo deja en las casillas, listo para entrar", async () => {
+    simular("es", { "/api/barrios/centro/misioneros/acceso": { json: { token: TOKEN } } });
+    renderizar();
+    await userEvent.click(await screen.findByLabelText("Código de acceso"));
+    await userEvent.paste("k7p-m2x");
+
+    expect(await screen.findByText("Hna. Pérez")).toBeInTheDocument();
+    const [envio] = api.mock.calls.filter(([e]) => String(e).endsWith("/misioneros/acceso"));
+    expect(JSON.parse(String(envio[1]!.body))).toEqual({ codigo: "K7PM2X" });
   });
 
   it("un enlace viejo con token en la URL lleva a la pantalla del código, sin usar ese token", async () => {
