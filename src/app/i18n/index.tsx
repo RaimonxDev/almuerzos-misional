@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { esIdioma, IDIOMAS, type Idioma } from "@/shared/idiomas";
+import { guardarLocal, leerLocal } from "@/app/almacen";
 import { es, type Mensajes } from "./es";
 import { pt } from "./pt";
 import { en } from "./en";
@@ -21,12 +22,8 @@ export const NOMBRES_IDIOMA: Record<Idioma, string> = {
 const CLAVE_STORAGE = "almuerzo-misional:idioma";
 
 function leerIdiomaGuardado(): Idioma | null {
-  try {
-    const valor = localStorage.getItem(CLAVE_STORAGE);
-    return esIdioma(valor) ? valor : null;
-  } catch {
-    return null;
-  }
+  const valor = leerLocal(CLAVE_STORAGE);
+  return esIdioma(valor) ? valor : null;
 }
 
 function idiomaDelNavegador(): Idioma | null {
@@ -64,11 +61,7 @@ export function ProveedorIdioma({ children }: { children: ReactNode }) {
       t: DICCIONARIOS[idioma],
       cambiarIdioma: (nuevo) => {
         setElegido(nuevo);
-        try {
-          localStorage.setItem(CLAVE_STORAGE, nuevo);
-        } catch {
-          // Sin storage (modo privado): el cambio dura solo esta visita.
-        }
+        guardarLocal(CLAVE_STORAGE, nuevo);
       },
       formatearFecha: (fecha, opciones = { weekday: "long", day: "numeric", month: "long" }) => {
         const [anio, mes, dia] = fecha.split("-").map(Number);
