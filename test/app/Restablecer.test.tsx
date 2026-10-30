@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it } from "vitest";
@@ -74,8 +74,9 @@ describe("/admin/restablecer", () => {
     const router = renderizar(`/admin/restablecer?token=${TOKEN}`);
 
     expect(await screen.findByLabelText("Contraseña nueva")).toBeInTheDocument();
+    // El formulario aparece antes de que termine la navegación que saca el token.
+    await waitFor(() => expect(router.state.location.search).toBe(""));
     expect(router.state.location.pathname).toBe("/admin/restablecer");
-    expect(router.state.location.search).toBe("");
     expect(document.title).not.toContain(TOKEN);
     expect(document.querySelector('meta[name="referrer"]')).toHaveAttribute("content", "no-referrer");
   });
