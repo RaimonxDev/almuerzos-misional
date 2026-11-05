@@ -1,10 +1,11 @@
 import { and, asc, eq, sql } from "drizzle-orm";
+import type { BatchItem } from "drizzle-orm/batch";
 import { Hono } from "hono";
 import { z } from "zod";
 import { account, session, user } from "@/db/auth-schema";
 import { adminsBarrio } from "@/db/schema";
 import { hashPassword } from "@/shared/password";
-import { borrarEnlacesRestablecer } from "../../auth";
+import { borrarEnlacesRestablecer, borrarEnlacesSiNoExiste } from "../../auth";
 import { avisarAccesoQuitado, avisarPresidenciaTraspasada } from "../../avisos-solicitudes";
 import { passwordTemporal } from "../../barrios";
 import type { AppEnvBarrioAdmin } from "../../contexto";
@@ -30,6 +31,7 @@ const columnasPersona = {
   email: user.email,
   name: user.name,
   debeCambiarPassword: user.debeCambiarPassword,
+  role: user.role,
 };
 
 /**
@@ -99,6 +101,7 @@ export const rutasEquipo = new Hono<AppEnvBarrioAdmin>()
     const persona = await personaDelBarrio(c, userId);
     if (!persona) return fallar(c, "NO_ENCONTRADO", 404);
     if (!persona.debeCambiarPassword) return fallar(c, "CUENTA_EN_USO", 422);
+    if (!(await puedeTocarCuenta(c, persona))) return fallar(c, "SIN_PERMISO", 403);
 
     try {
       await db.batch([
@@ -123,6 +126,7 @@ export const rutasEquipo = new Hono<AppEnvBarrioAdmin>()
     const persona = await personaDelBarrio(c, userId);
     if (!persona) return fallar(c, "NO_ENCONTRADO", 404);
     if (!persona.debeCambiarPassword) return fallar(c, "CUENTA_EN_USO", 422);
+    if (!(await puedeTocarCuenta(c, persona))) return fallar(c, "SIN_PERMISO", 403);
 
     const password = passwordTemporal();
     await db.batch([
@@ -166,29 +170,58 @@ export const rutasEquipo = new Hono<AppEnvBarrioAdmin>()
     const { db, barrio } = c.var;
     const { userId } = c.req.valid("param");
     const fila = await db
-      .select({ ...columnasPersona, rol: adminsBarrio.rol, role: user.role })
+      .select({ ...columnasPersona, rol: adminsBarrio.rol })
       .from(adminsBarrio)
       .innerJoin(user, eq(user.id, adminsBarrio.userId))
       .where(and(eq(adminsBarrio.barrioId, barrio.id), eq(adminsBarrio.userId, userId)))
       .get();
     if (!fila) return fallar(c, "NO_ENCONTRADO", 404);
     if (fila.rol === "presidenta") return fallar(c, "ES_PRESIDENTA", 422);
+    // A un super admin solo lo quita otro super admin, y nunca se le cierran las sesiones ni se borra su cuenta.
+    const quitaSuperAdmin = esSuperAdmin({ role: fila.role });
+    if (quitaSuperAdmin && !esSuperAdmin(c.var.usuario)) return fallar(c, "SIN_PERMISO", 403);
 
-    const otros = await db
-      .select({ userId: adminsBarrio.userId })
-      .from(adminsBarrio)
-      .where(and(eq(adminsBarrio.userId, userId), sql`${adminsBarrio.barrioId} <> ${barrio.id}`))
-      .limit(1);
-    const cuentaBorrada = !esSuperAdmin({ role: fila.role }) && otros.length === 0;
-
-    await db.batch([
+    // La cuenta se borra solo si, al momento de borrar, no administra otro barrio: la condición va en
+    // el mismo DELETE para que una asignación hecha entre medio no se pierda en la cascada.
+    const resultados = await db.batch([
       db.delete(adminsBarrio).where(and(eq(adminsBarrio.barrioId, barrio.id), eq(adminsBarrio.userId, userId))),
-      db.delete(session).where(eq(session.userId, userId)),
-      ...(cuentaBorrada ? [borrarEnlacesRestablecer(db, userId), db.delete(user).where(eq(user.id, userId))] : []),
-    ]);
+      ...(quitaSuperAdmin
+        ? []
+        : [
+            db.delete(session).where(eq(session.userId, userId)),
+            db
+              .delete(user)
+              .where(
+                and(
+                  eq(user.id, userId),
+                  sql`not exists (select 1 from ${adminsBarrio} where ${adminsBarrio.userId} = ${userId})`,
+                ),
+              )
+              .returning({ id: user.id }),
+            borrarEnlacesSiNoExiste(db, userId),
+          ]),
+    ] as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
+    const cuentaBorrada = !quitaSuperAdmin && (resultados[2] as { id: string }[]).length > 0;
     c.executionCtx.waitUntil(avisarAccesoQuitado(c.env, barrio, { email: fila.email, nombre: fila.name }, cuentaBorrada));
     return c.json({ cuentaBorrada });
   });
+
+/**
+ * La presidenta solo cambia el correo o la contraseña de cuentas que son únicamente de su barrio:
+ * si la persona administra otro barrio o es super admin, eso le toca al super admin (si no, una
+ * presidenta podría invitar a alguien de otro barrio que aún no entra y quedarse con su cuenta).
+ */
+async function puedeTocarCuenta(c: { var: AppEnvBarrioAdmin["Variables"] }, persona: { id: string; role: string | null }) {
+  const { db, barrio, usuario } = c.var;
+  if (esSuperAdmin(usuario)) return true;
+  if (esSuperAdmin({ role: persona.role })) return false;
+  const otro = await db
+    .select({ userId: adminsBarrio.userId })
+    .from(adminsBarrio)
+    .where(and(eq(adminsBarrio.userId, persona.id), sql`${adminsBarrio.barrioId} <> ${barrio.id}`))
+    .get();
+  return !otro;
+}
 
 /** Una persona que administra este barrio (si no, `undefined`: un id de otro barrio da 404). */
 function personaDelBarrio(c: { var: AppEnvBarrioAdmin["Variables"] }, userId: string) {

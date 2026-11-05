@@ -58,9 +58,9 @@ const listarCompanerismos = (db: Db, barrioId: string) =>
     .where(eq(companerismos.barrioId, barrioId))
     .orderBy(asc(companerismos.orden), asc(companerismos.nombre));
 
-/** Hubo un traspaso y la presidenta todavía no marcó "revisada" después de él. */
+/** Hubo un traspaso y la presidenta todavía no la marcó "revisada" (cada traspaso deja `revisada` en null). */
 export const revisionPendiente = (b: Pick<Barrio, "presidenciaTraspasadaEn" | "presidenciaRevisadaEn">) =>
-  b.presidenciaTraspasadaEn !== null && (b.presidenciaRevisadaEn === null || b.presidenciaRevisadaEn < b.presidenciaTraspasadaEn);
+  b.presidenciaTraspasadaEn !== null && b.presidenciaRevisadaEn === null;
 
 const datosBarrio = (b: typeof barrios.$inferSelect) => ({
   slug: b.slug,

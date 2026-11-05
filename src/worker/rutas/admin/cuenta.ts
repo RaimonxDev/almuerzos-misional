@@ -1,7 +1,6 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { adminsBarrio, barrios } from "@/db/schema";
-import type { RolBarrio } from "@/shared/roles";
 import type { AppEnvAdmin } from "../../contexto";
 import { fallar, origenDe, validar } from "../../http";
 import { esSuperAdmin } from "../../permisos";
@@ -12,14 +11,13 @@ export const rutasCuenta = new Hono<AppEnvAdmin>()
   .get("/yo", async (c) => {
     const { db, usuario } = c.var;
     const superAdmin = esSuperAdmin(usuario);
+    // El super admin ve todos los barrios; en los que además administra, con su cargo y rol.
     const lista = superAdmin
       ? await db
-          .select({ slug: barrios.slug, nombre: barrios.nombre })
+          .select({ slug: barrios.slug, nombre: barrios.nombre, cargo: adminsBarrio.cargo, rol: adminsBarrio.rol })
           .from(barrios)
+          .leftJoin(adminsBarrio, and(eq(adminsBarrio.barrioId, barrios.id), eq(adminsBarrio.userId, usuario.id)))
           .orderBy(asc(barrios.nombre))
-          .then((filas) =>
-            filas.map((f) => ({ ...f, cargo: null as string | null, rol: null as RolBarrio | null })),
-          )
       : await db
           .select({ slug: barrios.slug, nombre: barrios.nombre, cargo: adminsBarrio.cargo, rol: adminsBarrio.rol })
           .from(adminsBarrio)

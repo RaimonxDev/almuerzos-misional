@@ -186,12 +186,19 @@ describe("quitar", () => {
     expect((await pendientes())!.n).toBe(0);
   });
 
-  it("nunca borra la cuenta de un super admin", async () => {
+  it("a un super admin solo lo quita otro super admin, sin borrar su cuenta ni cerrar sus sesiones", async () => {
     const { cookie } = await como("pres@ejemplo.cl", { barrios: ["b1"], rol: "presidenta" });
-    const root = await crearAdmin({ email: "root@ejemplo.cl", superAdmin: true, barrios: ["b1"] });
+    const root = await como("root@ejemplo.cl", { superAdmin: true, barrios: ["b1"] });
+    const otro = await como("otro-root@ejemplo.cl", { superAdmin: true });
+
     const res = await quitar(cookie, root.id);
-    expect(await res.json()).toEqual({ cuentaBorrada: false });
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ error: "SIN_PERMISO" });
+
+    const ok = await quitar(otro.cookie, root.id);
+    expect(await ok.json()).toEqual({ cuentaBorrada: false });
     expect(await cuentaDe("root@ejemplo.cl")).toBeDefined();
+    expect((await pedir("/api/admin/yo", { cookie: root.cookie })).status).toBe(200);
   });
 
   it("quitar a la presidenta da 422 ES_PRESIDENTA, también al super admin", async () => {
@@ -448,6 +455,20 @@ describe("revisión de la presidencia tras un traspaso", () => {
     expect(await pendiente(entra)).toBe(false);
   });
 
+  it("marcarla en el mismo segundo del traspaso la oculta", async () => {
+    const { cookie } = await como("pres@ejemplo.cl", { barrios: ["b1"], rol: "presidenta" });
+    await crearAdmin({ email: "cons@ejemplo.cl", barrios: ["b1"] });
+    await traspasar(cookie, { email: "cons@ejemplo.cl", nombre: "Hna. C" });
+    const entra = await iniciarSesion("cons@ejemplo.cl");
+    await marcar(entra);
+    // Otro traspaso de vuelta y de nuevo a ella, sin esperar: cada uno la reabre y marcar la cierra.
+    await traspasar(entra, { email: "pres@ejemplo.cl", nombre: "Hna. P" });
+    await traspasar(cookie, { email: "cons@ejemplo.cl", nombre: "Hna. C" });
+    expect(await pendiente(entra)).toBe(true);
+    await marcar(entra);
+    expect(await pendiente(entra)).toBe(false);
+  });
+
   it("requiere sesión de este barrio", async () => {
     const ajena = await como("ajena@ejemplo.cl", { barrios: ["b2"], rol: "presidenta" });
     expect((await marcar(ajena.cookie)).status).toBe(403);
@@ -485,3 +506,25 @@ describe("cargo de la presidenta anterior", () => {
     expect(filas.find((f) => f.userId === otra.id)).toMatchObject({ rol: "presidenta", cargo: "Presidenta" });
   });
 });
+
+describe("la presidenta no toca cuentas que no son solo de su barrio", () => {
+  it("contraseña temporal y corregir correo de alguien de otro barrio → 403; el super admin sí puede", async () => {
+    const { cookie } = await como("pres@ejemplo.cl", { barrios: ["b1"], rol: "presidenta" });
+    const root = await como("root@ejemplo.cl", { superAdmin: true });
+    // La presidenta de otro barrio todavía no elige su contraseña.
+    const ajena = await crearAdmin({ email: "ajena@ejemplo.cl", barrios: ["b2"], rol: "presidenta" });
+    await crearDb(env.DB).update(user).set({ debeCambiarPassword: true }).where(eq(user.id, ajena.id));
+
+    // Invitarla a su barrio funciona (solo le da acceso), pero no puede tomar su cuenta.
+    expect((await invitar(cookie, { email: "ajena@ejemplo.cl", nombre: "Hna. Ajena" })).status).toBe(200);
+    const temporal = await pedir(`${RUTA}/admins/${ajena.id}/password-temporal`, { method: "POST", cookie });
+    expect(temporal.status).toBe(403);
+    const correo = await pedir(`${RUTA}/admins/${ajena.id}`, { method: "PATCH", cookie, json: { email: "mia@ejemplo.cl" } });
+    expect(correo.status).toBe(403);
+    expect(await cuentaDe("ajena@ejemplo.cl")).toBeDefined();
+
+    const porRoot = await pedir(`${RUTA}/admins/${ajena.id}/password-temporal`, { method: "POST", cookie: root.cookie });
+    expect(porRoot.status).toBe(200);
+  });
+});
+

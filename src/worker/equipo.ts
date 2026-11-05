@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import type { Db } from "@/db";
 import { account, user } from "@/db/auth-schema";
@@ -70,20 +70,23 @@ export async function invitarAdmin(
       .insert(adminsBarrio)
       .values({ userId: cuenta.userId, barrioId: barrio.id, cargo: datos.cargo, rol: datos.rol ?? "equipo" })
       .onConflictDoNothing()
-      .returning({ userId: adminsBarrio.userId });
+      .returning({ cargo: adminsBarrio.cargo, rol: adminsBarrio.rol });
     const sentencias = [...cuenta.sentencias, asignar] as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]];
     const resultados = await db.batch(sentencias);
-    filas = resultados[resultados.length - 1] as { userId: string }[];
+    filas = resultados[resultados.length - 1] as { cargo: string | null; rol: RolBarrio }[];
   } catch (err) {
     if (esViolacionUnica(err)) return null;
     throw err;
   }
   const esNueva = filas.length > 0;
-  const fila = await db
-    .select({ cargo: adminsBarrio.cargo, rol: adminsBarrio.rol })
-    .from(adminsBarrio)
-    .where(and(eq(adminsBarrio.userId, cuenta.userId), eq(adminsBarrio.barrioId, barrio.id)))
-    .get();
+  // Si ya estaba, se devuelve lo que tiene (no se toca).
+  const fila =
+    filas[0] ??
+    (await db
+      .select({ cargo: adminsBarrio.cargo, rol: adminsBarrio.rol })
+      .from(adminsBarrio)
+      .where(and(eq(adminsBarrio.userId, cuenta.userId), eq(adminsBarrio.barrioId, barrio.id)))
+      .get());
   const correoEnviado =
     esNueva &&
     (await avisarAdmin(
@@ -109,7 +112,7 @@ export async function invitarAdmin(
  * Traspasa la presidencia del barrio a `datos.email` (crea la cuenta si falta, agrega a quien no era
  * del barrio, sube a quien era del equipo). Un solo `db.batch`: baja a la presidenta actual a
  * `equipo` *antes* de subir a la nueva (el índice único parcial no admite dos), así nunca quedan dos
- * ni ninguna. La anterior, si no hay (barrio sin presidenta), es `null`. Si el correo ya es de la
+ * ni ninguna. La anterior (la que bajó ese UPDATE) es `null` si el barrio no tenía presidenta. Si el correo ya es de la
  * presidenta → `"YA_ES_PRESIDENTA"`; carrera con otra cuenta del mismo correo o con otro traspaso → `null`.
  * Avisa a la nueva (bienvenida si todavía no elige su contraseña, si no "ahora eres presidenta");
  * el aviso a la anterior lo manda quien llama.
@@ -121,22 +124,25 @@ export async function traspasarPresidencia(
   barrio: { id: string; slug: string; nombre: string; idioma: Idioma },
   datos: { email: string; nombre: string; cargo: string | null },
 ) {
-  const anterior =
-    (await db
-      .select({ id: user.id, email: user.email, nombre: user.name })
-      .from(adminsBarrio)
-      .innerJoin(user, eq(user.id, adminsBarrio.userId))
-      .where(and(eq(adminsBarrio.barrioId, barrio.id), eq(adminsBarrio.rol, "presidenta")))
-      .get()) ?? null;
-
   const cuenta = await prepararCuentaAdmin(db, datos);
-  if (anterior && anterior.id === cuenta.userId) return "YA_ES_PRESIDENTA" as const;
+  const esLaActual = await db
+    .select({ userId: adminsBarrio.userId })
+    .from(adminsBarrio)
+    .where(and(eq(adminsBarrio.barrioId, barrio.id), eq(adminsBarrio.userId, cuenta.userId), eq(adminsBarrio.rol, "presidenta")))
+    .get();
+  if (esLaActual) return "YA_ES_PRESIDENTA" as const;
 
+  let bajada: { userId: string }[];
   try {
     const sentencias = [
       ...cuenta.sentencias,
-      // El cargo de la anterior ("Presidenta") ya no corresponde: se borra y ella lo escribe de nuevo si quiere.
-      db.update(adminsBarrio).set({ rol: "equipo", cargo: null }).where(and(eq(adminsBarrio.barrioId, barrio.id), eq(adminsBarrio.rol, "presidenta"))),
+      // La anterior sale del mismo UPDATE que la baja (no de una lectura previa): con dos traspasos a la
+      // vez, cada uno avisa a quien de verdad bajó. Su cargo ("Presidenta") ya no corresponde: se borra.
+      db
+        .update(adminsBarrio)
+        .set({ rol: "equipo", cargo: null })
+        .where(and(eq(adminsBarrio.barrioId, barrio.id), eq(adminsBarrio.rol, "presidenta")))
+        .returning({ userId: adminsBarrio.userId }),
       db
         .insert(adminsBarrio)
         .values({ userId: cuenta.userId, barrioId: barrio.id, cargo: datos.cargo, rol: "presidenta" })
@@ -145,31 +151,24 @@ export async function traspasarPresidencia(
           // Su cargo de equipo ("Primera consejera") ya no corresponde: queda el que se escribió o ninguno.
           set: { rol: "presidenta", cargo: datos.cargo },
         }),
-      // Los timestamps son en segundos: si ya se revisó en este mismo segundo, se adelanta uno para
-      // que el traspaso siempre quede posterior a la revisión y la tarjeta vuelva a salir.
-      db
-        .update(barrios)
-        .set({
-          presidenciaTraspasadaEn: sql`max(cast(strftime('%s', 'now') as integer), coalesce(${barrios.presidenciaRevisadaEn}, 0) + 1)`,
-        })
-        .where(eq(barrios.id, barrio.id)),
+      // La revisión queda pendiente hasta que la nueva presidenta la marque.
+      db.update(barrios).set({ presidenciaTraspasadaEn: new Date(), presidenciaRevisadaEn: null }).where(eq(barrios.id, barrio.id)),
     ] as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]];
-    await db.batch(sentencias);
+    const resultados = await db.batch(sentencias);
+    bajada = resultados[cuenta.sentencias.length] as { userId: string }[];
   } catch (err) {
     if (esViolacionUnica(err)) return null;
     throw err;
   }
 
-  const fila = await db
-    .select({ cargo: adminsBarrio.cargo })
-    .from(adminsBarrio)
-    .where(and(eq(adminsBarrio.userId, cuenta.userId), eq(adminsBarrio.barrioId, barrio.id)))
-    .get();
+  const anterior = bajada[0]
+    ? ((await db.select({ id: user.id, email: user.email, nombre: user.name }).from(user).where(eq(user.id, bajada[0].userId)).get()) ?? null)
+    : null;
   const correoEnviado = cuenta.debeCambiarPassword
     ? await avisarAdmin(env, origen, { id: cuenta.userId, email: datos.email, name: cuenta.nombre, debeCambiarPassword: true }, barrio)
     : await avisarPresidenciaRecibida(env, origen, barrio, { email: datos.email, nombre: cuenta.nombre });
   return {
-    nueva: { id: cuenta.userId, email: datos.email, nombre: cuenta.nombre, cargo: fila?.cargo ?? null },
+    nueva: { id: cuenta.userId, email: datos.email, nombre: cuenta.nombre, cargo: datos.cargo },
     anterior,
     cuentaNueva: cuenta.nueva !== null,
     correoEnviado,

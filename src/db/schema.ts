@@ -82,7 +82,7 @@ export const barrios = sqliteTable("barrios", {
   motivoEliminacion: text("motivo_eliminacion"),
   /** Último cambio de presidenta (traspaso). Lo lee la revisión de datos del barrio (#58). */
   presidenciaTraspasadaEn: integer("presidencia_traspasada_en", { mode: "timestamp" }),
-  /** Cuándo la nueva presidenta revisó el barrio tras el traspaso; null = pendiente. */
+  /** Cuándo la nueva presidenta revisó el barrio tras el traspaso; cada traspaso la deja en null (= pendiente). */
   presidenciaRevisadaEn: integer("presidencia_revisada_en", { mode: "timestamp" }),
   creadoEn: creadoEn(),
 });

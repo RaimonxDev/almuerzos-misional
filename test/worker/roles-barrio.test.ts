@@ -86,6 +86,15 @@ describe("GET /api/admin/yo", () => {
     const todos = (await (await pedir("/api/admin/yo", { cookie: root })).json<any>()).barrios;
     expect(todos.map((b: any) => b.rol)).toEqual([null, null]);
   });
+
+  it("el super admin que además es presidenta de un barrio recibe ese rol", async () => {
+    const root = await como("root@ejemplo.cl", { superAdmin: true, barrios: ["b1"], rol: "presidenta" });
+    const todos = (await (await pedir("/api/admin/yo", { cookie: root })).json<any>()).barrios;
+    expect(todos.map((b: any) => [b.slug, b.rol])).toEqual([
+      ["prueba", "presidenta"],
+      ["otro", null],
+    ]);
+  });
 });
 
 describe("migración 0007: conserva a los admins existentes", () => {
