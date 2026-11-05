@@ -420,6 +420,16 @@ export const pt: Mensajes = {
       compartir: "Compartilhar o link com as irmãs, e o link e o código com os missionários",
     },
   },
+  revisaPresidencia: {
+    titulo: "Revise sua presidência",
+    intro: "Agora você é a presidente da ala. Antes de continuar, revise quem mais tem acesso aos telefones.",
+    pasos: {
+      equipo: "Revisar a equipe e remover quem já não participa, incluindo a presidente anterior",
+      codigo: "Trocar o código dos missionários",
+      contacto: "Atualizar o contato do calendário impresso",
+    },
+    marcar: "Marcar como revisada",
+  },
   solicitudes: {
     titulo: "Solicitações de acesso",
     eliminaciones: "Pedidos de exclusão",

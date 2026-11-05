@@ -272,6 +272,10 @@ export const useTraspasarPresidencia = (slug: string) => {
   });
 };
 
+/** La presidenta da por revisada la tarjeta "Revisa tu presidencia" (el estado vive en el Worker). */
+export const useMarcarPresidenciaRevisada = (slug: string) =>
+  useMutacionBarrio(slug, () => datos(barrios[":slug"].presidencia.revisada.$post({ param: { slug } })), ["barrio"]);
+
 /** Quita a alguien del barrio → `{ cuentaBorrada }`. */
 export const useQuitarAdmin = (slug: string) =>
   useMutacionBarrio(

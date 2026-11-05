@@ -399,3 +399,73 @@ describe("traspasar la presidencia", () => {
     expect((await traspasar(cookie, { email: "no-es-correo", nombre: "x" })).status).toBe(400);
   });
 });
+
+describe("revisión de la presidencia tras un traspaso", () => {
+  const traspasar = (cookie: string, json: object) => pedir(`${RUTA}/presidencia`, { method: "POST", cookie, json });
+  const pendiente = async (cookie: string) => (await (await pedir(RUTA, { cookie })).json<any>()).revisionPresidenciaPendiente;
+  const marcar = (cookie: string) => pedir(`${RUTA}/presidencia/revisada`, { method: "POST", cookie });
+
+  it("sin traspaso no hay revisión pendiente", async () => {
+    const { cookie } = await como("pres@ejemplo.cl", { barrios: ["b1"], rol: "presidenta" });
+    expect(await pendiente(cookie)).toBe(false);
+  });
+
+  it("tras el traspaso la nueva presidenta la ve; marcarla la apaga y sigue apagada al volver a pedir", async () => {
+    const { cookie } = await como("pres@ejemplo.cl", { barrios: ["b1"], rol: "presidenta" });
+    const nueva = await (await traspasar(cookie, { email: "nueva@ejemplo.cl", nombre: "Hna. Nueva" })).json<any>();
+    const entra = await iniciarSesion("nueva@ejemplo.cl", nueva.passwordTemporal);
+    expect(await pendiente(entra)).toBe(true);
+
+    const res = await marcar(entra);
+    expect(res.status).toBe(200);
+    expect(await pendiente(entra)).toBe(false);
+    expect(await pendiente(entra)).toBe(false);
+  });
+
+  it("no la ven el equipo (incluida la presidenta anterior) ni el super admin, y no pueden marcarla", async () => {
+    const { cookie } = await como("pres@ejemplo.cl", { barrios: ["b1"], rol: "presidenta" });
+    const otro = await como("eq@ejemplo.cl", { barrios: ["b1"] });
+    const sup = await como("super@ejemplo.cl", { superAdmin: true });
+    await traspasar(cookie, { email: "nueva@ejemplo.cl", nombre: "Hna. Nueva" });
+    expect(await pendiente(cookie)).toBe(false); // la anterior ya es equipo
+    expect(await pendiente(otro.cookie)).toBe(false);
+    expect(await pendiente(sup.cookie)).toBe(false);
+    expect((await marcar(otro.cookie)).status).toBe(403);
+    expect((await marcar(cookie)).status).toBe(403);
+    const fila = await crearDb(env.DB).select().from(barrios).where(eq(barrios.id, "b1")).get();
+    expect(fila?.presidenciaRevisadaEn).toBeNull();
+  });
+
+  it("un traspaso nuevo la vuelve a mostrar, incluso en el mismo segundo de la revisión", async () => {
+    const { cookie } = await como("pres@ejemplo.cl", { barrios: ["b1"], rol: "presidenta" });
+    const nueva = await (await traspasar(cookie, { email: "nueva@ejemplo.cl", nombre: "Hna. Nueva" })).json<any>();
+    const entra = await iniciarSesion("nueva@ejemplo.cl", nueva.passwordTemporal);
+    await marcar(entra);
+    expect(await pendiente(entra)).toBe(false);
+
+    await traspasar(entra, { email: "pres@ejemplo.cl", nombre: "Hna. P" });
+    expect(await pendiente(cookie)).toBe(true);
+    expect(await pendiente(entra)).toBe(false);
+  });
+
+  it("requiere sesión de este barrio", async () => {
+    const ajena = await como("ajena@ejemplo.cl", { barrios: ["b2"], rol: "presidenta" });
+    expect((await marcar(ajena.cookie)).status).toBe(403);
+    expect((await pedir(`${RUTA}/presidencia/revisada`, { method: "POST" })).status).toBe(401);
+  });
+});
+
+describe("cargo de la presidenta anterior", () => {
+  it("al traspasar se borra su cargo; el de los demás no cambia", async () => {
+    const { cookie, id } = await como("pres@ejemplo.cl", { barrios: ["b1"], rol: "presidenta" });
+    const cons = await crearAdmin({ email: "cons@ejemplo.cl", barrios: ["b1"] });
+    const db = crearDb(env.DB);
+    await db.update(adminsBarrio).set({ cargo: "Presidenta" }).where(eq(adminsBarrio.userId, id));
+    await db.update(adminsBarrio).set({ cargo: "Consejera" }).where(eq(adminsBarrio.userId, cons.id));
+    await pedir(`${RUTA}/presidencia`, { method: "POST", cookie, json: { email: "nueva@ejemplo.cl", nombre: "Hna. Nueva", cargo: "Presidenta" } });
+    const filas = await db.select().from(adminsBarrio).where(eq(adminsBarrio.barrioId, "b1"));
+    const por = (uid: string) => filas.find((f) => f.userId === uid);
+    expect(por(id)).toMatchObject({ rol: "equipo", cargo: null });
+    expect(por(cons.id)).toMatchObject({ rol: "equipo", cargo: "Consejera" });
+  });
+});

@@ -426,6 +426,16 @@ export const es = {
       compartir: "Compartir el enlace con las hermanas, y el enlace y el código con los misioneros",
     },
   },
+  revisaPresidencia: {
+    titulo: "Revisa tu presidencia",
+    intro: "Ahora eres la presidenta del barrio. Antes de seguir, revisa quién más tiene acceso a los teléfonos.",
+    pasos: {
+      equipo: "Revisar el equipo y quitar a quienes ya no están, incluida la presidenta anterior",
+      codigo: "Cambiar el código de los misioneros",
+      contacto: "Actualizar el contacto del calendario impreso",
+    },
+    marcar: "Marcar como revisada",
+  },
   solicitudes: {
     titulo: "Solicitudes de acceso",
     eliminaciones: "Pedidos de eliminación",

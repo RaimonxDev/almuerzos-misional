@@ -417,6 +417,16 @@ export const en: Mensajes = {
       compartir: "Share the link with the sisters, and the link and code with the missionaries",
     },
   },
+  revisaPresidencia: {
+    titulo: "Review your presidency",
+    intro: "You are now the ward's president. Before going on, check who else has access to the phone numbers.",
+    pasos: {
+      equipo: "Review the team and remove anyone who is no longer part of it, including the previous president",
+      codigo: "Change the missionaries' access code",
+      contacto: "Update the contact on the printed calendar",
+    },
+    marcar: "Mark as reviewed",
+  },
   solicitudes: {
     titulo: "Access requests",
     eliminaciones: "Deletion requests",

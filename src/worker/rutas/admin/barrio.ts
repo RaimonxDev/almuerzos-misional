@@ -58,6 +58,10 @@ const listarCompanerismos = (db: Db, barrioId: string) =>
     .where(eq(companerismos.barrioId, barrioId))
     .orderBy(asc(companerismos.orden), asc(companerismos.nombre));
 
+/** Hubo un traspaso y la presidenta todavía no marcó "revisada" después de él. */
+export const revisionPendiente = (b: Pick<Barrio, "presidenciaTraspasadaEn" | "presidenciaRevisadaEn">) =>
+  b.presidenciaTraspasadaEn !== null && (b.presidenciaRevisadaEn === null || b.presidenciaRevisadaEn < b.presidenciaTraspasadaEn);
+
 const datosBarrio = (b: typeof barrios.$inferSelect) => ({
   slug: b.slug,
   nombre: b.nombre,
@@ -96,7 +100,12 @@ const sinIndefinidos = (o: Record<string, unknown>) => Object.fromEntries(Object
 export const rutasBarrio = new Hono<AppEnvBarrioAdmin>()
   .get("/", async (c) => {
     const { db, barrio } = c.var;
-    return c.json({ barrio: datosBarrio(barrio), companerismos: await listarCompanerismos(db, barrio.id) });
+    return c.json({
+      barrio: datosBarrio(barrio),
+      companerismos: await listarCompanerismos(db, barrio.id),
+      // Solo la presidenta la ve (ni el equipo ni el super admin, que no son quienes heredan el barrio).
+      revisionPresidenciaPendiente: c.var.rolBarrio === "presidenta" && revisionPendiente(barrio),
+    });
   })
 
   .patch("/", validar("json", esquemaBarrio), async (c) => {
@@ -129,6 +138,13 @@ export const rutasBarrio = new Hono<AppEnvBarrioAdmin>()
     const { db, barrio, usuario } = c.var;
     if (!esSuperAdmin(usuario)) return fallar(c, "SIN_PERMISO", 403);
     return c.json(await resumenEliminacion(db, barrio));
+  })
+
+  /** La presidenta marca "Revisa tu presidencia" como hecha (idempotente; el super admin también puede). */
+  .post("/presidencia/revisada", soloPresidenta, async (c) => {
+    const { db, barrio } = c.var;
+    await db.update(barrios).set({ presidenciaRevisadaEn: new Date() }).where(eq(barrios.id, barrio.id));
+    return c.json({ revisionPresidenciaPendiente: false });
   })
 
   /**

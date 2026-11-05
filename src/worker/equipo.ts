@@ -135,7 +135,8 @@ export async function traspasarPresidencia(
   try {
     const sentencias = [
       ...cuenta.sentencias,
-      db.update(adminsBarrio).set({ rol: "equipo" }).where(and(eq(adminsBarrio.barrioId, barrio.id), eq(adminsBarrio.rol, "presidenta"))),
+      // El cargo de la anterior ("Presidenta") ya no corresponde: se borra y ella lo escribe de nuevo si quiere.
+      db.update(adminsBarrio).set({ rol: "equipo", cargo: null }).where(and(eq(adminsBarrio.barrioId, barrio.id), eq(adminsBarrio.rol, "presidenta"))),
       db
         .insert(adminsBarrio)
         .values({ userId: cuenta.userId, barrioId: barrio.id, cargo: datos.cargo, rol: "presidenta" })
@@ -144,7 +145,14 @@ export async function traspasarPresidencia(
           // Quien ya estaba en el equipo conserva su cargo si no se escribió otro.
           set: { rol: "presidenta", cargo: sql`coalesce(excluded.cargo, ${adminsBarrio.cargo})` },
         }),
-      db.update(barrios).set({ presidenciaTraspasadaEn: new Date() }).where(eq(barrios.id, barrio.id)),
+      // Los timestamps son en segundos: si ya se revisó en este mismo segundo, se adelanta uno para
+      // que el traspaso siempre quede posterior a la revisión y la tarjeta vuelva a salir.
+      db
+        .update(barrios)
+        .set({
+          presidenciaTraspasadaEn: sql`max(cast(strftime('%s', 'now') as integer), coalesce(${barrios.presidenciaRevisadaEn}, 0) + 1)`,
+        })
+        .where(eq(barrios.id, barrio.id)),
     ] as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]];
     await db.batch(sentencias);
   } catch (err) {
