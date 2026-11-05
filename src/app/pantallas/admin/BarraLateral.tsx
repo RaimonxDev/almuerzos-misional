@@ -737,9 +737,8 @@ function AgregarCompanerismo({ slug }: { slug: string }) {
 
 /**
  * Administradores del barrio: los ve cualquier admin; la presidenta (y el super admin) invita, quita,
- * y con "Reenviar invitación" cubre el correo que no llegó: la bienvenida con un enlace nuevo si aún
- * no crean su contraseña, o el aviso de asignación. A quien aún no la crea también se le puede
- * corregir el correo o dar otra contraseña temporal.
+ * y a quien aún no crea su contraseña le puede reenviar la bienvenida con un enlace nuevo, corregirle
+ * el correo o darle otra contraseña temporal. Quien ya la eligió no necesita invitación.
  */
 function Administradores({ slug, puedeGestionar, esPresidenta }: { slug: string; puedeGestionar: boolean; esPresidenta: boolean }) {
   const { t } = useIdioma();
@@ -784,25 +783,25 @@ function Administradores({ slug, puedeGestionar, esPresidenta }: { slug: string;
                   <CorregirCorreo slug={slug} admin={a} alTerminar={() => setCorrigiendo(null)} />
                 ) : (
                   <div className="flex flex-wrap gap-x-4">
-                    <Button
-                      variant="ghost"
-                      aria-label={t.panel.reenviarInvitacionA(a.nombre)}
-                      disabled={reenviar.isPending}
-                      onClick={() =>
-                        reenviar.mutate(a.id, {
-                          onSuccess: ({ correoEnviado }) =>
-                            correoEnviado
-                              ? toast.success(t.panel.invitacionReenviada(a.email))
-                              : toast.error(t.panel.invitacionNoSalio),
-                          onError: (e) => toast.error(t.errores[codigoDe(e)]),
-                        })
-                      }
-                      className={accion}
-                    >
-                      {t.panel.reenviarInvitacion}
-                    </Button>
                     {a.debeCambiarPassword && (
                       <>
+                        <Button
+                          variant="ghost"
+                          aria-label={t.panel.reenviarInvitacionA(a.nombre)}
+                          disabled={reenviar.isPending}
+                          onClick={() =>
+                            reenviar.mutate(a.id, {
+                              onSuccess: ({ correoEnviado }) =>
+                                correoEnviado
+                                  ? toast.success(t.panel.invitacionReenviada(a.email))
+                                  : toast.error(t.panel.invitacionNoSalio),
+                              onError: (e) => toast.error(t.errores[codigoDe(e)]),
+                            })
+                          }
+                          className={accion}
+                        >
+                          {t.panel.reenviarInvitacion}
+                        </Button>
                         <Button
                           variant="ghost"
                           aria-label={t.panel.corregirCorreoA(a.nombre)}

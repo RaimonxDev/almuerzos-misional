@@ -873,6 +873,8 @@ describe("Panel: enlaces, misioneros y gestión del mes", () => {
     expect(await within(seccion).findByText("Hna. Rojas")).toBeInTheDocument();
     expect(within(seccion).getByText("Presidenta · rojas@ejemplo.cl")).toBeInTheDocument();
     expect(within(seccion).getAllByText("Aún no crea su contraseña")).toHaveLength(1);
+    // Hna. Soto ya eligió su contraseña: no hay invitación que reenviar.
+    expect(within(seccion).queryByRole("button", { name: "Reenviar la invitación a Hna. Soto" })).not.toBeInTheDocument();
 
     await user.click(within(seccion).getByRole("button", { name: "Reenviar la invitación a Hna. Rojas" }));
     await waitFor(() => expect(llamadas(api, "POST", `${RUTA_BARRIO}/admins/u-9/invitacion`)).toHaveLength(1));
