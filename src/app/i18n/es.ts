@@ -348,6 +348,28 @@ export const es = {
     quitarAdminTexto: "Dejará de ver este barrio y se cerrará su sesión. Si no administra otro barrio, también borramos su cuenta. Lo que anotó a mano se conserva.",
     siQuitarAdmin: "Sí, quitar",
     adminQuitado: (nombre: string) => `${nombre} ya no administra este barrio.`,
+    traspasar: "Traspasar la presidencia",
+    traspasarAyuda:
+      "Para relevar a la presidenta: escribe el correo y el nombre de quien la reemplaza. Si ya está en el equipo, solo cambia su rol; si no tiene cuenta, se la creamos.",
+    traspasarCorreo: "Correo de la nueva presidenta",
+    traspasarNombre: "Nombre de la nueva presidenta",
+    continuar: "Continuar",
+    hacerPresidenta: "Hacer presidenta",
+    hacerPresidentaA: (nombre: string) => `Hacer presidenta a ${nombre}`,
+    traspasarTitulo: (nombre: string) => `¿Traspasar la presidencia a ${nombre}?`,
+    traspasarTextoPresidenta: (nombre: string) =>
+      `${nombre} será la presidenta de inmediato y podrá invitar y quitar personas, también a ti. Tú quedarás en el equipo: seguirás viendo y editando el calendario, pero ya no podrás invitar ni quitar personas ni traspasar la presidencia.`,
+    traspasarTextoSuper: (nombre: string, anterior: string | null) =>
+      anterior
+        ? `${nombre} será la presidenta de inmediato. ${anterior} quedará en el equipo: seguirá viendo y editando el calendario, pero ya no podrá invitar ni quitar personas.`
+        : `${nombre} será la presidenta de inmediato.`,
+    traspasarInmediato: "El cambio es inmediato",
+    traspasarAviso: "Les avisamos a las dos por correo.",
+    siTraspasar: "Sí, traspasar",
+    traspasoHecho: (nombre: string) => `${nombre} es ahora la presidenta.`,
+    traspasoSinCorreo: (nombre: string) => `${nombre} es ahora la presidenta, pero el correo no salió. Avísale tú.`,
+    traspasoTitulo: "Cuenta creada",
+    traspasoTexto: "Ya es la presidenta, pero no pudimos enviarle el correo. Envíale estos datos por WhatsApp: la contraseña no se vuelve a mostrar.",
     misioneros: "Misioneros del barrio",
     activo: "Activo",
     inactivoInsignia: "Inactivo",
@@ -568,6 +590,7 @@ export const es = {
     SLUG_EXISTENTE: "Ya existe un barrio con ese enlace.",
     CORREO_EXISTENTE: "Ese correo ya tiene otra cuenta.",
     ES_PRESIDENTA: "No se puede quitar a la presidenta del barrio.",
+    YA_ES_PRESIDENTA: "Esa persona ya es la presidenta.",
     CUENTA_EN_USO: "Esta persona ya creó su contraseña: su cuenta no se puede cambiar desde aquí.",
     MES_EXISTENTE: "Ese mes ya existe.",
     TRANSICION_INVALIDA: "No se puede cambiar el mes a ese estado.",

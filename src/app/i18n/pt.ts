@@ -342,6 +342,28 @@ export const pt: Mensajes = {
     quitarAdminTexto: "Ela deixará de ver esta ala e sua sessão será encerrada. Se não administrar outra ala, também apagamos a conta dela. O que ela anotou à mão é mantido.",
     siQuitarAdmin: "Sim, remover",
     adminQuitado: (nombre: string) => `${nombre} não administra mais esta ala.`,
+    traspasar: "Transferir a presidência",
+    traspasarAyuda:
+      "Para substituir a presidente: escreva o e-mail e o nome de quem a substitui. Se já está na equipe, só muda o papel; se não tem conta, nós a criamos.",
+    traspasarCorreo: "E-mail da nova presidente",
+    traspasarNombre: "Nome da nova presidente",
+    continuar: "Continuar",
+    hacerPresidenta: "Tornar presidente",
+    hacerPresidentaA: (nombre: string) => `Tornar ${nombre} presidente`,
+    traspasarTitulo: (nombre: string) => `Transferir a presidência para ${nombre}?`,
+    traspasarTextoPresidenta: (nombre: string) =>
+      `${nombre} será a presidente imediatamente e poderá convidar e remover pessoas, inclusive você. Você ficará na equipe: continuará vendo e editando o calendário, mas não poderá mais convidar nem remover pessoas nem transferir a presidência.`,
+    traspasarTextoSuper: (nombre: string, anterior: string | null) =>
+      anterior
+        ? `${nombre} será a presidente imediatamente. ${anterior} ficará na equipe: continuará vendo e editando o calendário, mas não poderá mais convidar nem remover pessoas.`
+        : `${nombre} será a presidente imediatamente.`,
+    traspasarInmediato: "A mudança é imediata",
+    traspasarAviso: "Avisamos as duas por e-mail.",
+    siTraspasar: "Sim, transferir",
+    traspasoHecho: (nombre: string) => `${nombre} agora é a presidente.`,
+    traspasoSinCorreo: (nombre: string) => `${nombre} agora é a presidente, mas o e-mail não saiu. Avise você.`,
+    traspasoTitulo: "Conta criada",
+    traspasoTexto: "Ela já é a presidente, mas não conseguimos enviar o e-mail. Envie estes dados por WhatsApp: a senha não é mostrada de novo.",
     misioneros: "Missionários da ala",
     activo: "Ativo",
     inactivoInsignia: "Inativo",
@@ -562,6 +584,7 @@ export const pt: Mensajes = {
     SLUG_EXISTENTE: "Já existe uma ala com esse link.",
     CORREO_EXISTENTE: "Esse e-mail já tem outra conta.",
     ES_PRESIDENTA: "Não é possível remover a presidente da ala.",
+    YA_ES_PRESIDENTA: "Essa pessoa já é a presidente.",
     CUENTA_EN_USO: "Essa pessoa já criou a senha: a conta dela não pode ser alterada aqui.",
     MES_EXISTENTE: "Esse mês já existe.",
     TRANSICION_INVALIDA: "Não é possível mudar o mês para esse estado.",

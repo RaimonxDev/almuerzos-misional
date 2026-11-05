@@ -84,6 +84,8 @@ describe("plantillas de correo", () => {
     eliminacionSolicitada: { nombre: "Ana", email: "ana@ejemplo.cl", barrio: "Centro", motivo: "Ya no la usamos", enlace: "https://ejemplo.cl/admin/centro" },
     barrioEliminado: { nombre: "Ana", barrio: "Centro", cuentaBorrada: true },
     accesoQuitado: { nombre: "Ana", barrio: "Centro", cuentaBorrada: true },
+    presidenciaRecibida: { nombre: "Ana", barrio: "Centro", enlace: "https://ejemplo.cl/admin/centro" },
+    presidenciaTraspasada: { nombre: "Ana", barrio: "Centro", nueva: "Hna. Rojas" },
   } as const;
   const plantillas = Object.keys(datos) as (keyof typeof datos)[];
 

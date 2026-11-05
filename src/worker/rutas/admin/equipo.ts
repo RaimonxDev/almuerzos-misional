@@ -5,10 +5,10 @@ import { account, session, user } from "@/db/auth-schema";
 import { adminsBarrio } from "@/db/schema";
 import { hashPassword } from "@/shared/password";
 import { borrarEnlacesRestablecer } from "../../auth";
-import { avisarAccesoQuitado } from "../../avisos-solicitudes";
+import { avisarAccesoQuitado, avisarPresidenciaTraspasada } from "../../avisos-solicitudes";
 import { passwordTemporal } from "../../barrios";
 import type { AppEnvBarrioAdmin } from "../../contexto";
-import { invitarAdmin } from "../../equipo";
+import { invitarAdmin, traspasarPresidencia } from "../../equipo";
 import { esViolacionUnica, fallar, origenDe, validar } from "../../http";
 import { avisarAdmin } from "../../invitaciones";
 import { paramsBarrio } from "../../params";
@@ -133,6 +133,27 @@ export const rutasEquipo = new Hono<AppEnvBarrioAdmin>()
       db.delete(session).where(eq(session.userId, userId)),
     ]);
     return c.json({ email: persona.email, passwordTemporal: password });
+  })
+
+  /**
+   * Traspasar la presidencia (la presidenta o el super admin, aunque la anterior no responda o el
+   * barrio no tenga). La nueva queda `presidenta` y la anterior `equipo`, en un solo batch. Crea la
+   * cuenta si el correo no la tiene (`passwordTemporal` solo si el correo no salió); a quien ya
+   * es la presidenta, 422 `YA_ES_PRESIDENTA`. Avisa a ambas en el idioma del barrio.
+   */
+  .post("/presidencia", soloPresidenta, validar("json", esquemaInvitar), async (c) => {
+    const { db, barrio } = c.var;
+    const r = await traspasarPresidencia(db, c.env, origenDe(c.req.url), barrio, c.req.valid("json"));
+    if (r === "YA_ES_PRESIDENTA") return fallar(c, "YA_ES_PRESIDENTA", 422);
+    if (!r) return fallar(c, "CORREO_EXISTENTE", 409);
+    if (r.anterior) c.executionCtx.waitUntil(avisarPresidenciaTraspasada(c.env, barrio, r.anterior, r.nueva.nombre));
+    return c.json({
+      presidenta: { id: r.nueva.id, email: r.nueva.email, nombre: r.nueva.nombre, cargo: r.nueva.cargo, rol: "presidenta" as const },
+      anterior: r.anterior && { id: r.anterior.id, email: r.anterior.email, nombre: r.anterior.nombre },
+      cuentaNueva: r.cuentaNueva,
+      correoEnviado: r.correoEnviado,
+      passwordTemporal: r.passwordTemporal,
+    });
   })
 
   /**

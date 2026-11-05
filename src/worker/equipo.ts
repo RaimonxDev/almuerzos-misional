@@ -1,12 +1,13 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import type { Db } from "@/db";
 import { account, user } from "@/db/auth-schema";
-import { adminsBarrio } from "@/db/schema";
+import { adminsBarrio, barrios } from "@/db/schema";
 import type { Idioma } from "@/shared/idiomas";
 import { hashPassword } from "@/shared/password";
 import type { RolBarrio } from "@/shared/roles";
 import { passwordTemporal } from "./barrios";
+import { avisarPresidenciaRecibida } from "./avisos-solicitudes";
 import { avisarAdmin } from "./invitaciones";
 import { esViolacionUnica } from "./http";
 
@@ -100,6 +101,70 @@ export async function invitarAdmin(
     esNueva,
     correoEnviado,
     // La contraseña temporal se entrega solo esta vez y solo si el correo no salió.
+    passwordTemporal: cuenta.nueva && !correoEnviado ? cuenta.nueva.password : null,
+  };
+}
+
+/**
+ * Traspasa la presidencia del barrio a `datos.email` (crea la cuenta si falta, agrega a quien no era
+ * del barrio, sube a quien era del equipo). Un solo `db.batch`: baja a la presidenta actual a
+ * `equipo` *antes* de subir a la nueva (el índice único parcial no admite dos), así nunca quedan dos
+ * ni ninguna. La anterior, si no hay (barrio sin presidenta), es `null`. Si el correo ya es de la
+ * presidenta → `"YA_ES_PRESIDENTA"`; carrera con otra cuenta del mismo correo o con otro traspaso → `null`.
+ * Avisa a la nueva (bienvenida si todavía no elige su contraseña, si no "ahora eres presidenta");
+ * el aviso a la anterior lo manda quien llama.
+ */
+export async function traspasarPresidencia(
+  db: Db,
+  env: Env,
+  origen: string,
+  barrio: { id: string; slug: string; nombre: string; idioma: Idioma },
+  datos: { email: string; nombre: string; cargo: string | null },
+) {
+  const anterior =
+    (await db
+      .select({ id: user.id, email: user.email, nombre: user.name })
+      .from(adminsBarrio)
+      .innerJoin(user, eq(user.id, adminsBarrio.userId))
+      .where(and(eq(adminsBarrio.barrioId, barrio.id), eq(adminsBarrio.rol, "presidenta")))
+      .get()) ?? null;
+
+  const cuenta = await prepararCuentaAdmin(db, datos);
+  if (anterior && anterior.id === cuenta.userId) return "YA_ES_PRESIDENTA" as const;
+
+  try {
+    const sentencias = [
+      ...cuenta.sentencias,
+      db.update(adminsBarrio).set({ rol: "equipo" }).where(and(eq(adminsBarrio.barrioId, barrio.id), eq(adminsBarrio.rol, "presidenta"))),
+      db
+        .insert(adminsBarrio)
+        .values({ userId: cuenta.userId, barrioId: barrio.id, cargo: datos.cargo, rol: "presidenta" })
+        .onConflictDoUpdate({
+          target: [adminsBarrio.userId, adminsBarrio.barrioId],
+          // Quien ya estaba en el equipo conserva su cargo si no se escribió otro.
+          set: { rol: "presidenta", cargo: sql`coalesce(excluded.cargo, ${adminsBarrio.cargo})` },
+        }),
+      db.update(barrios).set({ presidenciaTraspasadaEn: new Date() }).where(eq(barrios.id, barrio.id)),
+    ] as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]];
+    await db.batch(sentencias);
+  } catch (err) {
+    if (esViolacionUnica(err)) return null;
+    throw err;
+  }
+
+  const fila = await db
+    .select({ cargo: adminsBarrio.cargo })
+    .from(adminsBarrio)
+    .where(and(eq(adminsBarrio.userId, cuenta.userId), eq(adminsBarrio.barrioId, barrio.id)))
+    .get();
+  const correoEnviado = cuenta.debeCambiarPassword
+    ? await avisarAdmin(env, origen, { id: cuenta.userId, email: datos.email, name: cuenta.nombre, debeCambiarPassword: true }, barrio)
+    : await avisarPresidenciaRecibida(env, origen, barrio, { email: datos.email, nombre: cuenta.nombre });
+  return {
+    nueva: { id: cuenta.userId, email: datos.email, nombre: cuenta.nombre, cargo: fila?.cargo ?? null },
+    anterior,
+    cuentaNueva: cuenta.nueva !== null,
+    correoEnviado,
     passwordTemporal: cuenta.nueva && !correoEnviado ? cuenta.nueva.password : null,
   };
 }

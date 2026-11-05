@@ -103,4 +103,25 @@ export const en: MensajesCorreo = {
     ],
     pie: "You're receiving this email because you managed this ward on Missionary Lunch. It is a personal project, not an official Church site.",
   }),
+  presidenciaRecibida: ({ nombre, barrio, enlace }) => ({
+    asunto: `You are now the president of ${barrio}`,
+    titulo: "You are the new president",
+    saludo: `Hi ${nombre},`,
+    parrafos: [
+      `The presidency of ${barrio} on Missionary Lunch was passed to you. You can now invite or remove team members and hand over the presidency.`,
+      "Check that the team, the links, and the missionaries' code are up to date.",
+    ],
+    boton: { texto: `Open ${barrio}`, enlace },
+    nota: "Sign in with your usual email and password.",
+  }),
+  presidenciaTraspasada: ({ nombre, barrio, nueva }) => ({
+    asunto: `You handed over the presidency of ${barrio}`,
+    titulo: "Presidency handed over",
+    saludo: `Hi ${nombre},`,
+    parrafos: [
+      `${nueva} is now the president of ${barrio} on Missionary Lunch. You stay on the team: you can view and edit the calendar, but you can no longer invite or remove people.`,
+      "If you think this was a mistake, talk to the new president or to whoever runs the app.",
+    ],
+    pie: "You're receiving this email because you managed this ward on Missionary Lunch. It is a personal project, not an official Church site.",
+  }),
 };

@@ -156,6 +156,7 @@ function PanelBarrio({ slug }: { slug: string }) {
           superAdmin={superAdmin}
           puedeEliminar={superAdmin || rol === "presidenta"}
           puedeGestionarEquipo={superAdmin || rol === "presidenta"}
+          esPresidenta={rol === "presidenta"}
         />
       </div>
     </>

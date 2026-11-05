@@ -339,6 +339,28 @@ export const en: Mensajes = {
     quitarAdminTexto: "They will stop seeing this ward and be signed out. If they don't manage another ward, we also delete their account. Anything they signed up by hand is kept.",
     siQuitarAdmin: "Yes, remove",
     adminQuitado: (nombre: string) => `${nombre} no longer manages this ward.`,
+    traspasar: "Hand over the presidency",
+    traspasarAyuda:
+      "To replace the president: enter the email and name of who takes over. If they are already on the team, only their role changes; if they have no account, we create one.",
+    traspasarCorreo: "New president's email",
+    traspasarNombre: "New president's name",
+    continuar: "Continue",
+    hacerPresidenta: "Make president",
+    hacerPresidentaA: (nombre: string) => `Make ${nombre} president`,
+    traspasarTitulo: (nombre: string) => `Hand over the presidency to ${nombre}?`,
+    traspasarTextoPresidenta: (nombre: string) =>
+      `${nombre} becomes president right away and can invite and remove people, including you. You will stay on the team: you can still view and edit the calendar, but you can no longer invite or remove people or hand over the presidency.`,
+    traspasarTextoSuper: (nombre: string, anterior: string | null) =>
+      anterior
+        ? `${nombre} becomes president right away. ${anterior} moves to the team: they can still view and edit the calendar, but can no longer invite or remove people.`
+        : `${nombre} becomes president right away.`,
+    traspasarInmediato: "The change is immediate",
+    traspasarAviso: "We email both of them.",
+    siTraspasar: "Yes, hand over",
+    traspasoHecho: (nombre: string) => `${nombre} is now the president.`,
+    traspasoSinCorreo: (nombre: string) => `${nombre} is now the president, but the email didn't go out. Let them know yourself.`,
+    traspasoTitulo: "Account created",
+    traspasoTexto: "She is now the president, but we couldn't send the email. Send her these details on WhatsApp: the password is not shown again.",
     misioneros: "Ward missionaries",
     activo: "Active",
     inactivoInsignia: "Inactive",
@@ -559,6 +581,7 @@ export const en: Mensajes = {
     SLUG_EXISTENTE: "A ward with that link already exists.",
     CORREO_EXISTENTE: "That email already has another account.",
     ES_PRESIDENTA: "The ward's president can't be removed.",
+    YA_ES_PRESIDENTA: "That person is already the president.",
     CUENTA_EN_USO: "This person already created their password: their account can't be changed here.",
     MES_EXISTENTE: "That month already exists.",
     TRANSICION_INVALIDA: "The month can't be changed to that status.",

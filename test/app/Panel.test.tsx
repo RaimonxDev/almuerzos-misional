@@ -719,6 +719,140 @@ describe("Panel: enlaces, misioneros y gestión del mes", () => {
     });
   });
 
+  describe("traspasar la presidencia", () => {
+    const ADMINS = {
+      admins: [
+        { id: "u-1", email: "presidenta@ejemplo.cl", nombre: "Hna. Pérez", cargo: "Presidenta", rol: "presidenta", debeCambiarPassword: false },
+        { id: "u-8", email: "soto@ejemplo.cl", nombre: "Hna. Soto", cargo: "Secretaria", rol: "equipo", debeCambiarPassword: false },
+      ],
+    };
+    const RESPUESTA = {
+      presidenta: { id: "u-8", email: "soto@ejemplo.cl", nombre: "Hna. Soto", cargo: "Secretaria", rol: "presidenta" },
+      anterior: { id: "u-1", email: "presidenta@ejemplo.cl", nombre: "Hna. Pérez" },
+      cuentaNueva: false,
+      correoEnviado: true,
+      passwordTemporal: null,
+    };
+    const yoCon = (rol: "presidenta" | "equipo", superAdmin = false) => ({
+      usuario: { ...YO.usuario, superAdmin },
+      barrios: [{ ...YO.barrios[0], rol }],
+    });
+    const seccionAdmins = async () =>
+      (await screen.findByRole("heading", { name: "Administradores" })).closest("section")!;
+
+    it("la presidenta traspasa a alguien nuevo tras leer qué le pasa a ella, y deja de ver las acciones", async () => {
+      const user = userEvent.setup();
+      let traspasado = false;
+      api = simular({
+        "/api/admin/yo": () => ({ json: yoCon(traspasado ? "equipo" : "presidenta") }),
+        [`${RUTA_BARRIO}/presidencia`]: () => {
+          traspasado = true;
+          return { json: { ...RESPUESTA, presidenta: { ...RESPUESTA.presidenta, email: "rojas@ejemplo.cl", nombre: "Hna. Rojas" } } };
+        },
+        [`${RUTA_BARRIO}/admins`]: { json: ADMINS },
+      });
+      await abrirPanel();
+      const seccion = await seccionAdmins();
+      await within(seccion).findByText("Hna. Soto");
+      await user.click(within(seccion).getByRole("button", { name: "Traspasar la presidencia" }));
+      await user.type(within(seccion).getByLabelText("Correo de la nueva presidenta"), "rojas@ejemplo.cl");
+      await user.type(within(seccion).getByLabelText("Nombre de la nueva presidenta"), "Hna. Rojas");
+      await user.click(within(seccion).getByRole("button", { name: "Continuar" }));
+
+      const dialogo = await screen.findByRole("dialog", { name: "¿Traspasar la presidencia a Hna. Rojas?" });
+      expect(within(dialogo).getByText(/quedarás en el equipo/i)).toBeInTheDocument();
+      expect(within(dialogo).getByText(/ya no podrás invitar ni quitar/i)).toBeInTheDocument();
+      expect(llamadas(api, "POST", `${RUTA_BARRIO}/presidencia`)).toHaveLength(0);
+
+      await user.click(within(dialogo).getByRole("button", { name: "Sí, traspasar" }));
+      await waitFor(() =>
+        expect(llamadas(api, "POST", `${RUTA_BARRIO}/presidencia`)).toEqual([{ email: "rojas@ejemplo.cl", nombre: "Hna. Rojas" }]),
+      );
+      // La interfaz se refresca: ya es equipo y desaparecen las acciones de gestión.
+      await waitFor(() => expect(screen.queryByRole("button", { name: "Traspasar la presidencia" })).not.toBeInTheDocument());
+      expect(screen.queryByRole("button", { name: "Invitar a alguien del equipo" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    it("se puede elegir a alguien del equipo desde su fila", async () => {
+      const user = userEvent.setup();
+      api = simular({
+        "/api/admin/yo": { json: yoCon("presidenta") },
+        [`${RUTA_BARRIO}/presidencia`]: { json: RESPUESTA },
+        [`${RUTA_BARRIO}/admins`]: { json: ADMINS },
+      });
+      await abrirPanel();
+      const seccion = await seccionAdmins();
+      await within(seccion).findByText("Hna. Soto");
+      // A la presidenta no se le ofrece.
+      expect(within(seccion).queryByRole("button", { name: "Hacer presidenta a Hna. Pérez" })).not.toBeInTheDocument();
+      await user.click(within(seccion).getByRole("button", { name: "Hacer presidenta a Hna. Soto" }));
+      await user.click(await screen.findByRole("button", { name: "Sí, traspasar" }));
+      await waitFor(() =>
+        expect(llamadas(api, "POST", `${RUTA_BARRIO}/presidencia`)).toEqual([{ email: "soto@ejemplo.cl", nombre: "Hna. Soto" }]),
+      );
+    });
+
+    it("si el correo no salió y la cuenta es nueva, muestra la contraseña temporal", async () => {
+      const user = userEvent.setup();
+      api = simular({
+        "/api/admin/yo": { json: yoCon("presidenta") },
+        [`${RUTA_BARRIO}/presidencia`]: {
+          json: { ...RESPUESTA, cuentaNueva: true, correoEnviado: false, passwordTemporal: "abcd-efgh-jkmn" },
+        },
+        [`${RUTA_BARRIO}/admins`]: { json: ADMINS },
+      });
+      await abrirPanel();
+      const seccion = await seccionAdmins();
+      await user.click(await within(seccion).findByRole("button", { name: "Traspasar la presidencia" }));
+      await user.type(within(seccion).getByLabelText("Correo de la nueva presidenta"), "soto@ejemplo.cl");
+      await user.type(within(seccion).getByLabelText("Nombre de la nueva presidenta"), "Hna. Soto");
+      await user.click(within(seccion).getByRole("button", { name: "Continuar" }));
+      await user.click(await screen.findByRole("button", { name: "Sí, traspasar" }));
+      const datos = await screen.findByRole("dialog", { name: "Cuenta creada" });
+      expect(within(datos).getByText("abcd-efgh-jkmn")).toBeInTheDocument();
+    });
+
+    it("el equipo no ve cómo traspasar", async () => {
+      api = simular({ "/api/admin/yo": { json: yoCon("equipo") }, [`${RUTA_BARRIO}/admins`]: { json: ADMINS } });
+      await abrirPanel();
+      const seccion = await seccionAdmins();
+      await within(seccion).findByText("Hna. Soto");
+      expect(screen.queryByRole("button", { name: "Traspasar la presidencia" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Hacer presidenta/ })).not.toBeInTheDocument();
+    });
+
+    it("el super admin traspasa en un barrio sin presidenta y el texto no habla de 'tú'", async () => {
+      const user = userEvent.setup();
+      api = simular({
+        "/api/admin/yo": { json: { usuario: { ...YO.usuario, superAdmin: true }, barrios: [{ slug: "centro", nombre: "Barrio Centro", cargo: null }] } },
+        [`${RUTA_BARRIO}/presidencia`]: { json: { ...RESPUESTA, anterior: null } },
+        [`${RUTA_BARRIO}/admins`]: { json: { admins: [ADMINS.admins[1]] } },
+      });
+      await abrirPanel();
+      const seccion = await seccionAdmins();
+      await user.click(await within(seccion).findByRole("button", { name: "Hacer presidenta a Hna. Soto" }));
+      const dialogo = await screen.findByRole("dialog", { name: "¿Traspasar la presidencia a Hna. Soto?" });
+      expect(within(dialogo).queryByText(/quedarás/i)).not.toBeInTheDocument();
+      await user.click(within(dialogo).getByRole("button", { name: "Sí, traspasar" }));
+      await waitFor(() => expect(llamadas(api, "POST", `${RUTA_BARRIO}/presidencia`)).toHaveLength(1));
+    });
+
+    it("traduce el error si la persona ya es la presidenta", async () => {
+      const user = userEvent.setup();
+      api = simular({
+        "/api/admin/yo": { json: yoCon("presidenta") },
+        [`${RUTA_BARRIO}/presidencia`]: { status: 422, json: { error: "YA_ES_PRESIDENTA" } },
+        [`${RUTA_BARRIO}/admins`]: { json: ADMINS },
+      });
+      await abrirPanel();
+      const seccion = await seccionAdmins();
+      await user.click(await within(seccion).findByRole("button", { name: "Hacer presidenta a Hna. Soto" }));
+      await user.click(await screen.findByRole("button", { name: "Sí, traspasar" }));
+      expect(await screen.findByText("Esa persona ya es la presidenta.")).toBeInTheDocument();
+    });
+  });
+
   it("el super admin ve los administradores y reenvía la invitación a quien no creó su contraseña", async () => {
     const user = userEvent.setup();
     api = simular({

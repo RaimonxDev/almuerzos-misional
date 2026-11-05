@@ -256,6 +256,22 @@ export const useInvitarAdmin = (slug: string) =>
     ["admins"],
   );
 
+/**
+ * Traspasa la presidencia → `{ presidenta, anterior, cuentaNueva, correoEnviado, passwordTemporal }`.
+ * Cambia el rol de quien la hace, así que también se vuelve a pedir `yo`.
+ */
+export const useTraspasarPresidencia = (slug: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (json: { email: string; nombre: string; cargo?: string }) =>
+      datos(barrios[":slug"].presidencia.$post({ param: { slug }, json })),
+    onSettled: () => {
+      invalidar(queryClient, slug, ["admins", "barrio"]);
+      return queryClient.invalidateQueries({ queryKey: ["admin", "yo"] });
+    },
+  });
+};
+
 /** Quita a alguien del barrio → `{ cuentaBorrada }`. */
 export const useQuitarAdmin = (slug: string) =>
   useMutacionBarrio(
