@@ -44,6 +44,12 @@ export interface DatosCorreo {
   eliminacionSolicitada: { nombre: string; email: string; barrio: string; motivo: string | null; enlace: string };
   /** A cada admin de un barrio borrado; `cuentaBorrada` si no le queda otro barrio. */
   barrioEliminado: { nombre: string; barrio: string; cuentaBorrada: boolean };
+  /** A quien la presidenta quitó del equipo; `cuentaBorrada` si no le queda otro barrio. */
+  accesoQuitado: { nombre: string; barrio: string; cuentaBorrada: boolean };
+  /** A quien recibe la presidencia y ya tenía cuenta con contraseña; `enlace` abre el panel del barrio. */
+  presidenciaRecibida: { nombre: string; barrio: string; enlace: string };
+  /** A la presidenta anterior: sigue en el equipo; `nueva` es quien la releva. */
+  presidenciaTraspasada: { nombre: string; barrio: string; nueva: string };
 }
 
 export type PlantillaCorreo = keyof DatosCorreo;
@@ -146,6 +152,38 @@ export const es: MensajesCorreo = {
       `Eliminamos ${barrio} de Almuerzo Misional, junto con sus calendarios, inscripciones e imágenes. Sus enlaces ya no funcionan.`,
       ...(cuentaBorrada ? ["Como no administrabas otro barrio, también borramos tu cuenta."] : []),
       "Gracias por el tiempo que lo usaron.",
+    ],
+    pie: "Recibes este correo porque administrabas este barrio en Almuerzo Misional. Es un proyecto personal, no oficial de la Iglesia.",
+  }),
+  accesoQuitado: ({ nombre, barrio, cuentaBorrada }) => ({
+    asunto: `Ya no administras ${barrio}`,
+    titulo: "Acceso quitado",
+    saludo: `Hola, ${nombre}:`,
+    parrafos: [
+      `Te quitaron el acceso a ${barrio} en Almuerzo Misional. Ya no aparece en tu panel.`,
+      ...(cuentaBorrada ? ["Como no administrabas otro barrio, también borramos tu cuenta."] : []),
+      "Si crees que fue un error, habla con la presidenta de la Sociedad de Socorro.",
+    ],
+    pie: "Recibes este correo porque administrabas este barrio en Almuerzo Misional. Es un proyecto personal, no oficial de la Iglesia.",
+  }),
+  presidenciaRecibida: ({ nombre, barrio, enlace }) => ({
+    asunto: `Ahora eres la presidenta de ${barrio}`,
+    titulo: "Eres la nueva presidenta",
+    saludo: `Hola, ${nombre}:`,
+    parrafos: [
+      `Te pasaron la presidencia de ${barrio} en Almuerzo Misional. Ahora puedes invitar o quitar personas del equipo y traspasar la presidencia.`,
+      "Revisa que el equipo, los enlaces y el código de los misioneros estén al día.",
+    ],
+    boton: { texto: `Abrir ${barrio}`, enlace },
+    nota: "Entra con tu correo y tu contraseña de siempre.",
+  }),
+  presidenciaTraspasada: ({ nombre, barrio, nueva }) => ({
+    asunto: `Pasaste la presidencia de ${barrio}`,
+    titulo: "Presidencia traspasada",
+    saludo: `Hola, ${nombre}:`,
+    parrafos: [
+      `${nueva} es ahora la presidenta de ${barrio} en Almuerzo Misional. Tú sigues en el equipo: ves y editas el calendario, pero ya no puedes invitar ni quitar personas.`,
+      "Si crees que fue un error, habla con la nueva presidenta o con quien administra la app.",
     ],
     pie: "Recibes este correo porque administrabas este barrio en Almuerzo Misional. Es un proyecto personal, no oficial de la Iglesia.",
   }),

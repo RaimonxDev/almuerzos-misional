@@ -233,7 +233,7 @@ export const useQuitarImagen = (slug: string, periodo: string) =>
     ["mes"],
   );
 
-/** Admins del barrio, con si les falta crear la contraseña. Solo para el super admin. */
+/** Admins del barrio, con su rol y si les falta crear la contraseña. Los ve cualquier admin del barrio. */
 export const useAdminsBarrio = (slug: string) =>
   useQuery({
     queryKey: claves.admins(slug),
@@ -245,6 +245,42 @@ export const useReenviarInvitacion = (slug: string) =>
   useMutacionBarrio(
     slug,
     (userId: string) => datos(barrios[":slug"].admins[":userId"].invitacion.$post({ param: { slug, userId } })),
+    ["admins"],
+  );
+
+/** Invita al equipo (crea la cuenta si el correo no tiene) → `{ admin, cuentaNueva, correoEnviado, passwordTemporal }`. */
+export const useInvitarAdmin = (slug: string) =>
+  useMutacionBarrio(
+    slug,
+    (json: { email: string; nombre: string; cargo?: string }) => datos(barrios[":slug"].admins.$post({ param: { slug }, json })),
+    ["admins"],
+  );
+
+/**
+ * Traspasa la presidencia → `{ presidenta, anterior, cuentaNueva, correoEnviado, passwordTemporal }`.
+ * Cambia el rol de quien la hace, así que también se vuelve a pedir `yo`.
+ */
+export const useTraspasarPresidencia = (slug: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (json: { email: string; nombre: string; cargo?: string }) =>
+      datos(barrios[":slug"].presidencia.$post({ param: { slug }, json })),
+    onSettled: () => {
+      invalidar(queryClient, slug, ["admins", "barrio"]);
+      return queryClient.invalidateQueries({ queryKey: ["admin", "yo"] });
+    },
+  });
+};
+
+/** La presidenta da por revisada la tarjeta "Revisa tu presidencia" (el estado vive en el Worker). */
+export const useMarcarPresidenciaRevisada = (slug: string) =>
+  useMutacionBarrio(slug, () => datos(barrios[":slug"].presidencia.revisada.$post({ param: { slug } })), ["barrio"]);
+
+/** Quita a alguien del barrio → `{ cuentaBorrada }`. */
+export const useQuitarAdmin = (slug: string) =>
+  useMutacionBarrio(
+    slug,
+    (userId: string) => datos(barrios[":slug"].admins[":userId"].$delete({ param: { slug, userId } })),
     ["admins"],
   );
 

@@ -4,6 +4,7 @@ import { cn } from "@/app/lib/utils";
 import { barrioEnMarcha, calcularPasos, usePrimerosPasos, type IdPaso } from "@/app/primeros-pasos";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
+import { irA } from "./comunes";
 
 /** A qué parte del panel lleva cada paso (los `id` están en Panel y BarraLateral). */
 const DESTINO: Record<IdPaso, string[]> = {
@@ -13,13 +14,6 @@ const DESTINO: Record<IdPaso, string[]> = {
   abrirMes: ["estado-mes", "crear-mes"],
   compartir: ["enlaces"],
 };
-
-function irA(ids: string[]) {
-  const el = ids.map((id) => document.getElementById(id)).find((e) => e !== null);
-  if (!el) return;
-  el.scrollIntoView?.({ behavior: "smooth", block: "center" });
-  if (el.matches("a, button, input, textarea, select")) el.focus({ preventScroll: true });
-}
 
 /**
  * Tarjeta "Primeros pasos" arriba del panel: qué falta para dejar el barrio funcionando.

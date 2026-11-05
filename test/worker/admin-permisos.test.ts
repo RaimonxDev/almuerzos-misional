@@ -31,7 +31,7 @@ describe("GET /api/admin/yo", () => {
     await db.update(adminsBarrio).set({ cargo: "Presidenta" }).where(eq(adminsBarrio.barrioId, "b1"));
     const body = await (await pedir("/api/admin/yo", { cookie })).json<any>();
     expect(body.usuario).toMatchObject({ email: "a@ejemplo.cl", superAdmin: false });
-    expect(body.barrios).toEqual([{ slug: "prueba", nombre: "Barrio Prueba", cargo: "Presidenta" }]);
+    expect(body.barrios).toEqual([{ slug: "prueba", nombre: "Barrio Prueba", cargo: "Presidenta", rol: "equipo" }]);
   });
 
   it("admin sin barrios: lista vacía", async () => {
@@ -125,7 +125,7 @@ describe("POST /api/admin/barrios", () => {
     const suya = await iniciarSesion("nueva@ejemplo.cl", body.presidenta.passwordTemporal);
     const yo = await (await pedir("/api/admin/yo", { cookie: suya })).json<any>();
     expect(yo.usuario.superAdmin).toBe(false);
-    expect(yo.barrios).toEqual([{ slug: body.barrio.slug, nombre: "Barrio Oriente", cargo: presidenta.cargo }]);
+    expect(yo.barrios).toEqual([{ slug: body.barrio.slug, nombre: "Barrio Oriente", cargo: presidenta.cargo, rol: "presidenta" }]);
   });
 
   it("con presidenta que ya tiene cuenta: solo la asigna, sin tocar su contraseña", async () => {
@@ -197,49 +197,51 @@ describe("POST /api/admin/barrios", () => {
 });
 
 describe("POST /api/admin/barrios/:slug/admins", () => {
-  it("asigna un usuario existente por email y ya puede operar el barrio", async () => {
+  it("el super admin asigna un usuario existente por email y ya puede operar el barrio", async () => {
     const root = await como("root@ejemplo.cl", { superAdmin: true });
     const presidenta = await como("pres@ejemplo.cl", {});
     const res = await pedir("/api/admin/barrios/otro/admins", {
       method: "POST",
       cookie: root,
-      json: { email: "Pres@Ejemplo.cl", cargo: "Presidenta" },
+      json: { email: "Pres@Ejemplo.cl", nombre: "Hna. Pérez", cargo: "Presidenta" },
     });
     expect(res.status).toBe(200);
-    expect((await res.json<any>()).admin).toEqual({ email: "pres@ejemplo.cl", cargo: "Presidenta" });
+    expect((await res.json<any>()).admin).toMatchObject({ email: "pres@ejemplo.cl", cargo: "Presidenta", rol: "equipo" });
 
     const yo = await (await pedir("/api/admin/yo", { cookie: presidenta })).json<any>();
-    expect(yo.barrios).toEqual([{ slug: "otro", nombre: "Otro Barrio", cargo: "Presidenta" }]);
+    expect(yo.barrios).toEqual([{ slug: "otro", nombre: "Otro Barrio", cargo: "Presidenta", rol: "equipo" }]);
     expect((await pedir("/api/admin/barrios/otro/x", { cookie: presidenta })).status).toBe(404); // pasó el permiso
   });
 
   it("es idempotente", async () => {
     const root = await como("root@ejemplo.cl", { superAdmin: true });
     await crearAdmin({ email: "pres@ejemplo.cl" });
-    const pedirAsignar = () => pedir("/api/admin/barrios/otro/admins", { method: "POST", cookie: root, json: { email: "pres@ejemplo.cl" } });
+    const pedirAsignar = () =>
+      pedir("/api/admin/barrios/otro/admins", { method: "POST", cookie: root, json: { email: "pres@ejemplo.cl", nombre: "Hna. Pérez" } });
     expect((await pedirAsignar()).status).toBe(200);
     expect((await pedirAsignar()).status).toBe(200);
     expect(await crearDb(env.DB).select().from(adminsBarrio)).toHaveLength(1);
   });
 
-  it("email sin usuario → 404 NO_ENCONTRADO", async () => {
-    const root = await como("root@ejemplo.cl", { superAdmin: true });
-    const res = await pedir("/api/admin/barrios/otro/admins", { method: "POST", cookie: root, json: { email: "nadie@ejemplo.cl" } });
-    expect(res.status).toBe(404);
-    expect(await res.json()).toEqual({ error: "NO_ENCONTRADO" });
-  });
-
   it("barrio inexistente → 404", async () => {
     const root = await como("root@ejemplo.cl", { superAdmin: true });
     await crearAdmin({ email: "pres@ejemplo.cl" });
-    const res = await pedir("/api/admin/barrios/no-existe/admins", { method: "POST", cookie: root, json: { email: "pres@ejemplo.cl" } });
+    const res = await pedir("/api/admin/barrios/no-existe/admins", {
+      method: "POST",
+      cookie: root,
+      json: { email: "pres@ejemplo.cl", nombre: "Hna. Pérez" },
+    });
     expect(res.status).toBe(404);
   });
 
-  it("un admin de barrio (aunque sea de ese barrio) → 403", async () => {
+  it("un admin del equipo (aunque sea de ese barrio) → 403", async () => {
     const cookie = await como("a@ejemplo.cl", { barrios: ["b1"] });
     await crearAdmin({ email: "pres@ejemplo.cl" });
-    const res = await pedir("/api/admin/barrios/prueba/admins", { method: "POST", cookie, json: { email: "pres@ejemplo.cl" } });
+    const res = await pedir("/api/admin/barrios/prueba/admins", {
+      method: "POST",
+      cookie,
+      json: { email: "pres@ejemplo.cl", nombre: "Hna. Pérez" },
+    });
     expect(res.status).toBe(403);
     expect(await res.json()).toEqual({ error: "SIN_PERMISO" });
   });

@@ -6,3 +6,8 @@ declare namespace Cloudflare {
     MIGRACIONES: import("cloudflare:test").D1Migration[];
   }
 }
+
+declare module "*.sql?raw" {
+  const sql: string;
+  export default sql;
+}

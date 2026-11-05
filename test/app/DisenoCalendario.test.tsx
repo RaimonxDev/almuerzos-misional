@@ -16,6 +16,7 @@ function simular(extra: Parameters<typeof simularApi>[0] = {}) {
     "/api/admin/yo": {
       json: { usuario: { id: "u", email: "p@e.cl", nombre: "P", superAdmin: false }, barrios: [{ slug: "centro", nombre: "Barrio Centro", cargo: null }] },
     },
+    [`${RUTA}/admins`]: { json: { admins: [] } },
     [`${RUTA}/meses/2099-04`]: {
       json: {
         mes: { periodo: "2099-04", anio: 2099, mes: 4, estado: "abierto", ...PERSONALIZACION },

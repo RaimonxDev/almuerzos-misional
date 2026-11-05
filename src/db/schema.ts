@@ -23,6 +23,7 @@ import {
 import { nuevoCodigo } from "../shared/codigo-misioneros";
 import { IDIOMAS } from "../shared/idiomas";
 import { MODALIDADES } from "../shared/inscripciones";
+import { ROLES_BARRIO } from "../shared/roles";
 import { ESTADOS_SOLICITUD } from "../shared/solicitudes";
 import { user } from "./auth-schema";
 
@@ -79,6 +80,10 @@ export const barrios = sqliteTable("barrios", {
   /** La presidenta pidió eliminar el barrio; no cambia nada hasta que el super admin lo borre. */
   eliminacionSolicitadaEn: integer("eliminacion_solicitada_en", { mode: "timestamp" }),
   motivoEliminacion: text("motivo_eliminacion"),
+  /** Último cambio de presidenta (traspaso). Lo lee la revisión de datos del barrio (#58). */
+  presidenciaTraspasadaEn: integer("presidencia_traspasada_en", { mode: "timestamp" }),
+  /** Cuándo la nueva presidenta revisó el barrio tras el traspaso; cada traspaso la deja en null (= pendiente). */
+  presidenciaRevisadaEn: integer("presidencia_revisada_en", { mode: "timestamp" }),
   creadoEn: creadoEn(),
 });
 
@@ -121,11 +126,14 @@ export const adminsBarrio = sqliteTable(
       .references(() => barrios.id, { onDelete: "cascade" }),
     /** Solo informativo: "Presidenta de la Sociedad de Socorro", "Líder misional"… */
     cargo: text("cargo"),
+    /** `presidenta` (como máximo una por barrio) o `equipo`. */
+    rol: text("rol", { enum: ROLES_BARRIO }).notNull().default("equipo"),
     creadoEn: creadoEn(),
   },
   (t) => [
     primaryKey({ columns: [t.userId, t.barrioId] }),
     index("admins_barrio_barrio_idx").on(t.barrioId),
+    uniqueIndex("admins_barrio_presidenta_uq").on(t.barrioId).where(sql`${t.rol} = 'presidenta'`),
   ],
 );
 

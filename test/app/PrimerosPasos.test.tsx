@@ -43,6 +43,7 @@ const mes = (periodo: string, estado: string) => ({
 function simular(meses: ReturnType<typeof resumen>[], nota: string | null = null) {
   const rutas: Parameters<typeof simularApi>[0] = {
     "/api/admin/yo": { json: YO },
+    [`${RUTA}/admins`]: { json: { admins: [] } },
     [`${RUTA}/meses`]: { json: { meses } },
     [RUTA]: { json: barrio(nota) },
   };

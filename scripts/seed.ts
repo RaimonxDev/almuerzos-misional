@@ -139,7 +139,7 @@ for (const b of BARRIOS) {
   );
 
   for (const a of ADMINS) {
-    if (a.barrio === b.slug) sql.push(insert("admins_barrio", { user_id: a.id, barrio_id: barrioId, cargo: a.cargo }));
+    if (a.barrio === b.slug) sql.push(insert("admins_barrio", { user_id: a.id, barrio_id: barrioId, cargo: a.cargo, rol: "presidenta" }));
   }
 
   const companerismoIds = b.companerismos.map((c, orden) => {

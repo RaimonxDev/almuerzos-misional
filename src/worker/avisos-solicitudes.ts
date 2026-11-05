@@ -87,6 +87,66 @@ export async function avisarBarrioEliminado(
   }
 }
 
+/** A quien la presidenta quitó del equipo, en el idioma del barrio. Nunca lanza. */
+export async function avisarAccesoQuitado(
+  env: Env,
+  barrio: Pick<Barrio, "nombre" | "idioma">,
+  persona: { email: string; nombre: string },
+  cuentaBorrada: boolean,
+) {
+  try {
+    await enviarCorreo(env, {
+      para: persona.email,
+      ...armarCorreo(barrio.idioma, "accesoQuitado", { nombre: persona.nombre, barrio: barrio.nombre, cuentaBorrada }),
+    });
+  } catch (e) {
+    console.error("[correo] No se pudo avisar que se quitó el acceso:", e);
+  }
+}
+
+/**
+ * A la presidenta que deja el cargo, en el idioma del barrio. Sigue en el equipo. Nunca lanza.
+ * (A la nueva le llega `avisarAdmin`, la bienvenida de siempre, o `avisarPresidenciaRecibida`.)
+ */
+export async function avisarPresidenciaTraspasada(
+  env: Env,
+  barrio: Pick<Barrio, "nombre" | "idioma">,
+  anterior: { email: string; nombre: string },
+  nueva: string,
+) {
+  try {
+    await enviarCorreo(env, {
+      para: anterior.email,
+      ...armarCorreo(barrio.idioma, "presidenciaTraspasada", { nombre: anterior.nombre, barrio: barrio.nombre, nueva }),
+    });
+  } catch (e) {
+    console.error("[correo] No se pudo avisar el traspaso de la presidencia:", e);
+  }
+}
+
+/** A quien recibe la presidencia y ya entra con su contraseña. Devuelve si salió de verdad. Nunca lanza. */
+export async function avisarPresidenciaRecibida(
+  env: Env,
+  origen: string,
+  barrio: Pick<Barrio, "nombre" | "idioma" | "slug">,
+  nueva: { email: string; nombre: string },
+) {
+  try {
+    const r = await enviarCorreo(env, {
+      para: nueva.email,
+      ...armarCorreo(barrio.idioma, "presidenciaRecibida", {
+        nombre: nueva.nombre,
+        barrio: barrio.nombre,
+        enlace: `${origen}/admin/${barrio.slug}`,
+      }),
+    });
+    return r.ok && Boolean(env.RESEND_API_KEY);
+  } catch (e) {
+    console.error("[correo] No se pudo avisar a la nueva presidenta:", e);
+    return false;
+  }
+}
+
 /** Aviso amable a quien pidió, con el motivo si se escribió. Nunca lanza. */
 export async function avisarSolicitudRechazada(env: Env, s: Pick<Solicitud, "nombre" | "email" | "barrio" | "idioma">, motivo: string | null) {
   try {

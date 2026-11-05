@@ -3,7 +3,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { createAuthMiddleware, isAPIError } from "better-auth/api";
 import { admin } from "better-auth/plugins";
 import { waitUntil } from "cloudflare:workers";
-import { and, asc, count, eq, gt, like, ne } from "drizzle-orm";
+import { and, asc, count, eq, gt, like, ne, sql } from "drizzle-orm";
 import { crearDb, type Db } from "@/db";
 import * as authSchema from "@/db/auth-schema";
 import { adminsBarrio, barrios } from "@/db/schema";
@@ -48,6 +48,12 @@ const enlacesDe = (userId: string) =>
  */
 export const borrarEnlacesRestablecer = (db: Db, userId: string) =>
   db.delete(authSchema.verification).where(enlacesDe(userId));
+
+/** Los enlaces de restablecer de una cuenta que ya no existe (para ir en el batch después de borrarla). */
+export const borrarEnlacesSiNoExiste = (db: Db, userId: string) =>
+  db
+    .delete(authSchema.verification)
+    .where(and(enlacesDe(userId), sql`not exists (select 1 from ${authSchema.user} where ${authSchema.user.id} = ${userId})`));
 
 /**
  * La persona eligió su propia contraseña: apaga "debe cambiar la contraseña" (la prende

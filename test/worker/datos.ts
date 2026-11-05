@@ -3,6 +3,7 @@ import { exports } from "cloudflare:workers";
 import { crearDb } from "@/db";
 import { vi } from "vitest";
 import { account, rateLimit, user, verification } from "@/db/auth-schema";
+import type { RolBarrio } from "@/shared/roles";
 import { adminsBarrio, barrios, companerismos, inscripciones, meses, turnos } from "@/db/schema";
 import { hashPassword } from "@/shared/password";
 import { sha256Hex } from "@/worker/http";
@@ -145,10 +146,13 @@ export async function crearAdmin({
   email,
   superAdmin = false,
   barrios: barrioIds = [],
+  rol = "equipo",
 }: {
   email: string;
   superAdmin?: boolean;
   barrios?: string[];
+  /** Rol en esos barrios (por defecto `equipo`; solo puede haber una presidenta por barrio). */
+  rol?: RolBarrio;
 }) {
   const db = crearDb(env.DB);
   const id = crypto.randomUUID();
@@ -161,7 +165,7 @@ export async function crearAdmin({
     password: await hashPassword(PASSWORD_PRUEBA),
   });
   if (barrioIds.length > 0) {
-    await db.insert(adminsBarrio).values(barrioIds.map((barrioId) => ({ userId: id, barrioId })));
+    await db.insert(adminsBarrio).values(barrioIds.map((barrioId) => ({ userId: id, barrioId, rol })));
   }
   return { id, email, password: PASSWORD_PRUEBA };
 }

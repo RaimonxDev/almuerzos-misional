@@ -26,7 +26,7 @@ const comoSuperAdmin = async () => {
 };
 
 const comoPresidenta = async () => {
-  await crearAdmin({ email: "pres@ejemplo.cl", barrios: ["b1"] });
+  await crearAdmin({ email: "pres@ejemplo.cl", barrios: ["b1"], rol: "presidenta" });
   return iniciarSesion("pres@ejemplo.cl");
 };
 
@@ -129,7 +129,7 @@ describe("GET /api/admin/solicitudes", () => {
 
 describe("GET /resumen-eliminacion", () => {
   it("cuenta las inscripciones que se pierden y las cuentas que se borran", async () => {
-    await crearAdmin({ email: "pres@ejemplo.cl", barrios: ["b1"] });
+    await crearAdmin({ email: "pres@ejemplo.cl", barrios: ["b1"], rol: "presidenta" });
     await crearAdmin({ email: "doble@ejemplo.cl", barrios: ["b1", "b2"] });
     const cookie = await comoSuperAdmin();
 
@@ -268,7 +268,7 @@ describe("DELETE /api/admin/barrios/:slug", () => {
 
   it("borra las solicitudes resueltas de quien pierde su cuenta, no una pendiente ni las de otros", async () => {
     const db = crearDb(env.DB);
-    await crearAdmin({ email: "pres@ejemplo.cl", barrios: ["b1"] });
+    await crearAdmin({ email: "pres@ejemplo.cl", barrios: ["b1"], rol: "presidenta" });
     const comun = {
       nombre: "Hna. Soto",
       telefono: "+56 9 5555 4444",
@@ -293,7 +293,7 @@ describe("DELETE /api/admin/barrios/:slug", () => {
   });
 
   it("borra la cuenta de quien solo administraba ese barrio, con sus sesiones y enlaces", async () => {
-    const { id } = await crearAdmin({ email: "pres@ejemplo.cl", barrios: ["b1"] });
+    const { id } = await crearAdmin({ email: "pres@ejemplo.cl", barrios: ["b1"], rol: "presidenta" });
     await iniciarSesion("pres@ejemplo.cl");
     const db = crearDb(env.DB);
     await db.insert(verification).values({
@@ -333,7 +333,7 @@ describe("DELETE /api/admin/barrios/:slug", () => {
   });
 
   it("avisa a cada admin, diciéndole si su cuenta se borró", async () => {
-    await crearAdmin({ email: "pres@ejemplo.cl", barrios: ["b1"] });
+    await crearAdmin({ email: "pres@ejemplo.cl", barrios: ["b1"], rol: "presidenta" });
     await crearAdmin({ email: "doble@ejemplo.cl", barrios: ["b1", "b2"] });
     const cookie = await comoSuperAdmin();
 

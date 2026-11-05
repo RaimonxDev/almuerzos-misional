@@ -92,4 +92,36 @@ export const pt: MensajesCorreo = {
     ],
     pie: "Você recebe este e-mail porque administrava esta ala no Almoço Missionário. É um projeto pessoal, não oficial da Igreja.",
   }),
+  accesoQuitado: ({ nombre, barrio, cuentaBorrada }) => ({
+    asunto: `Seu acesso a ${barrio} foi removido`,
+    titulo: "Acesso removido",
+    saludo: `Olá, ${nombre}:`,
+    parrafos: [
+      `Removeram seu acesso a ${barrio} no Almoço Missionário. A ala não aparece mais no seu painel.`,
+      ...(cuentaBorrada ? ["Como você não administrava outra ala, também apagamos sua conta."] : []),
+      "Se acha que foi um engano, fale com a presidente da Sociedade de Socorro.",
+    ],
+    pie: "Você recebe este e-mail porque administrava esta ala no Almoço Missionário. É um projeto pessoal, não oficial da Igreja.",
+  }),
+  presidenciaRecibida: ({ nombre, barrio, enlace }) => ({
+    asunto: `Agora você é presidente de ${barrio}`,
+    titulo: "Você é a nova presidente",
+    saludo: `Olá, ${nombre}:`,
+    parrafos: [
+      `Passaram a presidência de ${barrio} para você no Almoço Missionário. Agora você pode convidar ou remover pessoas da equipe e transferir a presidência.`,
+      "Confira se a equipe, os links e o código dos missionários estão em dia.",
+    ],
+    boton: { texto: `Abrir ${barrio}`, enlace },
+    nota: "Entre com seu e-mail e sua senha de sempre.",
+  }),
+  presidenciaTraspasada: ({ nombre, barrio, nueva }) => ({
+    asunto: `Você passou a presidência de ${barrio}`,
+    titulo: "Presidência transferida",
+    saludo: `Olá, ${nombre}:`,
+    parrafos: [
+      `${nueva} agora é a presidente de ${barrio} no Almoço Missionário. Você continua na equipe: vê e edita o calendário, mas não pode mais convidar nem remover pessoas.`,
+      "Se acha que foi um engano, fale com a nova presidente ou com quem administra o aplicativo.",
+    ],
+    pie: "Você recebe este e-mail porque administrava esta ala no Almoço Missionário. É um projeto pessoal, não oficial da Igreja.",
+  }),
 };

@@ -7,7 +7,7 @@ const RUTA = "/api/admin/barrios/centro";
 
 const usuario = (superAdmin: boolean) => ({
   usuario: { id: "u-1", email: "a@ejemplo.cl", nombre: "Ana", superAdmin },
-  barrios: [{ slug: "centro", nombre: "Barrio Centro", cargo: null }],
+  barrios: [{ slug: "centro", nombre: "Barrio Centro", cargo: null, rol: superAdmin ? null : "presidenta" }],
 });
 
 const barrio = (extra: object = {}) => ({

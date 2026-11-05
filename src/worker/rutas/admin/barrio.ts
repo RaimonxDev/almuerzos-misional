@@ -14,7 +14,7 @@ import { insertsDeTurnos } from "../../consultas";
 import { adminsDelBarrio, borrarBarrio, borrarImagenes, resumenEliminacion } from "../../eliminar-barrio";
 import { esViolacionUnica, fallar, origenDe, validar, zonaValida } from "../../http";
 import { paramsBarrio } from "../../params";
-import { esSuperAdmin } from "../../permisos";
+import { esSuperAdmin, soloPresidenta } from "../../permisos";
 
 /** Texto opcional: `null` o vacío lo borra. */
 const texto = (max: number) => z.string().trim().max(max).nullable().transform((v) => v || null);
@@ -58,6 +58,10 @@ const listarCompanerismos = (db: Db, barrioId: string) =>
     .where(eq(companerismos.barrioId, barrioId))
     .orderBy(asc(companerismos.orden), asc(companerismos.nombre));
 
+/** Hubo un traspaso y la presidenta todavía no la marcó "revisada" (cada traspaso deja `revisada` en null). */
+export const revisionPendiente = (b: Pick<Barrio, "presidenciaTraspasadaEn" | "presidenciaRevisadaEn">) =>
+  b.presidenciaTraspasadaEn !== null && b.presidenciaRevisadaEn === null;
+
 const datosBarrio = (b: typeof barrios.$inferSelect) => ({
   slug: b.slug,
   nombre: b.nombre,
@@ -96,7 +100,12 @@ const sinIndefinidos = (o: Record<string, unknown>) => Object.fromEntries(Object
 export const rutasBarrio = new Hono<AppEnvBarrioAdmin>()
   .get("/", async (c) => {
     const { db, barrio } = c.var;
-    return c.json({ barrio: datosBarrio(barrio), companerismos: await listarCompanerismos(db, barrio.id) });
+    return c.json({
+      barrio: datosBarrio(barrio),
+      companerismos: await listarCompanerismos(db, barrio.id),
+      // Solo la presidenta la ve (ni el equipo ni el super admin, que no son quienes heredan el barrio).
+      revisionPresidenciaPendiente: c.var.rolBarrio === "presidenta" && revisionPendiente(barrio),
+    });
   })
 
   .patch("/", validar("json", esquemaBarrio), async (c) => {
@@ -131,11 +140,18 @@ export const rutasBarrio = new Hono<AppEnvBarrioAdmin>()
     return c.json(await resumenEliminacion(db, barrio));
   })
 
+  /** La presidenta marca "Revisa tu presidencia" como hecha (idempotente; el super admin también puede). */
+  .post("/presidencia/revisada", soloPresidenta, async (c) => {
+    const { db, barrio } = c.var;
+    await db.update(barrios).set({ presidenciaRevisadaEn: new Date() }).where(eq(barrios.id, barrio.id));
+    return c.json({ revisionPresidenciaPendiente: false });
+  })
+
   /**
    * La presidenta pide eliminar su barrio; nada cambia hasta que el super admin lo borre. El WHERE
    * hace que un segundo pedido no cambie la fecha ni vuelva a avisar.
    */
-  .post("/solicitud-eliminacion", validar("json", esquemaSolicitudEliminacion), async (c) => {
+  .post("/solicitud-eliminacion", soloPresidenta, validar("json", esquemaSolicitudEliminacion), async (c) => {
     const { db, barrio, usuario } = c.var;
     const { motivo } = c.req.valid("json");
     const nueva = await db
@@ -156,7 +172,7 @@ export const rutasBarrio = new Hono<AppEnvBarrioAdmin>()
     return c.json({ solicitada: true });
   })
 
-  .delete("/solicitud-eliminacion", async (c) => {
+  .delete("/solicitud-eliminacion", soloPresidenta, async (c) => {
     const { db, barrio } = c.var;
     await db
       .update(barrios)

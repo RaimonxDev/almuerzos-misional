@@ -3,14 +3,14 @@ import type { AppEnvAdmin, AppEnvBarrioAdmin } from "../../contexto";
 import { conBarrioAdmin, conSesion } from "../../permisos";
 import { rutasBarrio } from "./barrio";
 import { rutasCuenta } from "./cuenta";
+import { rutasEquipo } from "./equipo";
 import { rutasMeses } from "./meses";
 import { rutasPersonalizacion } from "./personalizacion";
 import { rutasSolicitudesAdmin } from "./solicitudes";
 import { rutasTurnos } from "./turnos";
 
 /**
- * Todo `/api/admin`: exige sesión. Las rutas de cuenta van primero (`GET /yo`, `POST /barrios`,
- * `GET/POST /barrios/:slug/admins`, `POST /barrios/:slug/admins/:userId/invitacion`); lo que cuelga
+ * Todo `/api/admin`: exige sesión. Las rutas de cuenta van primero (`GET /yo`, `POST /barrios`); lo que cuelga
  * de `/barrios/:slug/*` pasa además por `conBarrioAdmin`.
  * Para agregar rutas de un barrio basta encadenarlas en meses.ts, turnos.ts o barrio.ts.
  */
@@ -19,6 +19,7 @@ const deBarrio = new Hono<AppEnvBarrioAdmin>()
   .route("/", rutasMeses)
   .route("/", rutasPersonalizacion)
   .route("/", rutasTurnos)
+  .route("/", rutasEquipo)
   .route("/", rutasBarrio);
 
 export const rutasAdmin = new Hono<AppEnvAdmin>()

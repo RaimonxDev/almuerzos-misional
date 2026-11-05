@@ -7,3 +7,11 @@ export const ESTILO_ACCION_PELIGROSA =
 export const diaLocal = (v: string | number) => hoyEnZona(zonaDelNavegador(), new Date(v));
 
 export const FECHA_LARGA = { day: "numeric", month: "long", year: "numeric" } as const;
+
+/** Lleva a la primera sección que exista entre `ids` (scroll suave y foco si es un control). */
+export function irA(ids: string[]) {
+  const el = ids.map((id) => document.getElementById(id)).find((e) => e !== null);
+  if (!el) return;
+  el.scrollIntoView?.({ behavior: "smooth", block: "center" });
+  if (el.matches("a, button, input, textarea, select")) el.focus({ preventScroll: true });
+}

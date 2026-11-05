@@ -24,6 +24,7 @@ import { BarraLateral } from "./BarraLateral";
 import { EncabezadoAdmin } from "./EncabezadoAdmin";
 import { contarTurnos, periodoParaCrear } from "./mes";
 import { PrimerosPasos } from "./PrimerosPasos";
+import { RevisaPresidencia } from "./RevisaPresidencia";
 import { TablaMes } from "./TablaMes";
 
 /**
@@ -62,7 +63,9 @@ function PanelBarrio({ slug }: { slug: string }) {
   const barrio = useBarrioAdmin(slug);
   const meses = useMesesAdmin(slug);
   const crear = useCrearMes(slug);
-  const { superAdmin } = useYo().data!.usuario;
+  const yo = useYo().data!;
+  const { superAdmin } = yo.usuario;
+  const rol = yo.barrios.find((b) => b.slug === slug)?.rol;
   const datosBarrio = barrio.data?.barrio;
   const hoy = datosBarrio ? hoyEnZona(datosBarrio.zonaHoraria) : "";
   const lista = meses.data?.meses ?? [];
@@ -100,6 +103,7 @@ function PanelBarrio({ slug }: { slug: string }) {
       <EncabezadoAdmin slug={slug} />
       <div className="mx-auto flex max-w-[1240px] flex-wrap items-start gap-6 px-4 py-6 md:px-6">
         <main className="flex min-w-0 flex-[999_1_640px] flex-col gap-[18px]">
+          {barrio.data.revisionPresidenciaPendiente && <RevisaPresidencia slug={slug} />}
           <PrimerosPasos slug={slug} notaParaCocinar={barrio.data.barrio.notaParaCocinar} meses={lista} />
 
           <nav aria-label={t.panel.meses} className="flex flex-wrap items-center gap-2">
@@ -152,6 +156,9 @@ function PanelBarrio({ slug }: { slug: string }) {
           companerismos={barrio.data.companerismos}
           periodo={periodo ? textoPeriodo(periodo) : null}
           superAdmin={superAdmin}
+          puedeEliminar={superAdmin || rol === "presidenta"}
+          puedeGestionarEquipo={superAdmin || rol === "presidenta"}
+          esPresidenta={rol === "presidenta"}
         />
       </div>
     </>

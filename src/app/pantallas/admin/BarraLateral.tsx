@@ -15,6 +15,9 @@ import {
   useEditarCompanerismo,
   useCambiarCodigoMisioneros,
   useCorregirCorreoAdmin,
+  useInvitarAdmin,
+  useQuitarAdmin,
+  useTraspasarPresidencia,
   useNuevaPasswordTemporal,
   useReenviarInvitacion,
 } from "@/app/consultas-admin";
@@ -59,7 +62,7 @@ type DatosDelBarrio = {
 
 /**
  * Columna derecha del panel: enlaces del barrio, compañerismos, nota para cocinar, datos del barrio
- * y (super admin) administradores.
+ * y administradores (la presidenta y el super admin los gestionan; el equipo solo los ve).
  */
 export function BarraLateral({
   slug,
@@ -67,6 +70,9 @@ export function BarraLateral({
   companerismos,
   periodo,
   superAdmin = false,
+  puedeEliminar = true,
+  puedeGestionarEquipo = true,
+  esPresidenta = false,
 }: {
   slug: string;
   barrio: DatosDelBarrio & {
@@ -78,8 +84,13 @@ export function BarraLateral({
   companerismos: Companerismo[];
   /** Mes visible (`2026-11`); sin él no hay sección de diseño. */
   periodo: string | null;
-  /** Solo el super admin ve la lista de administradores y reenvía invitaciones. */
   superAdmin?: boolean;
+  /** Pedir o retirar la eliminación del barrio: solo la presidenta y el super admin (el equipo no). */
+  puedeEliminar?: boolean;
+  /** Invitar, reenviar, corregir correos y quitar: la presidenta y el super admin (el equipo solo ve la lista). */
+  puedeGestionarEquipo?: boolean;
+  /** Quien mira es la presidenta del barrio (no el super admin): el aviso de traspaso le habla a ella. */
+  esPresidenta?: boolean;
 }) {
   return (
     <aside className="flex min-w-0 flex-[1_1_320px] flex-col gap-4">
@@ -87,8 +98,8 @@ export function BarraLateral({
       {periodo && <DisenoCalendario slug={slug} periodo={periodo} barrio={barrio} />}
       <Misioneros slug={slug} companerismos={companerismos} notaParaCocinar={barrio.notaParaCocinar} />
       <DatosBarrio slug={slug} barrio={barrio} />
-      {superAdmin && <Administradores slug={slug} />}
-      <SeccionEliminacion slug={slug} barrio={barrio} superAdmin={superAdmin} />
+      <Administradores slug={slug} puedeGestionar={puedeGestionarEquipo} esPresidenta={esPresidenta} />
+      {puedeEliminar && <SeccionEliminacion slug={slug} barrio={barrio} superAdmin={superAdmin} />}
     </aside>
   );
 }
@@ -725,22 +736,24 @@ function AgregarCompanerismo({ slug }: { slug: string }) {
 }
 
 /**
- * Administradores del barrio (solo super admin) con "Reenviar invitación" si no les llegó el correo:
- * la bienvenida con un enlace nuevo si aún no crean su contraseña, o el aviso de asignación. A quien
- * aún no la crea también se le puede corregir el correo o dar otra contraseña temporal.
+ * Administradores del barrio: los ve cualquier admin; la presidenta (y el super admin) invita, quita,
+ * y a quien aún no crea su contraseña le puede reenviar la bienvenida con un enlace nuevo, corregirle
+ * el correo o darle otra contraseña temporal. Quien ya la eligió no necesita invitación.
  */
-function Administradores({ slug }: { slug: string }) {
+function Administradores({ slug, puedeGestionar, esPresidenta }: { slug: string; puedeGestionar: boolean; esPresidenta: boolean }) {
   const { t } = useIdioma();
   const admins = useAdminsBarrio(slug);
   const reenviar = useReenviarInvitacion(slug);
   const temporal = useNuevaPasswordTemporal(slug);
   const [corrigiendo, setCorrigiendo] = useState<string | null>(null);
-  const [datos, setDatos] = useState<{ email: string; passwordTemporal: string } | null>(null);
+  const [quitando, setQuitando] = useState<{ id: string; nombre: string } | null>(null);
+  const [traspasando, setTraspasando] = useState<{ email: string; nombre: string } | null>(null);
+  const [datos, setDatos] = useState<{ email: string; passwordTemporal: string; titulo: string; texto: string } | null>(null);
 
   const accion = "self-start px-0 text-[13px] font-bold text-azul-medio hover:bg-transparent hover:underline";
 
   return (
-    <Seccion titulo={t.panel.administradores}>
+    <Seccion id="administradores" titulo={t.panel.administradores}>
       {admins.isError && <AlertaError>{t.errores[codigoDe(admins.error)]}</AlertaError>}
       {admins.data && admins.data.admins.length === 0 && (
         <p className="text-sm text-muted-foreground">{t.panel.sinAdministradores}</p>
@@ -753,75 +766,417 @@ function Administradores({ slug }: { slug: string }) {
               <span className="text-[13px] break-all text-muted-foreground">
                 {[a.cargo, a.email].filter(Boolean).join(" · ")}
               </span>
-              {a.debeCambiarPassword && (
-                <span className="self-start rounded-full bg-aviso-suave px-2.5 py-0.5 text-xs font-extrabold text-aviso-texto">
-                  {t.panel.faltaContrasena}
-                </span>
-              )}
-              {corrigiendo === a.id ? (
-                <CorregirCorreo slug={slug} admin={a} alTerminar={() => setCorrigiendo(null)} />
-              ) : (
-                <div className="flex flex-wrap gap-x-4">
-                  <Button
-                    variant="ghost"
-                    aria-label={t.panel.reenviarInvitacionA(a.nombre)}
-                    disabled={reenviar.isPending}
-                    onClick={() =>
-                      reenviar.mutate(a.id, {
-                        onSuccess: ({ correoEnviado }) =>
-                          correoEnviado
-                            ? toast.success(t.panel.invitacionReenviada(a.email))
-                            : toast.error(t.panel.invitacionNoSalio),
-                        onError: (e) => toast.error(t.errores[codigoDe(e)]),
-                      })
-                    }
-                    className={accion}
-                  >
-                    {t.panel.reenviarInvitacion}
-                  </Button>
-                  {a.debeCambiarPassword && (
-                    <>
+              <div className="flex flex-wrap gap-1.5">
+                {a.rol === "presidenta" && (
+                  <span className="self-start rounded-full bg-cielo px-2.5 py-0.5 text-xs font-extrabold text-azul-profundo">
+                    {t.panel.rolPresidenta}
+                  </span>
+                )}
+                {a.debeCambiarPassword && (
+                  <span className="self-start rounded-full bg-aviso-suave px-2.5 py-0.5 text-xs font-extrabold text-aviso-texto">
+                    {t.panel.faltaContrasena}
+                  </span>
+                )}
+              </div>
+              {puedeGestionar &&
+                (corrigiendo === a.id ? (
+                  <CorregirCorreo slug={slug} admin={a} alTerminar={() => setCorrigiendo(null)} />
+                ) : (
+                  <div className="flex flex-wrap gap-x-4">
+                    {a.debeCambiarPassword && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          aria-label={t.panel.reenviarInvitacionA(a.nombre)}
+                          disabled={reenviar.isPending}
+                          onClick={() =>
+                            reenviar.mutate(a.id, {
+                              onSuccess: ({ correoEnviado }) =>
+                                correoEnviado
+                                  ? toast.success(t.panel.invitacionReenviada(a.email))
+                                  : toast.error(t.panel.invitacionNoSalio),
+                              onError: (e) => toast.error(t.errores[codigoDe(e)]),
+                            })
+                          }
+                          className={accion}
+                        >
+                          {t.panel.reenviarInvitacion}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          aria-label={t.panel.corregirCorreoA(a.nombre)}
+                          onClick={() => setCorrigiendo(a.id)}
+                          className={accion}
+                        >
+                          {t.panel.corregirCorreo}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          aria-label={t.panel.nuevaTemporalA(a.nombre)}
+                          disabled={temporal.isPending}
+                          onClick={() =>
+                            temporal.mutate(a.id, {
+                              onSuccess: (r) =>
+                                setDatos({ ...r, titulo: t.panel.nuevaTemporalTitulo, texto: t.panel.nuevaTemporalTexto }),
+                              onError: (e) => toast.error(t.errores[codigoDe(e)]),
+                            })
+                          }
+                          className={accion}
+                        >
+                          {t.panel.nuevaTemporal}
+                        </Button>
+                      </>
+                    )}
+                    {a.rol !== "presidenta" && (
                       <Button
                         variant="ghost"
-                        aria-label={t.panel.corregirCorreoA(a.nombre)}
-                        onClick={() => setCorrigiendo(a.id)}
+                        aria-label={t.panel.hacerPresidentaA(a.nombre)}
+                        onClick={() => setTraspasando({ email: a.email, nombre: a.nombre })}
                         className={accion}
                       >
-                        {t.panel.corregirCorreo}
+                        {t.panel.hacerPresidenta}
                       </Button>
+                    )}
+                    {a.rol !== "presidenta" && (
                       <Button
                         variant="ghost"
-                        aria-label={t.panel.nuevaTemporalA(a.nombre)}
-                        disabled={temporal.isPending}
-                        onClick={() =>
-                          temporal.mutate(a.id, {
-                            onSuccess: setDatos,
-                            onError: (e) => toast.error(t.errores[codigoDe(e)]),
-                          })
-                        }
-                        className={accion}
+                        aria-label={t.panel.quitarAdminA(a.nombre)}
+                        onClick={() => setQuitando({ id: a.id, nombre: a.nombre })}
+                        className={cn(accion, "text-destructive")}
                       >
-                        {t.panel.nuevaTemporal}
+                        {t.panel.quitarAdmin}
                       </Button>
-                    </>
-                  )}
-                </div>
-              )}
+                    )}
+                  </div>
+                ))}
             </li>
           ))}
         </ul>
+      )}
+      {puedeGestionar ? (
+        <div className="flex flex-col gap-2">
+          <InvitarAlEquipo slug={slug} alCrearCuenta={setDatos} />
+          <TraspasarPresidencia onContinuar={setTraspasando} />
+        </div>
+      ) : (
+        <p className="text-[13px] text-muted-foreground">{t.panel.soloLaPresidentaInvita}</p>
+      )}
+      {quitando && <QuitarAdmin slug={slug} persona={quitando} alCerrar={() => setQuitando(null)} />}
+      {traspasando && (
+        <ConfirmarTraspaso
+          slug={slug}
+          persona={traspasando}
+          anterior={admins.data?.admins.find((a) => a.rol === "presidenta")?.nombre ?? null}
+          esPresidenta={esPresidenta}
+          alCrearCuenta={setDatos}
+          alCerrar={() => setTraspasando(null)}
+        />
       )}
       {datos && (
         <DatosCuenta
           email={datos.email}
           password={datos.passwordTemporal}
-          titulo={t.panel.nuevaTemporalTitulo}
-          texto={t.panel.nuevaTemporalTexto}
+          titulo={datos.titulo}
+          texto={datos.texto}
           textoCerrar={t.panel.listo}
           alCerrar={() => setDatos(null)}
         />
       )}
     </Seccion>
+  );
+}
+
+/** Correo, nombre y cargo; si el correo no salió, `alCrearCuenta` muestra la contraseña temporal. */
+function InvitarAlEquipo({
+  slug,
+  alCrearCuenta,
+}: {
+  slug: string;
+  alCrearCuenta: (datos: { email: string; passwordTemporal: string; titulo: string; texto: string }) => void;
+}) {
+  const { t } = useIdioma();
+  const invitar = useInvitarAdmin(slug);
+  const [abierto, setAbierto] = useState(false);
+  const [email, setEmail] = useState("");
+  const [nombre, setNombre] = useState("");
+  const [cargo, setCargo] = useState("");
+  const id = useId();
+
+  const cerrar = () => {
+    setAbierto(false);
+    setEmail("");
+    setNombre("");
+    setCargo("");
+    invitar.reset();
+  };
+
+  const enviar = (e: FormEvent) => {
+    e.preventDefault();
+    const correo = email.trim();
+    invitar.mutate(
+      { email: correo, nombre: nombre.trim(), ...(cargo.trim() && { cargo: cargo.trim() }) },
+      {
+        onSuccess: (r) => {
+          if (r.passwordTemporal) {
+            alCrearCuenta({
+              email: r.admin.email,
+              passwordTemporal: r.passwordTemporal,
+              titulo: t.panel.invitadoTitulo,
+              texto: t.panel.invitadoTexto,
+            });
+          } else if (r.correoEnviado) {
+            toast.success(r.cuentaNueva ? t.panel.invitacionEnviada(r.admin.email) : t.panel.invitacionAsignada(r.admin.email));
+          } else {
+            toast.warning(t.panel.invitacionNoSalio);
+          }
+          cerrar();
+        },
+      },
+    );
+  };
+
+  if (!abierto) {
+    return (
+      <Button variant="accion-outline" className="self-start" onClick={() => setAbierto(true)}>
+        <PlusIcon aria-hidden /> {t.panel.invitar}
+      </Button>
+    );
+  }
+  return (
+    <form
+      onSubmit={enviar}
+      aria-label={t.panel.invitar}
+      className="flex flex-col gap-3 rounded-[10px] border bg-cielo-claro p-3"
+    >
+      <p className="text-[13px] text-muted-foreground">{t.panel.invitarAyuda}</p>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor={`${id}-correo`}>{t.panel.invitarCorreo}</Label>
+        <Input
+          id={`${id}-correo`}
+          type="email"
+          autoComplete="off"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          className="rounded-[10px] bg-card"
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor={`${id}-nombre`}>{t.panel.invitarNombre}</Label>
+        <Input
+          id={`${id}-nombre`}
+          autoComplete="off"
+          value={nombre}
+          onChange={(e) => setNombre(e.target.value)}
+          required
+          minLength={2}
+          maxLength={80}
+          className="rounded-[10px] bg-card"
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor={`${id}-cargo`}>{t.panel.invitarCargo}</Label>
+        <Input
+          id={`${id}-cargo`}
+          autoComplete="off"
+          value={cargo}
+          onChange={(e) => setCargo(e.target.value)}
+          maxLength={80}
+          placeholder={t.panel.invitarCargoEjemplo}
+          className="rounded-[10px] bg-card"
+        />
+      </div>
+      {invitar.isError && <AlertaError>{t.errores[codigoDe(invitar.error)]}</AlertaError>}
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="ghost" onClick={cerrar} className="rounded-[10px] font-bold">
+          {t.panel.cancelar}
+        </Button>
+        <Button type="submit" disabled={invitar.isPending} className="rounded-[10px] font-bold">
+          {t.panel.enviarInvitacion}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+/** Correo y nombre de la nueva presidenta; "Continuar" abre la confirmación (`onContinuar`). */
+function TraspasarPresidencia({ onContinuar }: { onContinuar: (persona: { email: string; nombre: string }) => void }) {
+  const { t } = useIdioma();
+  const [abierto, setAbierto] = useState(false);
+  const [email, setEmail] = useState("");
+  const [nombre, setNombre] = useState("");
+  const id = useId();
+
+  if (!abierto) {
+    return (
+      <Button variant="accion-outline" className="self-start" onClick={() => setAbierto(true)}>
+        {t.panel.traspasar}
+      </Button>
+    );
+  }
+  const cerrar = () => {
+    setAbierto(false);
+    setEmail("");
+    setNombre("");
+  };
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        onContinuar({ email: email.trim(), nombre: nombre.trim() });
+        cerrar();
+      }}
+      aria-label={t.panel.traspasar}
+      className="flex flex-col gap-3 rounded-[10px] border bg-cielo-claro p-3"
+    >
+      <p className="text-[13px] text-muted-foreground">{t.panel.traspasarAyuda}</p>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor={`${id}-correo`}>{t.panel.traspasarCorreo}</Label>
+        <Input
+          id={`${id}-correo`}
+          type="email"
+          autoComplete="off"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          className="rounded-[10px] bg-card"
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor={`${id}-nombre`}>{t.panel.traspasarNombre}</Label>
+        <Input
+          id={`${id}-nombre`}
+          autoComplete="off"
+          value={nombre}
+          onChange={(e) => setNombre(e.target.value)}
+          required
+          minLength={2}
+          maxLength={80}
+          className="rounded-[10px] bg-card"
+        />
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="ghost" onClick={cerrar} className="rounded-[10px] font-bold">
+          {t.panel.cancelar}
+        </Button>
+        <Button type="submit" className="rounded-[10px] font-bold">
+          {t.panel.continuar}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+/** Explica qué pasa con quien traspasa y, al confirmar, hace el cambio (inmediato, para las dos). */
+function ConfirmarTraspaso({
+  slug,
+  persona,
+  anterior,
+  esPresidenta,
+  alCrearCuenta,
+  alCerrar,
+}: {
+  slug: string;
+  persona: { email: string; nombre: string };
+  anterior: string | null;
+  esPresidenta: boolean;
+  alCrearCuenta: (datos: { email: string; passwordTemporal: string; titulo: string; texto: string }) => void;
+  alCerrar: () => void;
+}) {
+  const { t } = useIdioma();
+  const traspasar = useTraspasarPresidencia(slug);
+  return (
+    <Dialog open onOpenChange={(abierto) => !abierto && !traspasar.isPending && alCerrar()}>
+      <DialogContent showCloseButton={false} className="rounded-2xl">
+        <DialogHeader>
+          <DialogTitle className="text-xl text-azul-profundo">{t.panel.traspasarTitulo(persona.nombre)}</DialogTitle>
+        </DialogHeader>
+        <AvisoDestructivo titulo={t.panel.traspasarInmediato}>
+          <DialogDescription className="text-sm text-foreground">
+            {esPresidenta
+              ? t.panel.traspasarTextoPresidenta(persona.nombre)
+              : t.panel.traspasarTextoSuper(persona.nombre, anterior)}{" "}
+            {t.panel.traspasarAviso}
+          </DialogDescription>
+        </AvisoDestructivo>
+        {traspasar.isError && <AlertaError>{t.errores[codigoDe(traspasar.error)]}</AlertaError>}
+        <DialogFooter className="gap-2.5">
+          <Button variant="accion-outline" disabled={traspasar.isPending} onClick={alCerrar}>
+            {t.panel.cancelar}
+          </Button>
+          <Button
+            variant="destructive"
+            className="rounded-full font-bold"
+            disabled={traspasar.isPending}
+            onClick={() =>
+              traspasar.mutate(persona, {
+                onSuccess: (r) => {
+                  if (r.passwordTemporal) {
+                    alCrearCuenta({
+                      email: r.presidenta.email,
+                      passwordTemporal: r.passwordTemporal,
+                      titulo: t.panel.traspasoTitulo,
+                      texto: t.panel.traspasoTexto,
+                    });
+                  } else if (r.correoEnviado) toast.success(t.panel.traspasoHecho(r.presidenta.nombre));
+                  else toast.warning(t.panel.traspasoSinCorreo(r.presidenta.nombre));
+                  alCerrar();
+                },
+              })
+            }
+          >
+            {t.panel.siTraspasar}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Confirmación antes de quitar a alguien del equipo. */
+function QuitarAdmin({
+  slug,
+  persona,
+  alCerrar,
+}: {
+  slug: string;
+  persona: { id: string; nombre: string };
+  alCerrar: () => void;
+}) {
+  const { t } = useIdioma();
+  const quitar = useQuitarAdmin(slug);
+  return (
+    <Dialog open onOpenChange={(abierto) => !abierto && !quitar.isPending && alCerrar()}>
+      <DialogContent showCloseButton={false} className="rounded-2xl">
+        <DialogHeader>
+          <DialogTitle className="text-xl text-azul-profundo">{t.panel.quitarAdminTitulo(persona.nombre)}</DialogTitle>
+        </DialogHeader>
+        <AvisoDestructivo titulo={t.panel.noSeDeshace}>
+          <DialogDescription className="text-sm text-foreground">{t.panel.quitarAdminTexto}</DialogDescription>
+        </AvisoDestructivo>
+        {quitar.isError && <AlertaError>{t.errores[codigoDe(quitar.error)]}</AlertaError>}
+        <DialogFooter className="gap-2.5">
+          <Button variant="accion-outline" disabled={quitar.isPending} onClick={alCerrar}>
+            {t.panel.cancelar}
+          </Button>
+          <Button
+            variant="destructive"
+            className="rounded-full font-bold"
+            disabled={quitar.isPending}
+            onClick={() =>
+              quitar.mutate(persona.id, {
+                onSuccess: () => {
+                  toast.success(t.panel.adminQuitado(persona.nombre));
+                  alCerrar();
+                },
+              })
+            }
+          >
+            {t.panel.siQuitarAdmin}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
