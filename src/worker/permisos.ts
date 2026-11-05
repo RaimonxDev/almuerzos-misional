@@ -37,12 +37,20 @@ export const conBarrioAdmin = createMiddleware<AppEnvBarrioAdmin>(async (c, next
   const superAdmin = esSuperAdmin(usuario);
 
   if (!barrio) return superAdmin ? fallar(c, "NO_ENCONTRADO", 404) : fallar(c, "SIN_PERMISO", 403);
-  if (!superAdmin) {
-    const asignado = await db.query.adminsBarrio.findFirst({
-      where: and(eq(adminsBarrio.userId, usuario.id), eq(adminsBarrio.barrioId, barrio.id)),
-    });
-    if (!asignado) return fallar(c, "SIN_PERMISO", 403);
-  }
+  const asignado = await db.query.adminsBarrio.findFirst({
+    where: and(eq(adminsBarrio.userId, usuario.id), eq(adminsBarrio.barrioId, barrio.id)),
+  });
+  if (!superAdmin && !asignado) return fallar(c, "SIN_PERMISO", 403);
   c.set("barrio", barrio);
+  c.set("rolBarrio", asignado?.rol ?? null);
   await next();
+});
+
+/**
+ * Detrás de `conBarrioAdmin`: solo la presidenta del barrio o el super admin; el equipo recibe
+ * 403 `SIN_PERMISO`. Se usa en la ruta (`.post("/x", soloPresidenta, …)`) o con `.use`.
+ */
+export const soloPresidenta = createMiddleware<AppEnvBarrioAdmin>(async (c, next) => {
+  if (esSuperAdmin(c.var.usuario) || c.var.rolBarrio === "presidenta") await next();
+  else c.res = fallar(c, "SIN_PERMISO", 403);
 });

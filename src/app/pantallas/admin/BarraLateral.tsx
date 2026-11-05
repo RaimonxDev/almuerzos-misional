@@ -67,6 +67,7 @@ export function BarraLateral({
   companerismos,
   periodo,
   superAdmin = false,
+  puedeEliminar = true,
 }: {
   slug: string;
   barrio: DatosDelBarrio & {
@@ -80,6 +81,8 @@ export function BarraLateral({
   periodo: string | null;
   /** Solo el super admin ve la lista de administradores y reenvía invitaciones. */
   superAdmin?: boolean;
+  /** Pedir o retirar la eliminación del barrio: solo la presidenta y el super admin (el equipo no). */
+  puedeEliminar?: boolean;
 }) {
   return (
     <aside className="flex min-w-0 flex-[1_1_320px] flex-col gap-4">
@@ -88,7 +91,7 @@ export function BarraLateral({
       <Misioneros slug={slug} companerismos={companerismos} notaParaCocinar={barrio.notaParaCocinar} />
       <DatosBarrio slug={slug} barrio={barrio} />
       {superAdmin && <Administradores slug={slug} />}
-      <SeccionEliminacion slug={slug} barrio={barrio} superAdmin={superAdmin} />
+      {puedeEliminar && <SeccionEliminacion slug={slug} barrio={barrio} superAdmin={superAdmin} />}
     </aside>
   );
 }

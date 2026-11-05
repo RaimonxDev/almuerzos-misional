@@ -121,7 +121,7 @@ export async function crearBarrio(
       }),
       db.insert(companerismos).values(filasCompanerismos),
       ...cuenta,
-      ...(userId ? [db.insert(adminsBarrio).values({ userId, barrioId, cargo: p!.cargo })] : []),
+      ...(userId ? [db.insert(adminsBarrio).values({ userId, barrioId, cargo: p!.cargo, rol: "presidenta" })] : []),
       ...extra(barrioId),
     ]);
   } catch (err) {

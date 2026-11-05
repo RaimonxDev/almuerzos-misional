@@ -14,7 +14,7 @@ import { insertsDeTurnos } from "../../consultas";
 import { adminsDelBarrio, borrarBarrio, borrarImagenes, resumenEliminacion } from "../../eliminar-barrio";
 import { esViolacionUnica, fallar, origenDe, validar, zonaValida } from "../../http";
 import { paramsBarrio } from "../../params";
-import { esSuperAdmin } from "../../permisos";
+import { esSuperAdmin, soloPresidenta } from "../../permisos";
 
 /** Texto opcional: `null` o vacío lo borra. */
 const texto = (max: number) => z.string().trim().max(max).nullable().transform((v) => v || null);
@@ -135,7 +135,7 @@ export const rutasBarrio = new Hono<AppEnvBarrioAdmin>()
    * La presidenta pide eliminar su barrio; nada cambia hasta que el super admin lo borre. El WHERE
    * hace que un segundo pedido no cambie la fecha ni vuelva a avisar.
    */
-  .post("/solicitud-eliminacion", validar("json", esquemaSolicitudEliminacion), async (c) => {
+  .post("/solicitud-eliminacion", soloPresidenta, validar("json", esquemaSolicitudEliminacion), async (c) => {
     const { db, barrio, usuario } = c.var;
     const { motivo } = c.req.valid("json");
     const nueva = await db
@@ -156,7 +156,7 @@ export const rutasBarrio = new Hono<AppEnvBarrioAdmin>()
     return c.json({ solicitada: true });
   })
 
-  .delete("/solicitud-eliminacion", async (c) => {
+  .delete("/solicitud-eliminacion", soloPresidenta, async (c) => {
     const { db, barrio } = c.var;
     await db
       .update(barrios)

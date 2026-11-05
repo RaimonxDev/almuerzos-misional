@@ -5,6 +5,7 @@ import { z } from "zod";
 import { adminsBarrio, barrios } from "@/db/schema";
 import { account, session, user } from "@/db/auth-schema";
 import { hashPassword } from "@/shared/password";
+import type { RolBarrio } from "@/shared/roles";
 import type { AppEnvAdmin } from "../../contexto";
 import { esViolacionUnica, fallar, origenDe, validar } from "../../http";
 import { paramsBarrio } from "../../params";
@@ -55,9 +56,11 @@ export const rutasCuenta = new Hono<AppEnvAdmin>()
           .select({ slug: barrios.slug, nombre: barrios.nombre })
           .from(barrios)
           .orderBy(asc(barrios.nombre))
-          .then((filas) => filas.map((f) => ({ ...f, cargo: null as string | null })))
+          .then((filas) =>
+            filas.map((f) => ({ ...f, cargo: null as string | null, rol: null as RolBarrio | null })),
+          )
       : await db
-          .select({ slug: barrios.slug, nombre: barrios.nombre, cargo: adminsBarrio.cargo })
+          .select({ slug: barrios.slug, nombre: barrios.nombre, cargo: adminsBarrio.cargo, rol: adminsBarrio.rol })
           .from(adminsBarrio)
           .innerJoin(barrios, eq(barrios.id, adminsBarrio.barrioId))
           .where(eq(adminsBarrio.userId, usuario.id))

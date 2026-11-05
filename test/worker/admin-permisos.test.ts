@@ -31,7 +31,7 @@ describe("GET /api/admin/yo", () => {
     await db.update(adminsBarrio).set({ cargo: "Presidenta" }).where(eq(adminsBarrio.barrioId, "b1"));
     const body = await (await pedir("/api/admin/yo", { cookie })).json<any>();
     expect(body.usuario).toMatchObject({ email: "a@ejemplo.cl", superAdmin: false });
-    expect(body.barrios).toEqual([{ slug: "prueba", nombre: "Barrio Prueba", cargo: "Presidenta" }]);
+    expect(body.barrios).toEqual([{ slug: "prueba", nombre: "Barrio Prueba", cargo: "Presidenta", rol: "equipo" }]);
   });
 
   it("admin sin barrios: lista vacía", async () => {
@@ -125,7 +125,7 @@ describe("POST /api/admin/barrios", () => {
     const suya = await iniciarSesion("nueva@ejemplo.cl", body.presidenta.passwordTemporal);
     const yo = await (await pedir("/api/admin/yo", { cookie: suya })).json<any>();
     expect(yo.usuario.superAdmin).toBe(false);
-    expect(yo.barrios).toEqual([{ slug: body.barrio.slug, nombre: "Barrio Oriente", cargo: presidenta.cargo }]);
+    expect(yo.barrios).toEqual([{ slug: body.barrio.slug, nombre: "Barrio Oriente", cargo: presidenta.cargo, rol: "presidenta" }]);
   });
 
   it("con presidenta que ya tiene cuenta: solo la asigna, sin tocar su contraseña", async () => {
@@ -209,7 +209,7 @@ describe("POST /api/admin/barrios/:slug/admins", () => {
     expect((await res.json<any>()).admin).toEqual({ email: "pres@ejemplo.cl", cargo: "Presidenta" });
 
     const yo = await (await pedir("/api/admin/yo", { cookie: presidenta })).json<any>();
-    expect(yo.barrios).toEqual([{ slug: "otro", nombre: "Otro Barrio", cargo: "Presidenta" }]);
+    expect(yo.barrios).toEqual([{ slug: "otro", nombre: "Otro Barrio", cargo: "Presidenta", rol: "equipo" }]);
     expect((await pedir("/api/admin/barrios/otro/x", { cookie: presidenta })).status).toBe(404); // pasó el permiso
   });
 
