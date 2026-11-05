@@ -142,8 +142,8 @@ export async function traspasarPresidencia(
         .values({ userId: cuenta.userId, barrioId: barrio.id, cargo: datos.cargo, rol: "presidenta" })
         .onConflictDoUpdate({
           target: [adminsBarrio.userId, adminsBarrio.barrioId],
-          // Quien ya estaba en el equipo conserva su cargo si no se escribió otro.
-          set: { rol: "presidenta", cargo: sql`coalesce(excluded.cargo, ${adminsBarrio.cargo})` },
+          // Su cargo de equipo ("Primera consejera") ya no corresponde: queda el que se escribió o ninguno.
+          set: { rol: "presidenta", cargo: datos.cargo },
         }),
       // Los timestamps son en segundos: si ya se revisó en este mismo segundo, se adelanta uno para
       // que el traspaso siempre quede posterior a la revisión y la tarjeta vuelva a salir.

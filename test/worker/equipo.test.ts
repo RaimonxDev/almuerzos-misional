@@ -468,4 +468,20 @@ describe("cargo de la presidenta anterior", () => {
     expect(por(id)).toMatchObject({ rol: "equipo", cargo: null });
     expect(por(cons.id)).toMatchObject({ rol: "equipo", cargo: "Consejera" });
   });
+
+  it("quien sube desde el equipo deja su cargo de equipo: queda el que se escribe o ninguno", async () => {
+    const { cookie } = await como("pres@ejemplo.cl", { barrios: ["b1"], rol: "presidenta" });
+    const cons = await crearAdmin({ email: "cons@ejemplo.cl", barrios: ["b1"] });
+    const otra = await crearAdmin({ email: "otra@ejemplo.cl", barrios: ["b1"] });
+    const db = crearDb(env.DB);
+    await db.update(adminsBarrio).set({ cargo: "Primera consejera" }).where(eq(adminsBarrio.userId, cons.id));
+    await db.update(adminsBarrio).set({ cargo: "Secretaria" }).where(eq(adminsBarrio.userId, otra.id));
+    const res = await pedir(`${RUTA}/presidencia`, { method: "POST", cookie, json: { email: "cons@ejemplo.cl", nombre: "Hna. Cons" } });
+    expect(res.status).toBe(200);
+    expect((await res.json<{ presidenta: { cargo: string | null } }>()).presidenta.cargo).toBeNull();
+    const cookieCons = await iniciarSesion("cons@ejemplo.cl");
+    await pedir(`${RUTA}/presidencia`, { method: "POST", cookie: cookieCons, json: { email: "otra@ejemplo.cl", nombre: "Hna. Otra", cargo: "Presidenta" } });
+    const filas = await db.select().from(adminsBarrio).where(eq(adminsBarrio.barrioId, "b1"));
+    expect(filas.find((f) => f.userId === otra.id)).toMatchObject({ rol: "presidenta", cargo: "Presidenta" });
+  });
 });
