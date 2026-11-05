@@ -92,4 +92,15 @@ export const pt: MensajesCorreo = {
     ],
     pie: "Você recebe este e-mail porque administrava esta ala no Almoço Missionário. É um projeto pessoal, não oficial da Igreja.",
   }),
+  accesoQuitado: ({ nombre, barrio, cuentaBorrada }) => ({
+    asunto: `Seu acesso a ${barrio} foi removido`,
+    titulo: "Acesso removido",
+    saludo: `Olá, ${nombre}:`,
+    parrafos: [
+      `Removeram seu acesso a ${barrio} no Almoço Missionário. A ala não aparece mais no seu painel.`,
+      ...(cuentaBorrada ? ["Como você não administrava outra ala, também apagamos sua conta."] : []),
+      "Se acha que foi um engano, fale com a presidente da Sociedade de Socorro.",
+    ],
+    pie: "Você recebe este e-mail porque administrava esta ala no Almoço Missionário. É um projeto pessoal, não oficial da Igreja.",
+  }),
 };

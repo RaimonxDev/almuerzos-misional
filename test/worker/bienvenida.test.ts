@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { crearDb } from "@/db";
 import { user, verification } from "@/db/auth-schema";
+import { adminsBarrio } from "@/db/schema";
 import { capturarCorreos, crearAdmin, enlaceConCodigo, iniciarSesion, pedir, sembrar } from "./datos";
 
 beforeEach(async () => {
@@ -171,7 +172,7 @@ describe("POST /api/admin/barrios/:slug/admins", () => {
     await crearAdmin({ email: "pres@ejemplo.cl" });
     const root = await comoSuperAdmin();
     const enviados = conResend();
-    const asignar = () => pedir("/api/admin/barrios/otro/admins", { method: "POST", cookie: root, json: { email: "pres@ejemplo.cl" } });
+    const asignar = () => pedir("/api/admin/barrios/otro/admins", { method: "POST", cookie: root, json: { email: "pres@ejemplo.cl", nombre: "Hna. Pérez" } });
 
     expect((await (await asignar()).json<any>()).correoEnviado).toBe(true);
     expect(enviados().map((c) => [c.para, c.asunto])).toEqual([["pres@ejemplo.cl", "Ahora administras Otro Barrio"]]);
@@ -191,11 +192,11 @@ describe("GET /api/admin/barrios/:slug/admins", () => {
 
     const res = await pedir("/api/admin/barrios/prueba/admins", { cookie: root });
     expect(res.status).toBe(200);
-    expect((await res.json<any>()).admins).toEqual([{ id, email: "a@ejemplo.cl", nombre: "a", cargo: null, debeCambiarPassword: true }]);
+    expect((await res.json<any>()).admins).toEqual([{ id, email: "a@ejemplo.cl", nombre: "a", cargo: null, rol: "equipo", debeCambiarPassword: true }]);
   });
 
-  it("un admin del barrio no puede (403); un barrio inexistente da 404", async () => {
-    await crearAdmin({ email: "a@ejemplo.cl", barrios: ["b1"] });
+  it("un admin de otro barrio no puede (403); un barrio inexistente da 404", async () => {
+    await crearAdmin({ email: "a@ejemplo.cl", barrios: ["b2"] });
     const cookie = await iniciarSesion("a@ejemplo.cl");
     const res = await pedir("/api/admin/barrios/prueba/admins", { cookie });
     expect(res.status).toBe(403);
@@ -327,8 +328,11 @@ describe("PATCH /api/admin/barrios/:slug/admins/:userId (corregir el correo)", (
     expect(enUso.status).toBe(422);
     expect(await enUso.json()).toEqual({ error: "CUENTA_EN_USO" });
 
-    const suya = await iniciarSesion("nueva@ejemplo.cl", "mi-clave-propia-1");
-    expect((await corregir(suya, nueva!.id, "otra@ejemplo.cl")).status).toBe(403);
+    // El equipo no puede, ni aunque sea del barrio; la presidenta sí (pero la cuenta ya es de la persona).
+    const { id } = await crearAdmin({ email: "eq@ejemplo.cl" });
+    await crearDb(env.DB).insert(adminsBarrio).values({ userId: id, barrioId: (await crearDb(env.DB).select().from(adminsBarrio).get())!.barrioId, rol: "equipo" });
+    const delEquipo = await iniciarSesion("eq@ejemplo.cl");
+    expect((await corregir(delEquipo, nueva!.id, "otra@ejemplo.cl")).status).toBe(403);
   });
 });
 

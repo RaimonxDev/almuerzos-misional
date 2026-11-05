@@ -31,6 +31,7 @@ export const CODIGOS_ERROR = [
   "VERIFICACION_FALLIDA", // 400: Turnstile no validó (o falta su token)
   "CONFIRMACION_INCORRECTA", // 422: borrar un barrio sin escribir su nombre tal cual
   "PEDIDO_CAMBIO", // 409: el pedido de eliminación cambió desde que se abrió el panel
+  "ES_PRESIDENTA", // 422: quitar a la presidenta del barrio (primero hay que traspasar la presidencia)
   "ERROR_INTERNO",
 ] as const;
 

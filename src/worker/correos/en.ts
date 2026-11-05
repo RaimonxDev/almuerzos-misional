@@ -92,4 +92,15 @@ export const en: MensajesCorreo = {
     ],
     pie: "You're receiving this email because you managed this ward on Missionary Lunch. It is a personal project, not an official Church site.",
   }),
+  accesoQuitado: ({ nombre, barrio, cuentaBorrada }) => ({
+    asunto: `Your access to ${barrio} was removed`,
+    titulo: "Access removed",
+    saludo: `Hi ${nombre},`,
+    parrafos: [
+      `Your access to ${barrio} on Missionary Lunch was removed. The ward no longer appears in your dashboard.`,
+      ...(cuentaBorrada ? ["Since you didn't manage another ward, we also deleted your account."] : []),
+      "If you think this was a mistake, talk to the Relief Society president.",
+    ],
+    pie: "You're receiving this email because you managed this ward on Missionary Lunch. It is a personal project, not an official Church site.",
+  }),
 };

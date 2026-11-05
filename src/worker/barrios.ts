@@ -2,10 +2,9 @@ import { asc, eq } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { z } from "zod";
 import type { Db } from "@/db";
-import { account, user } from "@/db/auth-schema";
 import { adminsBarrio, barrios, companerismos } from "@/db/schema";
 import { IDIOMAS } from "@/shared/idiomas";
-import { hashPassword } from "@/shared/password";
+import { prepararCuentaAdmin } from "./equipo";
 import { avisarAdmin } from "./invitaciones";
 import { esViolacionUnica, zonaValida } from "./http";
 
@@ -78,37 +77,8 @@ export async function crearBarrio(
 
   // La presidenta: si ya tiene cuenta solo se asigna; si no, se crea con una contraseña temporal.
   const p = datos.presidenta;
-  const conCuenta =
-    p &&
-    (await db
-      .select({ id: user.id, name: user.name, debeCambiarPassword: user.debeCambiarPassword })
-      .from(user)
-      .where(eq(user.email, p.email))
-      .get());
-  const nueva = p && !conCuenta ? { id: crypto.randomUUID(), password: passwordTemporal() } : null;
-  const userId = conCuenta?.id ?? nueva?.id;
-  const cuenta = nueva
-    ? [
-        // Con la contraseña temporal entra una vez: el panel la lleva a elegir la suya (`/admin/cuenta`).
-        db.insert(user).values({
-          id: nueva.id,
-          name: p!.nombre,
-          email: p!.email,
-          emailVerified: true,
-          role: "user",
-          debeCambiarPassword: true,
-        }),
-        // Igual que la crea Better Auth: proveedor "credential" con el id del usuario.
-        db.insert(account).values({
-          id: crypto.randomUUID(),
-          accountId: nueva.id,
-          providerId: "credential",
-          userId: nueva.id,
-          password: await hashPassword(nueva.password),
-          updatedAt: new Date(),
-        }),
-      ]
-    : [];
+  const cuenta = p ? await prepararCuentaAdmin(db, p) : null;
+  const userId = cuenta?.userId;
 
   try {
     await db.batch([
@@ -120,7 +90,7 @@ export async function crearBarrio(
         ...(datos.zonaHoraria && { zonaHoraria: datos.zonaHoraria }),
       }),
       db.insert(companerismos).values(filasCompanerismos),
-      ...cuenta,
+      ...(cuenta?.sentencias ?? []),
       ...(userId ? [db.insert(adminsBarrio).values({ userId, barrioId, cargo: p!.cargo, rol: "presidenta" })] : []),
       ...extra(barrioId),
     ]);
@@ -139,7 +109,7 @@ export async function crearBarrio(
       ? await avisarAdmin(
           env,
           origen,
-          { id: userId, email: p.email, name: conCuenta?.name ?? p.nombre, debeCambiarPassword: conCuenta ? conCuenta.debeCambiarPassword : true },
+          { id: userId, email: p.email, name: cuenta!.nombre, debeCambiarPassword: cuenta!.debeCambiarPassword },
           barrio!,
         )
       : false;
@@ -161,11 +131,11 @@ export async function crearBarrio(
     // correo no salió: es el respaldo de "Copiar datos". Si salió, entra con el enlace.
     presidenta: p && {
       email: p.email,
-      nombre: conCuenta?.name ?? p.nombre,
+      nombre: cuenta!.nombre,
       cargo: p.cargo,
-      cuentaNueva: nueva !== null,
+      cuentaNueva: cuenta!.nueva !== null,
       correoEnviado,
-      passwordTemporal: nueva && !correoEnviado ? nueva.password : null,
+      passwordTemporal: cuenta!.nueva && !correoEnviado ? cuenta!.nueva.password : null,
     },
     /** Para quien lo llama (aprobar una solicitud guarda el id). */
     barrioId,

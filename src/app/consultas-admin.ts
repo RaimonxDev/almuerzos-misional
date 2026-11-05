@@ -233,7 +233,7 @@ export const useQuitarImagen = (slug: string, periodo: string) =>
     ["mes"],
   );
 
-/** Admins del barrio, con si les falta crear la contraseña. Solo para el super admin. */
+/** Admins del barrio, con su rol y si les falta crear la contraseña. Los ve cualquier admin del barrio. */
 export const useAdminsBarrio = (slug: string) =>
   useQuery({
     queryKey: claves.admins(slug),
@@ -245,6 +245,22 @@ export const useReenviarInvitacion = (slug: string) =>
   useMutacionBarrio(
     slug,
     (userId: string) => datos(barrios[":slug"].admins[":userId"].invitacion.$post({ param: { slug, userId } })),
+    ["admins"],
+  );
+
+/** Invita al equipo (crea la cuenta si el correo no tiene) → `{ admin, cuentaNueva, correoEnviado, passwordTemporal }`. */
+export const useInvitarAdmin = (slug: string) =>
+  useMutacionBarrio(
+    slug,
+    (json: { email: string; nombre: string; cargo?: string }) => datos(barrios[":slug"].admins.$post({ param: { slug }, json })),
+    ["admins"],
+  );
+
+/** Quita a alguien del barrio → `{ cuentaBorrada }`. */
+export const useQuitarAdmin = (slug: string) =>
+  useMutacionBarrio(
+    slug,
+    (userId: string) => datos(barrios[":slug"].admins[":userId"].$delete({ param: { slug, userId } })),
     ["admins"],
   );
 

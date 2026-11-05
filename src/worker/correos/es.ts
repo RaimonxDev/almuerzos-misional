@@ -44,6 +44,8 @@ export interface DatosCorreo {
   eliminacionSolicitada: { nombre: string; email: string; barrio: string; motivo: string | null; enlace: string };
   /** A cada admin de un barrio borrado; `cuentaBorrada` si no le queda otro barrio. */
   barrioEliminado: { nombre: string; barrio: string; cuentaBorrada: boolean };
+  /** A quien la presidenta quitó del equipo; `cuentaBorrada` si no le queda otro barrio. */
+  accesoQuitado: { nombre: string; barrio: string; cuentaBorrada: boolean };
 }
 
 export type PlantillaCorreo = keyof DatosCorreo;
@@ -146,6 +148,17 @@ export const es: MensajesCorreo = {
       `Eliminamos ${barrio} de Almuerzo Misional, junto con sus calendarios, inscripciones e imágenes. Sus enlaces ya no funcionan.`,
       ...(cuentaBorrada ? ["Como no administrabas otro barrio, también borramos tu cuenta."] : []),
       "Gracias por el tiempo que lo usaron.",
+    ],
+    pie: "Recibes este correo porque administrabas este barrio en Almuerzo Misional. Es un proyecto personal, no oficial de la Iglesia.",
+  }),
+  accesoQuitado: ({ nombre, barrio, cuentaBorrada }) => ({
+    asunto: `Ya no administras ${barrio}`,
+    titulo: "Acceso quitado",
+    saludo: `Hola, ${nombre}:`,
+    parrafos: [
+      `Te quitaron el acceso a ${barrio} en Almuerzo Misional. Ya no aparece en tu panel.`,
+      ...(cuentaBorrada ? ["Como no administrabas otro barrio, también borramos tu cuenta."] : []),
+      "Si crees que fue un error, habla con la presidenta de la Sociedad de Socorro.",
     ],
     pie: "Recibes este correo porque administrabas este barrio en Almuerzo Misional. Es un proyecto personal, no oficial de la Iglesia.",
   }),

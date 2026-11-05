@@ -87,6 +87,23 @@ export async function avisarBarrioEliminado(
   }
 }
 
+/** A quien la presidenta quitó del equipo, en el idioma del barrio. Nunca lanza. */
+export async function avisarAccesoQuitado(
+  env: Env,
+  barrio: Pick<Barrio, "nombre" | "idioma">,
+  persona: { email: string; nombre: string },
+  cuentaBorrada: boolean,
+) {
+  try {
+    await enviarCorreo(env, {
+      para: persona.email,
+      ...armarCorreo(barrio.idioma, "accesoQuitado", { nombre: persona.nombre, barrio: barrio.nombre, cuentaBorrada }),
+    });
+  } catch (e) {
+    console.error("[correo] No se pudo avisar que se quitó el acceso:", e);
+  }
+}
+
 /** Aviso amable a quien pidió, con el motivo si se escribió. Nunca lanza. */
 export async function avisarSolicitudRechazada(env: Env, s: Pick<Solicitud, "nombre" | "email" | "barrio" | "idioma">, motivo: string | null) {
   try {
