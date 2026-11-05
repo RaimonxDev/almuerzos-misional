@@ -28,7 +28,7 @@ export const en: Mensajes = {
     ],
     datosPublico: "The ward's public page shows only your name.",
     datosTelefono:
-      "Only the missionaries and the president can see your phone number, and only if you check the consent box when you sign up.",
+      "Only the missionaries and the ward's Relief Society presidency (president, counselors and secretary) can see your phone number, and only if you check the consent box when you sign up. Those people change over time.",
     datosToken:
       "So that you can see, change, or cancel your slot, a code is stored on this phone. It is not an account or a password.",
     datosBorrar:
@@ -90,7 +90,7 @@ export const en: Mensajes = {
     notaPlaceholder: "E.g. 1:30 pm, 123 Maple St",
     paraTomarEnCuenta: "Please note:",
     consentimiento:
-      "I agree that the missionaries and the president can see my phone number to coordinate. Only my name appears on the public page.",
+      "I agree that the missionaries and the Relief Society presidency can see my phone number to coordinate. Only my name appears on the public page.",
     confirmar: "Confirm my day",
     guardando: "Saving…",
     errorNombre: "Enter your name (at least 2 letters).",
@@ -103,7 +103,7 @@ export const en: Mensajes = {
   miTurno: {
     aNombreDe: "Name",
     telefono: "Phone",
-    telefonoCompartido: "The missionaries and the president can see it.",
+    telefonoCompartido: "The missionaries and the Relief Society presidency can see it.",
     telefonoNoCompartido: "The missionaries can't see it.",
     sinTelefono: "No phone",
     modalidad: "Lunch",

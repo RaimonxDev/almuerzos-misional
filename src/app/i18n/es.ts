@@ -32,7 +32,7 @@ export const es = {
     ],
     datosPublico: "La página pública del barrio solo muestra tu nombre.",
     datosTelefono:
-      "Tu teléfono solo lo ven los misioneros y la presidenta, y solo si marcas la casilla de consentimiento al anotarte.",
+      "Tu teléfono solo lo ven los misioneros y la presidencia de la Sociedad de Socorro del barrio (presidenta, consejeras y secretaria), y solo si marcas la casilla de consentimiento al anotarte. Esas personas cambian con el tiempo.",
     datosToken:
       "Para que puedas ver, cambiar o cancelar tu turno, un código queda guardado en este teléfono. No es una cuenta ni una contraseña.",
     datosBorrar:
@@ -96,7 +96,7 @@ export const es = {
     notaPlaceholder: "Ej: 13:30, pasaje Los Aromos 123",
     paraTomarEnCuenta: "Para tomar en cuenta:",
     consentimiento:
-      "Acepto que los misioneros y la presidenta vean mi teléfono para coordinar. En la página pública solo aparece mi nombre.",
+      "Acepto que los misioneros y la presidencia de la Sociedad de Socorro vean mi teléfono para coordinar. En la página pública solo aparece mi nombre.",
     confirmar: "Confirmar mi día",
     guardando: "Guardando…",
     errorNombre: "Escribe tu nombre (al menos 2 letras).",
@@ -110,7 +110,7 @@ export const es = {
   miTurno: {
     aNombreDe: "A nombre de",
     telefono: "Teléfono",
-    telefonoCompartido: "Lo ven los misioneros y la presidenta.",
+    telefonoCompartido: "Lo ven los misioneros y la presidencia de la Sociedad de Socorro.",
     telefonoNoCompartido: "No lo ven los misioneros.",
     sinTelefono: "Sin teléfono",
     modalidad: "Almuerzo",

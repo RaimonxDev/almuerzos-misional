@@ -31,6 +31,15 @@ describe("/informacion", () => {
     expect(document.getElementById("tus-datos")).not.toBeNull();
   });
 
+  it("dice quién ve el teléfono: la presidencia de la Sociedad de Socorro, y que cambia con el tiempo", async () => {
+    renderizarApp("/informacion");
+    await screen.findByRole("heading", { name: /no es una herramienta oficial/i });
+    const datos = within(document.getElementById("tus-datos")!);
+    expect(datos.getByText(/misioneros y la presidencia de la Sociedad de Socorro del barrio/)).toBeInTheDocument();
+    expect(datos.getByText(/presidenta, consejeras y secretaria/)).toBeInTheDocument();
+    expect(datos.getByText(/cambian con el tiempo/)).toBeInTheDocument();
+  });
+
   it("los enlaces a la Iglesia usan lang=spa y cambian a por/eng; todos son externos y seguros", async () => {
     const user = userEvent.setup();
     renderizarApp("/informacion");
