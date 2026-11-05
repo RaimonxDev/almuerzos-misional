@@ -28,7 +28,7 @@ export const pt: Mensajes = {
     ],
     datosPublico: "A página pública da ala mostra somente o seu nome.",
     datosTelefono:
-      "Seu telefone só é visto pelos missionários e pela presidente, e somente se você marcar a caixa de consentimento ao se inscrever.",
+      "Seu telefone só é visto pelos missionários e pela Presidência da Sociedade de Socorro da ala (presidente, conselheiras e secretária), e somente se você marcar a caixa de consentimento ao se inscrever. Essas pessoas mudam com o tempo.",
     datosToken:
       "Para que você possa ver, alterar ou cancelar o seu horário, um código fica guardado neste telefone. Não é uma conta nem uma senha.",
     datosBorrar:
@@ -91,7 +91,7 @@ export const pt: Mensajes = {
     notaPlaceholder: "Ex: 13h30, Rua das Flores 123",
     paraTomarEnCuenta: "Para levar em conta:",
     consentimiento:
-      "Aceito que os missionários e a presidente vejam meu telefone para combinar. Na página pública aparece apenas o meu nome.",
+      "Aceito que os missionários e a Presidência da Sociedade de Socorro vejam meu telefone para combinar. Na página pública aparece apenas o meu nome.",
     confirmar: "Confirmar meu dia",
     guardando: "Salvando…",
     errorNombre: "Escreva seu nome (pelo menos 2 letras).",
@@ -105,7 +105,7 @@ export const pt: Mensajes = {
   miTurno: {
     aNombreDe: "Em nome de",
     telefono: "Telefone",
-    telefonoCompartido: "Os missionários e a presidente podem vê-lo.",
+    telefonoCompartido: "Os missionários e a Presidência da Sociedade de Socorro podem vê-lo.",
     telefonoNoCompartido: "Os missionários não podem vê-lo.",
     sinTelefono: "Sem telefone",
     modalidad: "Almoço",

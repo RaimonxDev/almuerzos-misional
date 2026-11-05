@@ -21,7 +21,7 @@ Pocos usuarios. Prioridad: simple de mantener y gratis de hospedar.
 | `/:barrio` (ej. `/centro`) | Público (hermanas) | Turnos del mes abierto, **solo nombres** |
 | `/:barrio/anotarse/:turnoId` | Público | Formulario de inscripción |
 | `/:barrio/mi-turno/:inscripcionId` | Quien se anotó, desde el mismo teléfono | Ver, editar o cancelar lo suyo (token desde `localStorage`) |
-| `/:barrio/m` | Misioneros y presidenta, con el código de acceso | Calendario con **teléfonos** (solo si hubo consentimiento) y botón a WhatsApp. `/:barrio/m/:token` (enlaces de antes del código) redirige aquí |
+| `/:barrio/m` | Misioneros y presidencia de la Sociedad de Socorro, con el código de acceso | Calendario con **teléfonos** (solo si hubo consentimiento) y botón a WhatsApp. `/:barrio/m/:token` (enlaces de antes del código) redirige aquí |
 | `/admin` → `/admin/:barrio?mes=2026-11` | Admins con login | Panel del barrio (`/admin` lleva al primero que administran) |
 | `/admin/nuevo-barrio` | Super admin | Crear un barrio (nombre, enlace, idioma, zona, qué compañerismos tiene y su presidenta) |
 | `/admin/:barrio/:periodo/imprimir` (`periodo` = `2026-11`) | Admins | Vista imprimible del calendario |
@@ -40,7 +40,7 @@ Pocos usuarios. Prioridad: simple de mantener y gratis de hospedar.
 - "Tomado" no se guarda: un turno está tomado si tiene inscripción. Cancelar = borrar la inscripción.
 - `inscripciones.turno_id` es UNIQUE → si dos personas toman el mismo turno a la vez, la segunda inserción falla; la API responde 409 con `{ error: "TURNO_TOMADO" }` y el frontend muestra un mensaje amable ("alguien se te adelantó").
 - Al anotarse se genera un token de edición: el cliente lo guarda en `localStorage`, la BD guarda solo su SHA-256. Con ese token la persona puede editar o cancelar lo suyo.
-- Al anotarse hay una casilla de consentimiento para que misioneros y presidenta vean el teléfono. Sin consentimiento, el teléfono no se expone en ningún endpoint.
+- Al anotarse hay una casilla de consentimiento para que los misioneros y la presidencia de la Sociedad de Socorro (presidenta, consejeras y secretaria) vean el teléfono; el texto no nombra a una sola persona porque quienes ven el teléfono cambian con el tiempo, y los consentimientos ya dados no se tocan. Sin consentimiento, el teléfono no se expone en ningún endpoint.
 - La vista pública nunca devuelve teléfono, dirección ni nota: filtrar en la API, no en el frontend.
 - Mes con estados `borrador` → `abierto` → `cerrado`. El público solo puede anotarse en meses abiertos.
 - Un admin puede bloquear turnos (con motivo, ej. "Conferencia de estaca") y anotar a alguien manualmente (`origen = 'admin'`).

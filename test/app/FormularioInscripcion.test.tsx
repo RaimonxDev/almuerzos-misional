@@ -10,7 +10,12 @@ import { Proveedores } from "./utilidades";
 /** Botón de prueba para cambiar el idioma sin abrir el Select del encabezado. */
 function APortugues() {
   const { cambiarIdioma } = useIdioma();
-  return <button onClick={() => cambiarIdioma("pt")}>pt</button>;
+  return (
+    <>
+      <button onClick={() => cambiarIdioma("pt")}>pt</button>
+      <button onClick={() => cambiarIdioma("en")}>en</button>
+    </>
+  );
 }
 
 function renderizar(props: Partial<Parameters<typeof FormularioInscripcion>[0]> = {}) {
@@ -53,7 +58,7 @@ describe("FormularioInscripcion", () => {
 
   it("el consentimiento se encuentra por su texto y se marca con el teclado", async () => {
     const { user } = renderizar();
-    const consentimiento = screen.getByRole("checkbox", { name: /Acepto que los misioneros y la presidenta/ });
+    const consentimiento = screen.getByRole("checkbox", { name: /Acepto que los misioneros y la presidencia de la Sociedad de Socorro/ });
     expect(consentimiento).not.toBeChecked();
 
     consentimiento.focus();
@@ -91,6 +96,15 @@ describe("FormularioInscripcion", () => {
     expect(nombre).toHaveFocus();
     expect(screen.getByText("Escribe tu nombre (al menos 2 letras).")).toBeInTheDocument();
     expect(onEnviar).not.toHaveBeenCalled();
+  });
+
+  it("la casilla de consentimiento habla de la presidencia en cada idioma", async () => {
+    const { user } = renderizar();
+    expect(screen.getByRole("checkbox", { name: /misioneros y la presidencia de la Sociedad de Socorro vean mi teléfono/ })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "pt" }));
+    expect(screen.getByRole("checkbox", { name: /missionários e a Presidência da Sociedade de Socorro vejam meu telefone/ })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "en" }));
+    expect(screen.getByRole("checkbox", { name: /missionaries and the Relief Society presidency can see my phone number/ })).toBeInTheDocument();
   });
 
   it("consentimiento sin teléfono pide escribirlo", async () => {
